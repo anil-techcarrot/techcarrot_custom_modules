@@ -7,7 +7,7 @@ _logger = logging.getLogger(__name__)
 
 
 class PortalEmployeeController(http.Controller):
-    VALID_API_KEY = '44e556b9417e61c1952abfdfb264bf38fa4ee96f'
+    VALID_API_KEY = 'd7ce6e48fe7b6dd95283f5c36f6dd791aa83cf65'
 
     @http.route('/api/employees',
                 type='http',
