@@ -10,7 +10,7 @@ class HREmployee(models.Model):
     _inherit = 'hr.employee'
 
     azure_email = fields.Char("Azure Email", readonly=True)
-    azure_user_id = fields.Char("Azure User ID", readonly=True)  # ← FIX 1: ADD THIS
+   
 
     @api.model
     def create(self, vals):
