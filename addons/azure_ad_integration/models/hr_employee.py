@@ -10,6 +10,7 @@ class HREmployee(models.Model):
     _inherit = 'hr.employee'
 
     azure_email = fields.Char("Azure Email", readonly=True)
+    azure_user_id = fields.Char("Azure User ID", readonly=True)  # ← FIX 1: ADD THIS
 
     @api.model
     def create(self, vals):
@@ -19,18 +20,15 @@ class HREmployee(models.Model):
         if emp.name:
             emp._create_azure_email()
             
+            # This will now work because azure_user_id is saved
             if emp.department_id and emp.azure_user_id:
                 emp._add_to_dept_dl()
-            
 
         return emp
 
     def _create_azure_email(self):
         """Create unique email in Azure AD"""
 
-        # ============================================
-        # STEP 1: Get credentials from System Parameters
-        # ============================================
         IrConfig = self.env['ir.config_parameter'].sudo()
 
         tenant_id = IrConfig.get_param("azure_tenant_id")
@@ -43,10 +41,6 @@ class HREmployee(models.Model):
             return
 
         try:
-            # ============================================
-            # STEP 2: Generate email from name
-            # ============================================
-            # Example: "Lalith Kumar" → "lalith.kumar@techcarrot.ae"
             parts = self.name.strip().lower().split()
             first = parts[0]
             last = parts[-1] if len(parts) > 1 else first
@@ -55,9 +49,6 @@ class HREmployee(models.Model):
 
             _logger.info(f"🔄 Processing: {self.name} → {email}")
 
-            # ============================================
-            # STEP 3: Get Access Token from Azure
-            # ============================================
             token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
             token_data = {
                 "grant_type": "client_credentials",
@@ -79,9 +70,6 @@ class HREmployee(models.Model):
                 "Content-Type": "application/json"
             }
 
-            # ============================================
-            # STEP 4: Check if email exists, make unique
-            # ============================================
             count = 1
             unique_email = email
 
@@ -90,11 +78,9 @@ class HREmployee(models.Model):
                 check = requests.get(check_url, headers=headers, timeout=30)
 
                 if check.status_code == 404:
-                    # Email doesn't exist - we can use it!
                     _logger.info(f"✅ Email available: {unique_email}")
                     break
                 elif check.status_code == 200:
-                    # Email exists - try next number
                     count += 1
                     unique_email = f"{base}{count}@{domain}"
                     _logger.info(f"🔄 Email exists, trying: {unique_email}")
@@ -102,9 +88,6 @@ class HREmployee(models.Model):
                     _logger.error(f"❌ Error checking email: {check.status_code}")
                     return
 
-            # ============================================
-            # STEP 5: Create user in Azure AD
-            # ============================================
             payload = {
                 "accountEnabled": True,
                 "displayName": self.name,
@@ -125,14 +108,12 @@ class HREmployee(models.Model):
                 timeout=30
             )
 
-            # ============================================
-            # STEP 6: Save result
-            # ============================================
             if create_response.status_code == 201:
                 user_data = create_response.json()
                 self.azure_email = unique_email
                 self.work_email = unique_email
-                _logger.info(f"✅ SUCCESS! Created: {unique_email}")
+                self.azure_user_id = user_data.get("id")  # ← FIX 2: ADD THIS LINE
+                _logger.info(f"✅ SUCCESS! Created: {unique_email} with ID: {self.azure_user_id}")
             else:
                 error = create_response.json().get('error', {}).get('message', 'Unknown error')
                 _logger.error(f"❌ Failed to create user: {error}")
@@ -143,23 +124,23 @@ class HREmployee(models.Model):
     def _add_to_dept_dl(self):
         """Add employee to department DL"""
         if not self.department_id or not self.azure_user_id:
+            _logger.warning(f"Skipping DL: dept={self.department_id}, user_id={self.azure_user_id}")
             return
         
         dept = self.department_id
         
         # Create DL if doesn't exist (only first time)
         if not dept.azure_dl_id:
+            _logger.info(f"Department {dept.name} has no DL, creating...")
             dept.create_dl()
         
         if dept.azure_dl_id:
             try:
-                # Get credentials
                 params = self.env['ir.config_parameter'].sudo()
                 tenant = params.get_param("azure_tenant_id")
                 client = params.get_param("azure_client_id")
                 secret = params.get_param("azure_client_secret")
                 
-                # Get token
                 token_resp = requests.post(
                     f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
                     data={
@@ -173,7 +154,6 @@ class HREmployee(models.Model):
                 token = token_resp.get("access_token")
                 headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
                 
-                # Add to existing DL
                 add_response = requests.post(
                     f"https://graph.microsoft.com/v1.0/groups/{dept.azure_dl_id}/members/$ref",
                     headers=headers,
@@ -185,8 +165,7 @@ class HREmployee(models.Model):
                 elif add_response.status_code == 400:
                     _logger.info(f"ℹ️ {self.name} already in {dept.azure_dl_email}")
                 else:
-                    _logger.error(f"❌ Failed to add to DL: {add_response.status_code}")
+                    _logger.error(f"❌ Failed to add to DL: {add_response.status_code} - {add_response.text}")
                     
             except Exception as e:
                 _logger.error(f"❌ Failed to add to DL: {e}")
-
