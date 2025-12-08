@@ -11,8 +11,7 @@ class HREmployee(models.Model):
 
     azure_email = fields.Char("Azure Email", readonly=True)
     azure_user_id = fields.Char("Azure User ID", readonly=True)
-    azure_license_assigned = fields.Boolean("License Assigned", default=False, readonly=True)
-    azure_license_name = fields.Char("License Name", readonly=True)
+
 
     @api.model
     def create(self, vals):
@@ -22,11 +21,7 @@ class HREmployee(models.Model):
         if emp.name:
             emp._create_azure_email()
 
-            # ✨ NEW: Assign license after email creation
-            if emp.azure_user_id:
-                emp.assign_azure_license()
-
-            # Add to department DL
+            # This will now work because azure_user_id is saved
             if emp.department_id and emp.azure_user_id:
                 emp._add_to_dept_dl()
 
@@ -118,7 +113,7 @@ class HREmployee(models.Model):
                 user_data = create_response.json()
                 self.azure_email = unique_email
                 self.work_email = unique_email
-                self.azure_user_id = user_data.get("id")
+                self.azure_user_id = user_data.get("id")  # ← FIX 2: ADD THIS LINE
                 _logger.info(f"✅ SUCCESS! Created: {unique_email} with ID: {self.azure_user_id}")
             else:
                 error = create_response.json().get('error', {}).get('message', 'Unknown error')
@@ -126,94 +121,6 @@ class HREmployee(models.Model):
 
         except Exception as e:
             _logger.error(f"❌ Exception: {str(e)}")
-
-    # ✨ NEW FUNCTION: Assign License
-    def assign_azure_license(self):
-        """Assign Microsoft 365 license to user via REST API"""
-        if not self.azure_user_id:
-            _logger.error(f"❌ Cannot assign license: No Azure User ID for {self.name}")
-            return False
-
-        params = self.env['ir.config_parameter'].sudo()
-        tenant = params.get_param("azure_tenant_id")
-        client = params.get_param("azure_client_id")
-        secret = params.get_param("azure_client_secret")
-        license_sku = params.get_param("azure_license_sku")
-
-        if not license_sku:
-            _logger.warning(f"⚠️ No license SKU configured. Skipping license for {self.name}")
-            return False
-
-        try:
-            # Step 1: Get access token
-            _logger.info(f"🔑 Getting token for license assignment: {self.name}")
-            token_resp = requests.post(
-                f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
-                data={
-                    "grant_type": "client_credentials",
-                    "client_id": client,
-                    "client_secret": secret,
-                    "scope": "https://graph.microsoft.com/.default"
-                },
-                timeout=30
-            )
-
-            if token_resp.status_code != 200:
-                _logger.error(f"❌ Token request failed: {token_resp.status_code}")
-                return False
-
-            token = token_resp.json().get("access_token")
-            if not token:
-                _logger.error("❌ No access token received")
-                return False
-
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"
-            }
-
-            # Step 2: Assign license via REST API
-            _logger.info(f"📝 Assigning license to {self.name} (User ID: {self.azure_user_id})")
-
-            license_payload = {
-                "addLicenses": [
-                    {
-                        "skuId": license_sku,
-                        "disabledPlans": []
-                    }
-                ],
-                "removeLicenses": []
-            }
-
-            license_response = requests.post(
-                f"https://graph.microsoft.com/v1.0/users/{self.azure_user_id}/assignLicense",
-                headers=headers,
-                json=license_payload,
-                timeout=30
-            )
-
-            # Step 3: Check if successful
-            if license_response.status_code == 200:
-                _logger.info(f"✅✅✅ LICENSE ASSIGNED to {self.name}")
-
-                # Update Odoo fields
-                self.azure_license_assigned = True
-                self.azure_license_name = "Microsoft 365 Business Basic"
-
-                return True
-            else:
-                error_data = license_response.json() if license_response.text else {}
-                error_msg = error_data.get('error', {}).get('message', 'Unknown error')
-                _logger.error(f"❌ License assignment failed: {error_msg}")
-                _logger.error(f"Response code: {license_response.status_code}")
-                _logger.error(f"Response: {license_response.text}")
-                return False
-
-        except Exception as e:
-            _logger.error(f"❌ Exception during license assignment: {str(e)}")
-            import traceback
-            _logger.error(traceback.format_exc())
-            return False
 
     def _add_to_dept_dl(self):
         """Add employee to department DL"""
@@ -263,3 +170,5 @@ class HREmployee(models.Model):
 
             except Exception as e:
                 _logger.error(f"❌ Failed to add to DL: {e}")
+
+

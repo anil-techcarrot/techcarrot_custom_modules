@@ -4,7 +4,7 @@
     'depends': ['hr'],
     'data': [
         'views/hr_department_views.xml',
-        'views/hr_employee_views.xml',
+        # 'views/hr_employee_views.xml',
     ],
     'installable': True,
 }
