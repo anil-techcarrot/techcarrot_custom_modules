@@ -22,7 +22,7 @@
                     </group>
 
                     <!-- Add button to view in Azure Portal -->
-                    <group string="Quick Actions" attrs="{'invisible': [('azure_user_id', '=', False)]}">
+                    <group string="Quick Actions" invisible="azure_user_id == False">
                         <button name="action_view_azure_user"
                                 type="object"
                                 string="View in Azure Portal"
