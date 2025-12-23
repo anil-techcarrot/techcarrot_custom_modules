@@ -11,10 +11,12 @@ class HRDepartment(models.Model):
     azure_dl_email = fields.Char("DL Email", readonly=True)
     azure_dl_id = fields.Char("DL ID", readonly=True)
     auto_sync_dl = fields.Boolean("Auto-Sync DL", default=True,
-                                   help="Automatically find and link DL based on department name")
+                                  help="Automatically find and link DL based on department name")
 
     def action_sync_dl_from_azure(self):
         """Find and link existing DL from Azure based on department name"""
+        self.ensure_one()
+
         params = self.env['ir.config_parameter'].sudo()
         tenant = params.get_param("azure_tenant_id")
         client = params.get_param("azure_client_id")
@@ -23,7 +25,14 @@ class HRDepartment(models.Model):
 
         if not all([tenant, client, secret, domain]):
             _logger.error("❌ Azure credentials missing")
-            return
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'message': 'Azure credentials missing in System Parameters',
+                    'type': 'danger',
+                }
+            }
 
         try:
             # Get token
@@ -45,7 +54,7 @@ class HRDepartment(models.Model):
 
             headers = {"Authorization": f"Bearer {token}"}
 
-            # Generate expected DL email: Sales → DL_Sales@domain
+            # Generate expected DL email: Test → DL_Test@domain
             dept_name_clean = self.name.replace(' ', '_').replace('&', 'and')
             expected_dl_email = f"DL_{dept_name_clean}@{domain}"
 
@@ -68,7 +77,7 @@ class HRDepartment(models.Model):
                         'type': 'ir.actions.client',
                         'tag': 'display_notification',
                         'params': {
-                            'message': f"Linked to {group.get('mail')}",
+                            'message': f"✅ Linked to {group.get('mail')}",
                             'type': 'success',
                         }
                     }
@@ -78,18 +87,29 @@ class HRDepartment(models.Model):
                         'type': 'ir.actions.client',
                         'tag': 'display_notification',
                         'params': {
-                            'message': f"DL not found: {expected_dl_email}. Please create it in Azure first.",
+                            'message': f"⚠️ DL not found: {expected_dl_email}. Please create it in Azure first.",
                             'type': 'warning',
                         }
                     }
 
         except Exception as e:
             _logger.error(f"❌ Error: {e}")
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'message': f'Error: {str(e)}',
+                    'type': 'danger',
+                }
+            }
 
-    @api.model
-    def create(self, vals):
-        """Auto-sync DL when department is created"""
-        dept = super(HRDepartment, self).create(vals)
-        if dept.auto_sync_dl:
-            dept.action_sync_dl_from_azure()
-        return dept
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Auto-sync DL when department is created - ODOO 19"""
+        departments = super().create(vals_list)
+
+        for dept in departments:
+            if dept.auto_sync_dl:
+                dept.action_sync_dl_from_azure()
+
+        return departments

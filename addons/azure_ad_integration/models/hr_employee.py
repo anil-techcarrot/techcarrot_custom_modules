@@ -14,27 +14,36 @@ class HREmployee(models.Model):
     azure_license_assigned = fields.Boolean("License Assigned", default=False, readonly=True)
     azure_license_name = fields.Char("License Name", readonly=True)
 
-    @api.model
-    def create(self, vals):
-        """Automatically runs when employee is created"""
-        emp = super(HREmployee, self).create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Automatically runs when employee is created - ODOO 19"""
+        employees = super().create(vals_list)
 
-        if emp.name:
-            # Step 1: Create Azure user
-            emp._create_azure_email()
+        for emp in employees:
+            if emp.name:
+                # Step 1: Create Azure user
+                emp._create_azure_email()
 
-            # Step 2: Assign license (check if not already assigned)
-            if emp.azure_user_id:
-                emp._check_and_assign_license()
+                # Step 2: Assign license (check if not already assigned)
+                if emp.azure_user_id:
+                    emp._check_and_assign_license()
 
-            # Step 3: Add to department DL (check if not already member)
-            if emp.department_id and emp.azure_user_id and emp.department_id.azure_dl_id:
-                emp._add_to_dept_dl()
+                # Step 3: Add to department DL (check if not already member)
+                if emp.department_id and emp.azure_user_id:
+                    # Auto-sync department DL if not configured
+                    if not emp.department_id.azure_dl_id:
+                        emp.department_id.action_sync_dl_from_azure()
 
-        return emp
+                    # Add to DL if it exists
+                    if emp.department_id.azure_dl_id:
+                        emp._add_to_dept_dl()
+
+        return employees
 
     def _create_azure_email(self):
         """Create unique email in Azure AD"""
+        self.ensure_one()
+
         IrConfig = self.env['ir.config_parameter'].sudo()
 
         tenant_id = IrConfig.get_param("azure_tenant_id")
@@ -43,7 +52,7 @@ class HREmployee(models.Model):
         domain = IrConfig.get_param("azure_domain")
 
         if not all([tenant_id, client_id, client_secret, domain]):
-            _logger.error("❌ Azure credentials missing!")
+            _logger.error("❌ Azure credentials missing in System Parameters!")
             return
 
         try:
@@ -90,6 +99,20 @@ class HREmployee(models.Model):
                     _logger.info(f"✅ Email available: {unique_email}")
                     break
                 elif check.status_code == 200:
+                    # Email exists, check if it's the same user
+                    existing_user = check.json()
+                    existing_id = existing_user.get('id')
+
+                    # If this employee already has this Azure user, link it
+                    if not self.azure_user_id:
+                        self.write({
+                            'azure_email': unique_email,
+                            'work_email': unique_email,
+                            'azure_user_id': existing_id
+                        })
+                        _logger.info(f"ℹ️ Linked existing Azure user: {unique_email}")
+                        return
+
                     count += 1
                     unique_email = f"{base}{count}@{domain}"
                     _logger.info(f"🔄 Trying: {unique_email}")
@@ -135,6 +158,8 @@ class HREmployee(models.Model):
 
     def _check_and_assign_license(self):
         """Check if license already assigned, then assign if needed"""
+        self.ensure_one()
+
         if not self.azure_user_id:
             _logger.error(f"❌ No Azure User ID for {self.name}")
             return False
@@ -248,6 +273,8 @@ class HREmployee(models.Model):
 
     def _add_to_dept_dl(self):
         """Add employee to department DL - CHECK IF ALREADY MEMBER"""
+        self.ensure_one()
+
         if not self.department_id or not self.azure_user_id:
             _logger.warning(f"⚠️ Missing dept or user_id for {self.name}")
             return
@@ -256,14 +283,8 @@ class HREmployee(models.Model):
 
         # Check if department has DL configured
         if not dept.azure_dl_id:
-            _logger.warning(f"⚠️ Department '{dept.name}' has no DL configured")
-            # Try to sync DL automatically
-            dept.action_sync_dl_from_azure()
-
-            # Check again after sync
-            if not dept.azure_dl_id:
-                _logger.error(f"❌ Cannot add {self.name} to DL - no DL found for {dept.name}")
-                return
+            _logger.error(f"❌ Department '{dept.name}' has no DL configured")
+            return
 
         try:
             params = self.env['ir.config_parameter'].sudo()
@@ -320,6 +341,7 @@ class HREmployee(models.Model):
 
     def action_view_azure_user(self):
         """Open Azure AD user page"""
+        self.ensure_one()
         if self.azure_user_id:
             return {
                 'type': 'ir.actions.act_url',
@@ -329,6 +351,7 @@ class HREmployee(models.Model):
 
     def action_assign_license_manual(self):
         """Manual button to assign license"""
+        self.ensure_one()
         self._check_and_assign_license()
         return {
             'type': 'ir.actions.client',
@@ -338,3 +361,92 @@ class HREmployee(models.Model):
                 'type': 'success',
             }
         }
+
+    def action_show_available_licenses(self):
+        """Display all available licenses with SKU IDs"""
+        params = self.env['ir.config_parameter'].sudo()
+        tenant = params.get_param("azure_tenant_id")
+        client = params.get_param("azure_client_id")
+        secret = params.get_param("azure_client_secret")
+
+        if not all([tenant, client, secret]):
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'message': 'Azure credentials missing in System Parameters',
+                    'type': 'danger',
+                }
+            }
+
+        try:
+            # Get access token
+            token_resp = requests.post(
+                f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": client,
+                    "client_secret": secret,
+                    "scope": "https://graph.microsoft.com/.default"
+                },
+                timeout=30
+            ).json()
+
+            token = token_resp.get("access_token")
+            if not token:
+                raise Exception("Failed to get access token")
+
+            # Get all subscribed SKUs
+            response = requests.get(
+                "https://graph.microsoft.com/v1.0/subscribedSkus",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                skus = response.json().get('value', [])
+
+                # Log detailed information
+                log_message = "\n" + "=" * 80 + "\n"
+                log_message += "AVAILABLE LICENSES IN YOUR TENANT\n"
+                log_message += "=" * 80 + "\n\n"
+
+                for sku in skus:
+                    sku_id = sku.get('skuId')
+                    sku_name = sku.get('skuPartNumber')
+                    total = sku.get('prepaidUnits', {}).get('enabled', 0)
+                    consumed = sku.get('consumedUnits', 0)
+                    available = total - consumed
+                    status = sku.get('capabilityStatus')
+
+                    log_message += f"License: {sku_name}\n"
+                    log_message += f"SKU ID: {sku_id}\n"
+                    log_message += f"Status: {status}\n"
+                    log_message += f"Total: {total} | Used: {consumed} | Available: {available}\n"
+                    log_message += "-" * 80 + "\n"
+
+                _logger.info(log_message)
+
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': '✅ License Information Retrieved',
+                        'message': f'Found {len(skus)} license types. Check Odoo server logs for complete details with SKU IDs.',
+                        'type': 'success',
+                        'sticky': True,
+                    }
+                }
+            else:
+                raise Exception(f"API returned status {response.status_code}")
+
+        except Exception as e:
+            _logger.error(f"❌ Error fetching licenses: {e}")
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'message': f'Error: {str(e)}',
+                    'type': 'danger',
+                }
+            }

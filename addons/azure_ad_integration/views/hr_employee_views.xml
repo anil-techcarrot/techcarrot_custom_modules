@@ -18,7 +18,7 @@
                         <group string="License Info">
                             <field name="azure_license_assigned" readonly="1" widget="boolean"/>
                             <field name="azure_license_name" readonly="1"
-                                   attrs="{'invisible': [('azure_license_assigned', '=', False)]}"/>
+                                   invisible="azure_license_assigned == False"/>
                         </group>
                     </group>
 
@@ -28,12 +28,17 @@
                                 string="View in Azure Portal"
                                 class="btn-primary"
                                 icon="fa-external-link"
-                                attrs="{'invisible': [('azure_user_id', '=', False)]}"/>
+                                invisible="azure_user_id == False"/>
                         <button name="action_assign_license_manual"
                                 type="object"
                                 string="Assign License"
                                 class="btn-secondary"
-                                attrs="{'invisible': ['|', ('azure_user_id', '=', False), ('azure_license_assigned', '=', True)]}"/>
+                                invisible="azure_user_id == False or azure_license_assigned == True"/>
+                        <button name="action_show_available_licenses"
+                                type="object"
+                                string="Show Available Licenses"
+                                class="btn-info"
+                                icon="fa-info-circle"/>
                     </group>
                 </page>
             </xpath>
