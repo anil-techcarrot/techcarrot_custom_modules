@@ -11,21 +11,15 @@
             <xpath expr="//notebook" position="inside">
                 <page string="Azure AD Info" name="azure_ad_info">
 
-                    <!-- IMPORTANT: Load all fields first in a hidden group -->
-                    <group invisible="1">
-                        <field name="azure_license_assigned"/>
-                        <field name="azure_user_id"/>
-                    </group>
-
                     <group>
                         <group string="Azure Account Details">
                             <field name="azure_email" readonly="1"/>
-                            <field name="azure_user_id" readonly="1" force_save="1"/>
+                            <field name="azure_user_id" readonly="1"/>
                         </group>
                         <group string="License Information">
-                            <field name="azure_license_assigned" readonly="1" force_save="1"/>
+                            <field name="azure_license_assigned" readonly="1"/>
                             <field name="azure_license_name" readonly="1"
-                                   invisible="not azure_license_assigned"/>
+                                   attrs="{'invisible': [('azure_license_assigned', '=', False)]}"/>
                         </group>
                     </group>
 
@@ -37,7 +31,7 @@
                                 class="btn-warning"
                                 icon="fa-minus-circle"
                                 confirm="Are you sure you want to remove the license from this employee?"
-                                invisible="not azure_license_assigned"/>
+                                attrs="{'invisible': [('azure_license_assigned', '=', False)]}"/>
                     </group>
 
                     <!-- Quick Actions -->
@@ -47,7 +41,7 @@
                                 string="View in Azure Portal"
                                 class="btn-primary"
                                 icon="fa-external-link"
-                                invisible="not azure_user_id"/>
+                                attrs="{'invisible': [('azure_user_id', '=', False)]}"/>
                     </group>
                 </page>
             </xpath>
