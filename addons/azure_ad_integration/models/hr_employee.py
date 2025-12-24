@@ -12,7 +12,7 @@ class HREmployee(models.Model):
 
     azure_email = fields.Char("Azure Email", readonly=True)
     azure_user_id = fields.Char("Azure User ID", readonly=True)
-    azure_license_assigned = fields.Boolean("License Assigned", default=False, readonly=True)
+    azure_license_assigned = fields.Boolean("License Assigned", default=False)
     azure_license_name = fields.Char("License Name", readonly=True)
 
     @api.model_create_multi

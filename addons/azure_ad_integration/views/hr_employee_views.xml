@@ -23,26 +23,26 @@
                         </group>
                     </group>
 
-                    <!-- License Management -->
-                    <group string="License Management">
+                    <!-- License Management Buttons -->
+                    <div class="oe_button_box" name="license_button_box">
                         <button name="action_unassign_license"
                                 type="object"
                                 string="Unassign License"
-                                class="btn-warning"
+                                class="oe_stat_button"
                                 icon="fa-minus-circle"
                                 confirm="Are you sure you want to remove the license from this employee?"
                                 attrs="{'invisible': [('azure_license_assigned', '=', False)]}"/>
-                    </group>
+                    </div>
 
                     <!-- Quick Actions -->
-                    <group string="Quick Actions">
+                    <div class="oe_button_box" name="quick_actions_box">
                         <button name="action_view_azure_user"
                                 type="object"
                                 string="View in Azure Portal"
-                                class="btn-primary"
+                                class="oe_stat_button"
                                 icon="fa-external-link"
                                 attrs="{'invisible': [('azure_user_id', '=', False)]}"/>
-                    </group>
+                    </div>
                 </page>
             </xpath>
 
