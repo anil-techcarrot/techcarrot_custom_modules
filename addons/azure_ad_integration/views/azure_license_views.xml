@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- License Dashboard Tree View -->
+    <!-- License Dashboard List View (Changed from 'tree' to 'list' for Odoo 18/19) -->
     <record id="view_azure_license_tree" model="ir.ui.view">
         <field name="name">azure.license.config.tree</field>
         <field name="model">azure.license.config</field>
         <field name="arch" type="xml">
-            <tree string="Azure Licenses" create="false" edit="false" delete="false">
+            <list string="Azure Licenses" create="false" edit="false" delete="false">
                 <header>
                     <button name="action_sync_licenses_from_azure"
                             type="object"
@@ -15,9 +15,11 @@
                 <field name="license_name"/>
                 <field name="total_licenses"/>
                 <field name="assigned_licenses"/>
-                <field name="available_licenses" decoration-danger="available_licenses &lt; 5" decoration-success="available_licenses &gt;= 10"/>
+                <field name="available_licenses"
+                       decoration-danger="available_licenses &lt; 5"
+                       decoration-success="available_licenses &gt;= 10"/>
                 <field name="last_sync"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -51,7 +53,7 @@
     <record id="action_azure_license_dashboard" model="ir.actions.act_window">
         <field name="name">Azure Licenses</field>
         <field name="res_model">azure.license.config</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No license information available
