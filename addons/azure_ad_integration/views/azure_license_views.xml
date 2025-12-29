@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- License Dashboard List View (Changed from 'tree' to 'list' for Odoo 18/19) -->
+    <!-- License Dashboard List View -->
     <record id="view_azure_license_tree" model="ir.ui.view">
         <field name="name">azure.license.config.tree</field>
         <field name="model">azure.license.config</field>
@@ -64,10 +64,10 @@
         </field>
     </record>
 
-    <!-- Add Menu Item -->
+    <!-- Add Menu Item under Employees -->
     <menuitem id="menu_azure_licenses"
               name="Azure Licenses"
-              parent="hr.menu_hr_configuration"
+              parent="hr.menu_hr_root"
               action="action_azure_license_dashboard"
               sequence="100"/>
 </odoo>
