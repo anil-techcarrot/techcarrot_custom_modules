@@ -6,11 +6,14 @@
         <field name="model">azure.license.config</field>
         <field name="arch" type="xml">
             <list string="Azure Licenses" create="false" edit="false" delete="false">
-                <button name="action_sync_licenses_from_azure"
-                        type="object"
-                        string="Sync from Azure"
-                        class="oe_highlight"
-                        icon="fa-refresh"/>
+                <header>
+                    <button name="action_sync_licenses_from_azure"
+                            type="object"
+                            string="Sync from Azure"
+                            class="oe_highlight"
+                            icon="fa-refresh"/>
+                </header>
+
                 <field name="license_name" string="License Type"/>
                 <field name="license_sku" string="SKU ID"/>
                 <field name="total_licenses" string="Total"/>
@@ -67,7 +70,7 @@
         <field name="context">{}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                 No license information available yet
+                No license information available yet
             </p>
             <p>
                 Click the <strong>"Sync from Azure"</strong> button to fetch license information from Microsoft Azure.
