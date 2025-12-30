@@ -47,10 +47,7 @@
                             <field name="license_sku" readonly="1"/>
                             <field name="total_licenses" readonly="1"/>
                             <field name="assigned_licenses" readonly="1"/>
-                            <field name="available_licenses" readonly="1"
-                                   decoration-danger="available_licenses &lt; 5"
-                                   decoration-warning="available_licenses &lt; 10 and available_licenses &gt;= 5"
-                                   decoration-success="available_licenses &gt;= 10"/>
+                            <field name="available_licenses" readonly="1"/>
                         </group>
                         <group string="Sync Information">
                             <field name="last_sync" readonly="1"/>
@@ -76,11 +73,16 @@
         </field>
     </record>
 
-    <!-- Menu under HR Configuration -->
+    <!-- TOP LEVEL MENU - This will work in ANY Odoo version -->
+    <menuitem id="menu_azure_root"
+              name="Azure AD"
+              sequence="100"/>
+
+    <!-- SUBMENU for Licenses -->
     <menuitem id="menu_azure_licenses"
-              name="Azure Licenses"
-              parent="hr.menu_hr_configuration"
+              name="Licenses"
+              parent="menu_azure_root"
               action="action_azure_license_dashboard"
               groups="base.group_user"
-              sequence="100"/>
+              sequence="10"/>
 </odoo>
