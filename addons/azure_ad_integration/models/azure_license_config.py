@@ -23,8 +23,9 @@ class AzureLicenseConfig(models.Model):
         for record in self:
             record.available_licenses = record.total_licenses - record.assigned_licenses
 
+    @api.model  # ← THIS IS THE CRITICAL ADDITION!
     def action_sync_licenses_from_azure(self):
-        """Fetch license info from Azure - callable from any record"""
+        """Fetch license info from Azure - callable without records"""
         params = self.env['ir.config_parameter'].sudo()
         tenant = params.get_param("azure_tenant_id")
         client = params.get_param("azure_client_id")
@@ -58,7 +59,7 @@ class AzureLicenseConfig(models.Model):
             )
 
             if token_resp.status_code != 200:
-                _logger.error(f" Token request failed: {token_resp.status_code}")
+                _logger.error(f"Token request failed: {token_resp.status_code}")
                 return {
                     'type': 'ir.actions.client',
                     'tag': 'display_notification',
@@ -70,7 +71,7 @@ class AzureLicenseConfig(models.Model):
 
             token = token_resp.json().get("access_token")
             if not token:
-                _logger.error("No token in response")
+                _logger.error(" No token in response")
                 return {
                     'type': 'ir.actions.client',
                     'tag': 'display_notification',
@@ -83,7 +84,7 @@ class AzureLicenseConfig(models.Model):
             headers = {"Authorization": f"Bearer {token}"}
 
             # Get all subscribed SKUs
-            _logger.info("📡 Fetching licenses from Azure...")
+            _logger.info(" Fetching licenses from Azure...")
             response = requests.get(
                 "https://graph.microsoft.com/v1.0/subscribedSkus",
                 headers=headers,
@@ -105,8 +106,8 @@ class AzureLicenseConfig(models.Model):
                         }
                     }
 
-                # Clear old records
-                old_records = self.search([])
+                # Clear old records using env (better practice)
+                old_records = self.env['azure.license.config'].search([])
                 _logger.info(f" Deleting {len(old_records)} old records...")
                 old_records.unlink()
 
@@ -118,9 +119,9 @@ class AzureLicenseConfig(models.Model):
                     total = sku.get('prepaidUnits', {}).get('enabled', 0)
                     consumed = sku.get('consumedUnits', 0)
 
-                    _logger.info(f"   {license_name}: {consumed}/{total} assigned (SKU: {sku_id})")
+                    _logger.info(f"    {license_name}: {consumed}/{total} assigned (SKU: {sku_id})")
 
-                    self.create({
+                    self.env['azure.license.config'].create({
                         'license_name': license_name,
                         'license_sku': sku_id,
                         'total_licenses': total,
@@ -136,7 +137,7 @@ class AzureLicenseConfig(models.Model):
                     'type': 'ir.actions.client',
                     'tag': 'display_notification',
                     'params': {
-                        'message': f'Successfully synced {created_count} license types from Azure',
+                        'message': f' Successfully synced {created_count} license types from Azure',
                         'type': 'success',
                     }
                 }
@@ -152,7 +153,7 @@ class AzureLicenseConfig(models.Model):
                 }
 
         except Exception as e:
-            _logger.error(f" Exception: {e}")
+            _logger.error(f"Exception: {e}")
             import traceback
             _logger.error(traceback.format_exc())
 

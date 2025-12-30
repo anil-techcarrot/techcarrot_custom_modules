@@ -6,14 +6,6 @@
         <field name="model">azure.license.config</field>
         <field name="arch" type="xml">
             <list string="Azure Licenses" create="false" edit="false" delete="false">
-                <header>
-                    <button name="action_sync_licenses_from_azure"
-                            type="object"
-                            string="Sync from Azure"
-                            class="oe_highlight"
-                            icon="fa-refresh"/>
-                </header>
-
                 <field name="license_name" string="License Type"/>
                 <field name="license_sku" string="SKU ID"/>
                 <field name="total_licenses" string="Total"/>
@@ -33,13 +25,6 @@
         <field name="model">azure.license.config</field>
         <field name="arch" type="xml">
             <form string="Azure License" create="false" edit="false" delete="false">
-                <header>
-                    <button name="action_sync_licenses_from_azure"
-                            type="object"
-                            string="Sync from Azure"
-                            class="oe_highlight"
-                            icon="fa-refresh"/>
-                </header>
                 <sheet>
                     <div class="oe_title">
                         <h1>
@@ -70,14 +55,24 @@
         <field name="context">{}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                No license information available yet
+                 No license information available yet
             </p>
             <p>
-                Click the <strong>"Sync from Azure"</strong> button to fetch license information from Microsoft Azure.
+                Click <strong>"Azure AD → Sync from Azure"</strong> menu to fetch license information.
             </p>
             <p>
                 After syncing, you'll see all available Microsoft 365 licenses with their SKU IDs here.
             </p>
+        </field>
+    </record>
+
+    <!-- Server Action for Syncing -->
+    <record id="action_sync_azure_licenses_server" model="ir.actions.server">
+        <field name="name">Sync from Azure</field>
+        <field name="model_id" ref="model_azure_license_config"/>
+        <field name="state">code</field>
+        <field name="code">
+action = model.action_sync_licenses_from_azure()
         </field>
     </record>
 
@@ -87,7 +82,15 @@
               sequence="100"
               groups="hr.group_hr_user,hr.group_hr_manager"/>
 
-    <!-- SUBMENU -->
+    <!-- SYNC MENU (First item) -->
+    <menuitem id="menu_azure_sync"
+              name="Sync from Azure"
+              parent="menu_azure_root"
+              action="action_sync_azure_licenses_server"
+              sequence="1"
+              groups="hr.group_hr_user,hr.group_hr_manager"/>
+
+    <!-- LICENSE MANAGEMENT MENU (Second item) -->
     <menuitem id="menu_azure_licenses"
               name="License Management"
               parent="menu_azure_root"
