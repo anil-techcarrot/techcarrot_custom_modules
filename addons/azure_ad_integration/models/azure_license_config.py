@@ -43,7 +43,7 @@ class AzureLicenseConfig(models.Model):
 
         try:
             _logger.info("=" * 80)
-            _logger.info(" Starting Azure license sync...")
+            _logger.info("Starting Azure license sync...")
 
             # Get token
             token_resp = requests.post(
@@ -70,7 +70,7 @@ class AzureLicenseConfig(models.Model):
 
             token = token_resp.json().get("access_token")
             if not token:
-                _logger.error(" No token in response")
+                _logger.error("No token in response")
                 return {
                     'type': 'ir.actions.client',
                     'tag': 'display_notification',
@@ -118,7 +118,7 @@ class AzureLicenseConfig(models.Model):
                     total = sku.get('prepaidUnits', {}).get('enabled', 0)
                     consumed = sku.get('consumedUnits', 0)
 
-                    _logger.info(f"    {license_name}: {consumed}/{total} assigned (SKU: {sku_id})")
+                    _logger.info(f"   {license_name}: {consumed}/{total} assigned (SKU: {sku_id})")
 
                     self.create({
                         'license_name': license_name,
@@ -136,7 +136,7 @@ class AzureLicenseConfig(models.Model):
                     'type': 'ir.actions.client',
                     'tag': 'display_notification',
                     'params': {
-                        'message': f' Successfully synced {created_count} license types from Azure',
+                        'message': f'Successfully synced {created_count} license types from Azure',
                         'type': 'success',
                     }
                 }
