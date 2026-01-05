@@ -334,8 +334,8 @@ class PortalEmployeeSyncController(http.Controller):
         except Exception as e:
             _logger.error(f"Error fetching employees: {str(e)}")
             return self._json_response({
-                'error': str(e)',
-                               'status': 500
+                'error': str(e),
+                'status': 500
             }, 500)
 
     def _get_or_create_department(self, dept_name):
