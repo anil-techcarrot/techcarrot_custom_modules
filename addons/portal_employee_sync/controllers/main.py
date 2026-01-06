@@ -13,28 +13,6 @@ class PortalEmployeeSyncController(http.Controller):
         valid_key = "d7ce6e48fe7b6dd95283f5c36f6dd791aa83cf65"
         return api_key == valid_key
 
-    def _extract_sharepoint_value(self, field_data):
-        """Extract 'Value' from SharePoint JSON object if present"""
-        if not field_data:
-            return None
-
-        # If it's already a simple string/value, return it
-        if isinstance(field_data, str):
-            # Check if it's a JSON string containing "Value"
-            if field_data.startswith('{') and '"Value"' in field_data:
-                try:
-                    parsed = json.loads(field_data)
-                    return parsed.get('Value', field_data)
-                except:
-                    return field_data
-            return field_data
-
-        # If it's a dict, extract Value
-        if isinstance(field_data, dict):
-            return field_data.get('Value', field_data)
-
-        return field_data
-
     @http.route('/api/employees', type='http', auth='public', methods=['POST'], csrf=False, cors='*')
     def create_employee(self, **kwargs):
         """Create employee from external system with all SharePoint fields"""
@@ -74,33 +52,7 @@ class PortalEmployeeSyncController(http.Controller):
                     'status': 400
                 }, 400)
 
-            # ═══════════════════════════════════════════════════════════
-            # CHECK IF EMPLOYEE EXISTS - UPDATE INSTEAD OF CREATE
-            # ═══════════════════════════════════════════════════════════
-            _logger.info(f"🔍 Checking for existing employee: {data.get('name')}")
-
-            existing_employee = request.env['hr.employee'].sudo().search([
-                '|',
-                ('name', '=', data.get('name')),
-                ('work_email', '=', data.get('email'))
-            ], limit=1)
-
-            if existing_employee:
-                _logger.info(f"📝 Employee exists: {existing_employee.name} (ID: {existing_employee.id})")
-                _logger.info(f"🔄 UPDATING existing employee instead of creating duplicate")
-
-                # We'll update the existing employee
-                # Set a flag to indicate update mode
-                is_update = True
-                employee = existing_employee
-            else:
-                _logger.info(f"✨ New employee - will create")
-                is_update = False
-                employee = None
-
-            # ═══════════════════════════════════════════════════════════
-            # BUILD EMPLOYEE VALUES
-            # ═══════════════════════════════════════════════════════════
+            # BASE EMPLOYEE DATA
             employee_vals = {
                 'name': data.get('name'),
                 'work_email': data.get('email'),
@@ -122,11 +74,10 @@ class PortalEmployeeSyncController(http.Controller):
                 employee_vals['employee_last_name'] = data.get('employee_last_name')
                 _logger.info(f"✓ Last Name: {data.get('employee_last_name')}")
 
-            # GENDER - WITH SHAREPOINT JSON EXTRACTION
+            # GENDER - IMPROVED MAPPING
             if data.get('sex'):
-                gender_raw = self._extract_sharepoint_value(data.get('sex'))
-                gender_value = str(gender_raw).lower().strip() if gender_raw else ''
-                _logger.info(f"📝 Gender: raw='{data.get('sex')}' → extracted='{gender_value}'")
+                gender_value = str(data.get('sex')).lower().strip()
+                _logger.info(f"📝 Processing gender: '{gender_value}'")
 
                 gender_mapping = {
                     'male': 'male',
@@ -141,7 +92,7 @@ class PortalEmployeeSyncController(http.Controller):
                     employee_vals['gender'] = mapped_gender
                     _logger.info(f"✅ Gender set to: {mapped_gender}")
                 else:
-                    _logger.warning(f"⚠️ Invalid gender: '{gender_value}'")
+                    _logger.warning(f"⚠️ Invalid gender value: '{gender_value}'")
 
             # BIRTHDAY - MULTIPLE FORMAT SUPPORT
             if data.get('birthday'):
@@ -180,16 +131,14 @@ class PortalEmployeeSyncController(http.Controller):
                 employee_vals['place_of_birth'] = data.get('place_of_birth')
                 _logger.info(f"✓ Place of birth: {data.get('place_of_birth')}")
 
-            # MARITAL STATUS - WITH SHAREPOINT JSON EXTRACTION
+            # MARITAL STATUS - IMPROVED MAPPING
             if data.get('marital'):
-                marital_raw = self._extract_sharepoint_value(data.get('marital'))
-                marital_value = str(marital_raw).lower().strip() if marital_raw else ''
-                _logger.info(f"📝 Marital: raw='{data.get('marital')}' → extracted='{marital_value}'")
+                marital_value = str(data.get('marital')).lower().strip()
+                _logger.info(f"📝 Processing marital status: '{marital_value}'")
 
                 marital_mapping = {
                     'single': 'single',
                     'unmarried': 'single',
-                    'un married': 'single',
                     'married': 'married',
                     'cohabitant': 'cohabitant',
                     'living together': 'cohabitant',
@@ -210,57 +159,36 @@ class PortalEmployeeSyncController(http.Controller):
                 employee_vals['private_email'] = data.get('private_email')
                 _logger.info(f"✓ Private email: {data.get('private_email')}")
 
-            # NATIONALITY (COUNTRY) - WITH NATIONALITY MAPPING
+            # NATIONALITY (COUNTRY) - IMPROVED SEARCH
             if data.get('country_id'):
                 country_name = str(data.get('country_id')).strip()
                 _logger.info(f"📝 Processing country: '{country_name}'")
 
-                # Map nationality variations to country names
-                nationality_to_country = {
-                    'indian': 'India',
-                    'american': 'United States',
-                    'british': 'United Kingdom',
-                    'emirati': 'United Arab Emirates',
-                    'pakistani': 'Pakistan',
-                    'bangladeshi': 'Bangladesh',
-                    'sri lankan': 'Sri Lanka',
-                    'nepali': 'Nepal',
-                    'filipino': 'Philippines',
-                }
-
-                # Check if it's a nationality that needs mapping
-                mapped_country = nationality_to_country.get(country_name.lower())
-                if mapped_country:
-                    country_name = mapped_country
-                    _logger.info(f"📍 Mapped nationality to country: {country_name}")
-
-                # Try EXACT match first (important for "India" vs "British Indian Ocean Territory")
+                # Try multiple search methods
                 country = request.env['res.country'].sudo().search([
-                    ('name', '=', country_name)
+                    '|', '|',
+                    ('name', '=ilike', country_name),
+                    ('name', 'ilike', country_name),
+                    ('code', '=ilike', country_name)
                 ], limit=1)
-
-                # If not found, try case-insensitive search
-                if not country:
-                    country = request.env['res.country'].sudo().search([
-                        '|',
-                        ('name', 'ilike', country_name),
-                        ('code', '=ilike', country_name)
-                    ], limit=1)
 
                 if country:
                     employee_vals['country_id'] = country.id
                     _logger.info(f"✅ Country set to: {country.name} (ID: {country.id})")
                 else:
                     _logger.warning(f"⚠️ Country not found: '{country_name}'")
+                    # Log available countries for debugging
+                    all_countries = request.env['res.country'].sudo().search([], limit=10)
+                    _logger.info(f"📋 Sample countries: {', '.join(all_countries.mapped('name'))}")
 
-            # MOTHER TONGUE - WITH BETTER SEARCH
+            # MOTHER TONGUE - FIXED WITH BETTER SEARCH AND AUTO-CREATE
             if data.get('mother_tongue_id'):
                 lang_name = str(data.get('mother_tongue_id')).strip()
                 _logger.info(f"📝 Processing mother tongue: '{lang_name}'")
 
                 # Get all available languages first
                 available_langs = request.env['res.lang'].sudo().search([])
-                _logger.info(f"📋 Available languages: {', '.join(available_langs.mapped('name')[:10])}")
+                _logger.info(f"📋 Available languages in system: {', '.join(available_langs.mapped('name')[:10])}")
 
                 # Try multiple search patterns
                 lang = request.env['res.lang'].sudo().search([
@@ -276,15 +204,14 @@ class PortalEmployeeSyncController(http.Controller):
                     _logger.info(f"✅ Mother tongue set to: {lang.name} (ID: {lang.id})")
                 else:
                     _logger.warning(f"⚠️ Language '{lang_name}' not found in Odoo")
+                    _logger.warning(f"💡 Available languages: English, Arabic, French, Spanish, etc.")
                     _logger.warning(f"💡 Make sure '{lang_name}' is installed in Odoo (Settings → Languages)")
 
-            # LANGUAGES KNOWN - WITH SHAREPOINT JSON EXTRACTION
+            # LANGUAGES KNOWN - FIXED WITH BETTER SEARCH
             if data.get('language_known_ids'):
                 try:
-                    # Extract value from SharePoint JSON object
-                    lang_raw = self._extract_sharepoint_value(data.get('language_known_ids'))
-                    lang_string = str(lang_raw).strip() if lang_raw else ''
-                    _logger.info(f"📝 Languages: raw='{data.get('language_known_ids')}' → extracted='{lang_string}'")
+                    lang_string = str(data.get('language_known_ids')).strip()
+                    _logger.info(f"📝 Processing languages known: '{lang_string}'")
 
                     # Split by comma and clean
                     lang_names = [l.strip() for l in lang_string.split(',') if l.strip()]
@@ -318,32 +245,19 @@ class PortalEmployeeSyncController(http.Controller):
                 except Exception as e:
                     _logger.error(f"❌ Error processing languages: {e}")
 
-            # ═══════════════════════════════════════════════════════════
-            # CREATE OR UPDATE EMPLOYEE
-            # ═══════════════════════════════════════════════════════════
-            if is_update:
-                # UPDATE existing employee
-                _logger.info(f"🔄 Updating employee {employee.name} with new values")
-                employee.write(employee_vals)
-                _logger.info(f"✅ Employee UPDATED successfully: {employee.name} (ID: {employee.id})")
-                message = 'Employee updated successfully'
-                status = 'updated'
-            else:
-                # CREATE new employee
-                _logger.info(f"🚀 Creating new employee with values: {json.dumps(employee_vals, default=str, indent=2)}")
-                employee = request.env['hr.employee'].sudo().create(employee_vals)
-                _logger.info(f"✅ Employee CREATED successfully: {employee.name} (ID: {employee.id})")
-                message = 'Employee created successfully'
-                status = 'created'
+            # CREATE EMPLOYEE
+            _logger.info(f"🚀 Creating employee with values: {json.dumps(employee_vals, default=str, indent=2)}")
+            employee = request.env['hr.employee'].sudo().create(employee_vals)
 
+            _logger.info(f"✅ Employee created successfully: {employee.name} (ID: {employee.id})")
             _logger.info(f"========== REQUEST COMPLETE ==========\n")
 
             # RETURN DETAILED RESPONSE
             return self._json_response({
                 'success': True,
-                'status': status,  # 'created' or 'updated'
+                'status': 'success',
                 'employee_id': employee.id,
-                'message': message,
+                'message': 'Employee created successfully',
                 'data': {
                     'id': employee.id,
                     'name': employee.name,
