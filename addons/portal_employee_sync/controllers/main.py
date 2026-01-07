@@ -15,7 +15,7 @@ class PortalEmployeeSyncController(http.Controller):
 
     @http.route('/api/employees', type='http', auth='public', methods=['POST'], csrf=False, cors='*')
     def create_employee(self, **kwargs):
-        """Create employee from external system with all SharePoint fields"""
+        """Create OR UPDATE employee from external system with all SharePoint fields"""
         try:
             # Get API key from headers
             api_key = request.httprequest.headers.get('api-key') or \
@@ -52,14 +52,59 @@ class PortalEmployeeSyncController(http.Controller):
                     'status': 400
                 }, 400)
 
+            # ============================================
+            # 🔥 CRITICAL: CHECK IF EMPLOYEE EXISTS
+            # ============================================
+            existing_employee = None
+
+            # Method 1: Search by SharePoint Employee ID (MOST RELIABLE)
+            if data.get('employee_id'):
+                existing_employee = request.env['hr.employee'].sudo().search([
+                    ('sharepoint_employee_id', '=', str(data.get('employee_id')))
+                ], limit=1)
+                if existing_employee:
+                    _logger.info(f"✅ Found existing employee by SharePoint ID: {data.get('employee_id')}")
+
+            # Method 2: Search by Name (if no employee_id provided)
+            if not existing_employee and data.get('name'):
+                existing_employee = request.env['hr.employee'].sudo().search([
+                    ('name', '=', data.get('name'))
+                ], limit=1)
+                if existing_employee:
+                    _logger.info(f"✅ Found existing employee by Name: {data.get('name')}")
+
+            # Method 3: Search by first/middle/last name combination
+            if not existing_employee:
+                if data.get('employee_first_name') and data.get('employee_last_name'):
+                    existing_employee = request.env['hr.employee'].sudo().search([
+                        ('employee_first_name', '=', data.get('employee_first_name')),
+                        ('employee_last_name', '=', data.get('employee_last_name'))
+                    ], limit=1)
+                    if existing_employee:
+                        _logger.info(f"✅ Found existing employee by First+Last Name")
+
             # BASE EMPLOYEE DATA
             employee_vals = {
                 'name': data.get('name'),
-                'work_email': data.get('email'),
                 'mobile_phone': data.get('phone'),
                 'department_id': self._get_or_create_department(data.get('department')),
                 'job_id': self._get_or_create_job(data.get('job_title')),
             }
+
+            # Add SharePoint Employee ID to vals (for tracking)
+            if data.get('employee_id'):
+                employee_vals['sharepoint_employee_id'] = str(data.get('employee_id'))
+
+            # IMPORTANT: Only set work_email if employee doesn't exist yet
+            if not existing_employee:
+                employee_vals['work_email'] = data.get('email')
+                _logger.info(f"📧 Setting work_email for NEW employee: {data.get('email')}")
+            else:
+                _logger.info(
+                    f"📧 SKIPPING work_email update - employee exists with email: {existing_employee.work_email}")
+                # Don't change email if employee already has Azure account
+                if existing_employee.azure_user_id:
+                    _logger.warning(f"⚠️ Employee has Azure account - work_email is READ-ONLY")
 
             # SHAREPOINT NAME FIELDS
             if data.get('employee_first_name'):
@@ -164,7 +209,6 @@ class PortalEmployeeSyncController(http.Controller):
                 country_name = str(data.get('country_id')).strip()
                 _logger.info(f"📝 Processing country: '{country_name}'")
 
-                # Try multiple search methods
                 country = request.env['res.country'].sudo().search([
                     '|', '|',
                     ('name', '=ilike', country_name),
@@ -177,20 +221,12 @@ class PortalEmployeeSyncController(http.Controller):
                     _logger.info(f"✅ Country set to: {country.name} (ID: {country.id})")
                 else:
                     _logger.warning(f"⚠️ Country not found: '{country_name}'")
-                    # Log available countries for debugging
-                    all_countries = request.env['res.country'].sudo().search([], limit=10)
-                    _logger.info(f"📋 Sample countries: {', '.join(all_countries.mapped('name'))}")
 
-            # MOTHER TONGUE - FIXED WITH BETTER SEARCH AND AUTO-CREATE
+            # MOTHER TONGUE
             if data.get('mother_tongue_id'):
                 lang_name = str(data.get('mother_tongue_id')).strip()
                 _logger.info(f"📝 Processing mother tongue: '{lang_name}'")
 
-                # Get all available languages first
-                available_langs = request.env['res.lang'].sudo().search([])
-                _logger.info(f"📋 Available languages in system: {', '.join(available_langs.mapped('name')[:10])}")
-
-                # Try multiple search patterns
                 lang = request.env['res.lang'].sudo().search([
                     '|', '|', '|',
                     ('name', '=ilike', lang_name),
@@ -204,21 +240,17 @@ class PortalEmployeeSyncController(http.Controller):
                     _logger.info(f"✅ Mother tongue set to: {lang.name} (ID: {lang.id})")
                 else:
                     _logger.warning(f"⚠️ Language '{lang_name}' not found in Odoo")
-                    _logger.warning(f"💡 Available languages: English, Arabic, French, Spanish, etc.")
-                    _logger.warning(f"💡 Make sure '{lang_name}' is installed in Odoo (Settings → Languages)")
 
-            # LANGUAGES KNOWN - FIXED WITH BETTER SEARCH
+            # LANGUAGES KNOWN
             if data.get('language_known_ids'):
                 try:
                     lang_string = str(data.get('language_known_ids')).strip()
                     _logger.info(f"📝 Processing languages known: '{lang_string}'")
 
-                    # Split by comma and clean
                     lang_names = [l.strip() for l in lang_string.split(',') if l.strip()]
                     _logger.info(f"📋 Split into: {lang_names}")
 
                     if lang_names:
-                        # Search for each language
                         found_langs = request.env['res.lang'].sudo()
 
                         for lang_name in lang_names:
@@ -245,11 +277,26 @@ class PortalEmployeeSyncController(http.Controller):
                 except Exception as e:
                     _logger.error(f"❌ Error processing languages: {e}")
 
-            # CREATE EMPLOYEE
-            _logger.info(f"🚀 Creating employee with values: {json.dumps(employee_vals, default=str, indent=2)}")
-            employee = request.env['hr.employee'].sudo().create(employee_vals)
+            # ============================================
+            # 🔥 CREATE OR UPDATE EMPLOYEE
+            # ============================================
+            if existing_employee:
+                # UPDATE EXISTING EMPLOYEE
+                _logger.info(f"📝 UPDATING existing employee: {existing_employee.name} (ID: {existing_employee.id})")
+                _logger.info(f"   Current email: {existing_employee.work_email}")
+                _logger.info(f"   Azure User ID: {existing_employee.azure_user_id or 'None'}")
+                _logger.info(f"   Update values: {json.dumps(employee_vals, default=str, indent=2)}")
 
-            _logger.info(f"✅ Employee created successfully: {employee.name} (ID: {employee.id})")
+                existing_employee.write(employee_vals)
+                employee = existing_employee
+
+                _logger.info(f"✅ Employee UPDATED successfully: {employee.name} (ID: {employee.id})")
+            else:
+                # CREATE NEW EMPLOYEE
+                _logger.info(f"🆕 Creating NEW employee with values: {json.dumps(employee_vals, default=str, indent=2)}")
+                employee = request.env['hr.employee'].sudo().create(employee_vals)
+                _logger.info(f"✅ Employee CREATED successfully: {employee.name} (ID: {employee.id})")
+
             _logger.info(f"========== REQUEST COMPLETE ==========\n")
 
             # RETURN DETAILED RESPONSE
@@ -257,7 +304,8 @@ class PortalEmployeeSyncController(http.Controller):
                 'success': True,
                 'status': 'success',
                 'employee_id': employee.id,
-                'message': 'Employee created successfully',
+                'message': f'Employee {"updated" if existing_employee else "created"} successfully',
+                'action': 'update' if existing_employee else 'create',
                 'data': {
                     'id': employee.id,
                     'name': employee.name,
@@ -277,11 +325,12 @@ class PortalEmployeeSyncController(http.Controller):
                     'mother_tongue': employee.mother_tongue_id.name if employee.mother_tongue_id else '',
                     'languages_known': ', '.join(
                         employee.language_known_ids.mapped('name')) if employee.language_known_ids else '',
+                    'sharepoint_id': employee.sharepoint_employee_id or '',
                 }
             })
 
         except Exception as e:
-            _logger.error(f"❌ Error creating employee: {str(e)}", exc_info=True)
+            _logger.error(f"❌ Error creating/updating employee: {str(e)}", exc_info=True)
             return self._json_response({
                 'error': str(e),
                 'status': 500
@@ -322,6 +371,7 @@ class PortalEmployeeSyncController(http.Controller):
                     'mother_tongue': emp.mother_tongue_id.name if emp.mother_tongue_id else '',
                     'languages_known': ', '.join(
                         emp.language_known_ids.mapped('name')) if emp.language_known_ids else '',
+                    'sharepoint_id': emp.sharepoint_employee_id or '',
                 })
 
             return self._json_response({
