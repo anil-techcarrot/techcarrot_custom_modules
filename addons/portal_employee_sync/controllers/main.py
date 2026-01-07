@@ -38,21 +38,7 @@ class PortalEmployeeSyncController(http.Controller):
                 else:
                     data = request.httprequest.form.to_dict()
 
-                _logger.info(f"📥 RAW DATA RECEIVED:")
-                _logger.info(f"{json.dumps(data, indent=2)}")
-
-                # DEBUG: Log each field individually
-                _logger.info(f"\n🔍 FIELD-BY-FIELD ANALYSIS:")
-                _logger.info(f"  name: '{data.get('name')}' (type: {type(data.get('name'))})")
-                _logger.info(f"  sex/gender: '{data.get('sex')}' (type: {type(data.get('sex'))})")
-                _logger.info(f"  birthday: '{data.get('birthday')}' (type: {type(data.get('birthday'))})")
-                _logger.info(f"  marital: '{data.get('marital')}' (type: {type(data.get('marital'))})")
-                _logger.info(
-                    f"  mother_tongue_id: '{data.get('mother_tongue_id')}' (type: {type(data.get('mother_tongue_id'))})")
-                _logger.info(
-                    f"  language_known_ids: '{data.get('language_known_ids')}' (type: {type(data.get('language_known_ids'))})")
-                _logger.info(f"  country_id: '{data.get('country_id')}' (type: {type(data.get('country_id'))})")
-
+                _logger.info(f"📥 Received data: {json.dumps(data, indent=2)}")
             except Exception as e:
                 return self._json_response({
                     'error': f'Invalid JSON: {str(e)}',
@@ -67,10 +53,11 @@ class PortalEmployeeSyncController(http.Controller):
                 }, 400)
 
             # ============================================
-            # CHECK IF EMPLOYEE EXISTS
+            # 🔥 CRITICAL: CHECK IF EMPLOYEE EXISTS
             # ============================================
             existing_employee = None
 
+            # Method 1: Search by SharePoint Employee ID (MOST RELIABLE)
             if data.get('employee_id'):
                 existing_employee = request.env['hr.employee'].sudo().search([
                     ('sharepoint_employee_id', '=', str(data.get('employee_id')))
@@ -78,6 +65,7 @@ class PortalEmployeeSyncController(http.Controller):
                 if existing_employee:
                     _logger.info(f"✅ Found existing employee by SharePoint ID: {data.get('employee_id')}")
 
+            # Method 2: Search by Name (if no employee_id provided)
             if not existing_employee and data.get('name'):
                 existing_employee = request.env['hr.employee'].sudo().search([
                     ('name', '=', data.get('name'))
@@ -85,6 +73,7 @@ class PortalEmployeeSyncController(http.Controller):
                 if existing_employee:
                     _logger.info(f"✅ Found existing employee by Name: {data.get('name')}")
 
+            # Method 3: Search by first/middle/last name combination
             if not existing_employee:
                 if data.get('employee_first_name') and data.get('employee_last_name'):
                     existing_employee = request.env['hr.employee'].sudo().search([
@@ -102,16 +91,20 @@ class PortalEmployeeSyncController(http.Controller):
                 'job_id': self._get_or_create_job(data.get('job_title')),
             }
 
-            # Add SharePoint Employee ID
+            # Add SharePoint Employee ID to vals (for tracking)
             if data.get('employee_id'):
                 employee_vals['sharepoint_employee_id'] = str(data.get('employee_id'))
 
-            # Only set work_email if employee doesn't exist
+            # IMPORTANT: Only set work_email if employee doesn't exist yet
             if not existing_employee:
                 employee_vals['work_email'] = data.get('email')
                 _logger.info(f"📧 Setting work_email for NEW employee: {data.get('email')}")
             else:
-                _logger.info(f"📧 SKIPPING work_email - employee exists: {existing_employee.work_email}")
+                _logger.info(
+                    f"📧 SKIPPING work_email update - employee exists with email: {existing_employee.work_email}")
+                # Don't change email if employee already has Azure account
+                if existing_employee.azure_user_id:
+                    _logger.warning(f"⚠️ Employee has Azure account - work_email is READ-ONLY")
 
             # SHAREPOINT NAME FIELDS
             if data.get('employee_first_name'):
@@ -126,11 +119,10 @@ class PortalEmployeeSyncController(http.Controller):
                 employee_vals['employee_last_name'] = data.get('employee_last_name')
                 _logger.info(f"✓ Last Name: {data.get('employee_last_name')}")
 
-            # GENDER - ENHANCED LOGGING
+            # GENDER - IMPROVED MAPPING
             if data.get('sex'):
                 gender_value = str(data.get('sex')).lower().strip()
-                _logger.info(f"📝 RAW Gender value: '{data.get('sex')}'")
-                _logger.info(f"📝 Cleaned Gender value: '{gender_value}'")
+                _logger.info(f"📝 Processing gender: '{gender_value}'")
 
                 gender_mapping = {
                     'male': 'male',
@@ -143,20 +135,16 @@ class PortalEmployeeSyncController(http.Controller):
                 mapped_gender = gender_mapping.get(gender_value)
                 if mapped_gender:
                     employee_vals['gender'] = mapped_gender
-                    _logger.info(f"✅ Gender WILL BE SET to: {mapped_gender}")
+                    _logger.info(f"✅ Gender set to: {mapped_gender}")
                 else:
-                    _logger.error(f"❌ GENDER MAPPING FAILED for: '{gender_value}'")
-                    _logger.error(f"   Valid options: {list(gender_mapping.keys())}")
-            else:
-                _logger.warning(f"⚠️ No 'sex' field in data - Gender will NOT be set")
+                    _logger.warning(f"⚠️ Invalid gender value: '{gender_value}'")
 
-            # BIRTHDAY - ENHANCED LOGGING
+            # BIRTHDAY - MULTIPLE FORMAT SUPPORT
             if data.get('birthday'):
                 try:
                     from datetime import datetime
                     birthday_str = str(data.get('birthday')).strip()
-                    _logger.info(f"📝 RAW Birthday: '{data.get('birthday')}'")
-                    _logger.info(f"📝 Cleaned Birthday: '{birthday_str}'")
+                    _logger.info(f"📝 Processing birthday: '{birthday_str}'")
 
                     date_obj = None
                     date_formats = [
@@ -170,33 +158,28 @@ class PortalEmployeeSyncController(http.Controller):
                     for fmt in date_formats:
                         try:
                             date_obj = datetime.strptime(birthday_str, fmt)
-                            _logger.info(f"✅ Birthday parsed with format: {fmt}")
                             break
                         except:
                             continue
 
                     if date_obj:
                         employee_vals['birthday'] = date_obj.strftime('%Y-%m-%d')
-                        _logger.info(f"✅ Birthday WILL BE SET to: {employee_vals['birthday']}")
+                        _logger.info(f"✅ Birthday set to: {employee_vals['birthday']}")
                     else:
-                        _logger.error(f"❌ BIRTHDAY PARSING FAILED for: '{birthday_str}'")
-                        _logger.error(f"   Tried formats: {date_formats}")
+                        _logger.warning(f"⚠️ Could not parse birthday: '{birthday_str}'")
 
                 except Exception as e:
-                    _logger.error(f"❌ Birthday Exception: {e}")
-            else:
-                _logger.warning(f"⚠️ No 'birthday' field in data")
+                    _logger.error(f"❌ Error processing birthday: {e}")
 
             # PLACE OF BIRTH
             if data.get('place_of_birth'):
                 employee_vals['place_of_birth'] = data.get('place_of_birth')
                 _logger.info(f"✓ Place of birth: {data.get('place_of_birth')}")
 
-            # MARITAL STATUS - ENHANCED LOGGING
+            # MARITAL STATUS - IMPROVED MAPPING
             if data.get('marital'):
                 marital_value = str(data.get('marital')).lower().strip()
-                _logger.info(f"📝 RAW Marital: '{data.get('marital')}'")
-                _logger.info(f"📝 Cleaned Marital: '{marital_value}'")
+                _logger.info(f"📝 Processing marital status: '{marital_value}'")
 
                 marital_mapping = {
                     'single': 'single',
@@ -212,23 +195,19 @@ class PortalEmployeeSyncController(http.Controller):
                 mapped_marital = marital_mapping.get(marital_value)
                 if mapped_marital:
                     employee_vals['marital'] = mapped_marital
-                    _logger.info(f"✅ Marital WILL BE SET to: {mapped_marital}")
+                    _logger.info(f"✅ Marital status set to: {mapped_marital}")
                 else:
-                    _logger.error(f"❌ MARITAL MAPPING FAILED for: '{marital_value}'")
-                    _logger.error(f"   Valid options: {list(marital_mapping.keys())}")
-            else:
-                _logger.warning(f"⚠️ No 'marital' field in data")
+                    _logger.warning(f"⚠️ Invalid marital status: '{marital_value}'")
 
             # PRIVATE EMAIL
             if data.get('private_email'):
                 employee_vals['private_email'] = data.get('private_email')
                 _logger.info(f"✓ Private email: {data.get('private_email')}")
 
-            # NATIONALITY (COUNTRY) - ENHANCED LOGGING
+            # NATIONALITY (COUNTRY) - IMPROVED SEARCH
             if data.get('country_id'):
                 country_name = str(data.get('country_id')).strip()
-                _logger.info(f"📝 RAW Country: '{data.get('country_id')}'")
-                _logger.info(f"📝 Searching for country: '{country_name}'")
+                _logger.info(f"📝 Processing country: '{country_name}'")
 
                 country = request.env['res.country'].sudo().search([
                     '|', '|',
@@ -239,23 +218,14 @@ class PortalEmployeeSyncController(http.Controller):
 
                 if country:
                     employee_vals['country_id'] = country.id
-                    _logger.info(f"✅ Country WILL BE SET to: {country.name} (ID: {country.id})")
+                    _logger.info(f"✅ Country set to: {country.name} (ID: {country.id})")
                 else:
-                    _logger.error(f"❌ COUNTRY NOT FOUND: '{country_name}'")
-                    sample_countries = request.env['res.country'].sudo().search([], limit=10)
-                    _logger.error(f"   Sample countries in Odoo: {', '.join(sample_countries.mapped('name'))}")
-            else:
-                _logger.warning(f"⚠️ No 'country_id' field in data")
+                    _logger.warning(f"⚠️ Country not found: '{country_name}'")
 
-            # MOTHER TONGUE - ENHANCED LOGGING
+            # MOTHER TONGUE
             if data.get('mother_tongue_id'):
                 lang_name = str(data.get('mother_tongue_id')).strip()
-                _logger.info(f"📝 RAW Mother Tongue: '{data.get('mother_tongue_id')}'")
-                _logger.info(f"📝 Searching for language: '{lang_name}'")
-
-                # Show available languages
-                available_langs = request.env['res.lang'].sudo().search([])
-                _logger.info(f"📋 Available languages: {', '.join(available_langs.mapped('name'))}")
+                _logger.info(f"📝 Processing mother tongue: '{lang_name}'")
 
                 lang = request.env['res.lang'].sudo().search([
                     '|', '|', '|',
@@ -267,28 +237,23 @@ class PortalEmployeeSyncController(http.Controller):
 
                 if lang:
                     employee_vals['mother_tongue_id'] = lang.id
-                    _logger.info(f"✅ Mother Tongue WILL BE SET to: {lang.name} (ID: {lang.id})")
+                    _logger.info(f"✅ Mother tongue set to: {lang.name} (ID: {lang.id})")
                 else:
-                    _logger.error(f"❌ LANGUAGE NOT FOUND: '{lang_name}'")
-                    _logger.error(f"   Make sure it's installed in Odoo (Settings → Languages)")
-            else:
-                _logger.warning(f"⚠️ No 'mother_tongue_id' field in data")
+                    _logger.warning(f"⚠️ Language '{lang_name}' not found in Odoo")
 
-            # LANGUAGES KNOWN - ENHANCED LOGGING
+            # LANGUAGES KNOWN
             if data.get('language_known_ids'):
                 try:
                     lang_string = str(data.get('language_known_ids')).strip()
-                    _logger.info(f"📝 RAW Languages Known: '{data.get('language_known_ids')}'")
-                    _logger.info(f"📝 Processing languages: '{lang_string}'")
+                    _logger.info(f"📝 Processing languages known: '{lang_string}'")
 
                     lang_names = [l.strip() for l in lang_string.split(',') if l.strip()]
-                    _logger.info(f"📋 Split into {len(lang_names)} languages: {lang_names}")
+                    _logger.info(f"📋 Split into: {lang_names}")
 
                     if lang_names:
                         found_langs = request.env['res.lang'].sudo()
 
                         for lang_name in lang_names:
-                            _logger.info(f"  🔍 Searching for: '{lang_name}'")
                             lang = request.env['res.lang'].sudo().search([
                                 '|', '|', '|',
                                 ('name', '=ilike', lang_name),
@@ -299,48 +264,38 @@ class PortalEmployeeSyncController(http.Controller):
 
                             if lang:
                                 found_langs |= lang
-                                _logger.info(f"  ✅ Found: {lang.name}")
+                                _logger.info(f"  ✓ Found: {lang.name}")
                             else:
-                                _logger.error(f"  ❌ NOT FOUND: '{lang_name}'")
+                                _logger.warning(f"  ✗ Not found: {lang_name}")
 
                         if found_langs:
                             employee_vals['language_known_ids'] = [(6, 0, found_langs.ids)]
-                            _logger.info(f"✅ Languages WILL BE SET to: {', '.join(found_langs.mapped('name'))}")
+                            _logger.info(f"✅ Languages set: {', '.join(found_langs.mapped('name'))}")
                         else:
-                            _logger.error(f"❌ NO LANGUAGES FOUND from: {lang_names}")
-                    else:
-                        _logger.warning(f"⚠️ Languages string is empty after split")
+                            _logger.warning(f"⚠️ No languages found from: {lang_names}")
 
                 except Exception as e:
-                    _logger.error(f"❌ Languages Exception: {e}")
-            else:
-                _logger.warning(f"⚠️ No 'language_known_ids' field in data")
+                    _logger.error(f"❌ Error processing languages: {e}")
 
             # ============================================
-            # CREATE OR UPDATE EMPLOYEE
+            # 🔥 CREATE OR UPDATE EMPLOYEE
             # ============================================
-            _logger.info(f"\n📦 FINAL employee_vals BEFORE CREATE/UPDATE:")
-            _logger.info(f"{json.dumps(employee_vals, default=str, indent=2)}")
-
             if existing_employee:
+                # UPDATE EXISTING EMPLOYEE
                 _logger.info(f"📝 UPDATING existing employee: {existing_employee.name} (ID: {existing_employee.id})")
+                _logger.info(f"   Current email: {existing_employee.work_email}")
+                _logger.info(f"   Azure User ID: {existing_employee.azure_user_id or 'None'}")
+                _logger.info(f"   Update values: {json.dumps(employee_vals, default=str, indent=2)}")
+
                 existing_employee.write(employee_vals)
                 employee = existing_employee
-                _logger.info(f"✅ Employee UPDATED")
-            else:
-                _logger.info(f"🆕 CREATING new employee")
-                employee = request.env['hr.employee'].sudo().create(employee_vals)
-                _logger.info(f"✅ Employee CREATED (ID: {employee.id})")
 
-            # VERIFY WHAT WAS ACTUALLY SAVED
-            _logger.info(f"\n🔍 VERIFICATION - What was saved in database:")
-            _logger.info(f"  Gender: {employee.gender}")
-            _logger.info(f"  Birthday: {employee.birthday}")
-            _logger.info(f"  Marital: {employee.marital}")
-            _logger.info(f"  Mother Tongue: {employee.mother_tongue_id.name if employee.mother_tongue_id else 'None'}")
-            _logger.info(
-                f"  Languages: {', '.join(employee.language_known_ids.mapped('name')) if employee.language_known_ids else 'None'}")
-            _logger.info(f"  Country: {employee.country_id.name if employee.country_id else 'None'}")
+                _logger.info(f"✅ Employee UPDATED successfully: {employee.name} (ID: {employee.id})")
+            else:
+                # CREATE NEW EMPLOYEE
+                _logger.info(f"🆕 Creating NEW employee with values: {json.dumps(employee_vals, default=str, indent=2)}")
+                employee = request.env['hr.employee'].sudo().create(employee_vals)
+                _logger.info(f"✅ Employee CREATED successfully: {employee.name} (ID: {employee.id})")
 
             _logger.info(f"========== REQUEST COMPLETE ==========\n")
 
@@ -375,7 +330,7 @@ class PortalEmployeeSyncController(http.Controller):
             })
 
         except Exception as e:
-            _logger.error(f"❌ FATAL ERROR: {str(e)}", exc_info=True)
+            _logger.error(f"❌ Error creating/updating employee: {str(e)}", exc_info=True)
             return self._json_response({
                 'error': str(e),
                 'status': 500
@@ -385,6 +340,7 @@ class PortalEmployeeSyncController(http.Controller):
     def get_employees(self, **kwargs):
         """Get all employees"""
         try:
+            # Get API key from headers
             api_key = request.httprequest.headers.get('api-key') or \
                       request.httprequest.headers.get('API-Key') or \
                       request.httprequest.headers.get('Authorization', '').replace('Bearer ', '')
@@ -395,6 +351,7 @@ class PortalEmployeeSyncController(http.Controller):
                     'status': 401
                 }, 401)
 
+            # Get all employees
             employees = request.env['hr.employee'].sudo().search([])
 
             employee_list = []
