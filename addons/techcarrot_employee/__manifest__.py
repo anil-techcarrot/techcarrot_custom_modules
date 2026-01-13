@@ -10,7 +10,8 @@
     "author": "Ifensys",
     "website": "https://www.Ifensys.com",
     "depends": ['base', 'hr',
-                # 'hr_payroll','hr_attendance',
+                'hr_payroll',
+                'hr_attendance',
                 # 'hr_appraisal','contacts',
                 # 'l10n_ae_hr_payroll',
                 # 'hr_expense', 'web'
