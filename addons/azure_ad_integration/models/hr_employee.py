@@ -15,18 +15,18 @@ class HREmployee(models.Model):
     azure_license_assigned = fields.Boolean("License Assigned", default=False, readonly=True)
     azure_license_name = fields.Char("License Name", readonly=True)
 
-    # employee_first_name = fields.Char("First Name")
-    # employee_middle_name = fields.Char("Middle Name")
-    # employee_last_name = fields.Char("Last Name")
-    # place_of_birth = fields.Char("Place of Birth")
-    # mother_tongue_id = fields.Many2one('res.lang', string="Mother Tongue")
-    # language_known_ids = fields.Many2many(
-    #     'res.lang',
-    #     'employee_language_rel',
-    #     'employee_id',
-    #     'lang_id',
-    #     string="Languages Known"
-    # )
+    employee_first_name = fields.Char("First Name")
+    employee_middle_name = fields.Char("Middle Name")
+    employee_last_name = fields.Char("Last Name")
+    place_of_birth = fields.Char("Place of Birth")
+    mother_tongue_id = fields.Many2one('res.lang', string="Mother Tongue")
+    language_known_ids = fields.Many2many(
+        'res.lang',
+        'employee_language_rel',
+        'employee_id',
+        'lang_id',
+        string="Languages Known"
+    )
 
     # sharepoint_employee_id = fields.Char(
     #     "SharePoint Employee ID",
