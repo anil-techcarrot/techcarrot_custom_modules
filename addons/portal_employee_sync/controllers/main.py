@@ -10,7 +10,7 @@ class PortalEmployeeSyncController(http.Controller):
 
     def _verify_api_key(self, api_key):
         """Verify API key"""
-        valid_key = "d7ce6e48fe7b6dd95283f5c36f6dd791aa83cf65"
+        valid_key = "a7cf0c4f99a71e9f63c60fda3aa32c0ecba87669"
         return api_key == valid_key
 
     def _extract_sharepoint_value(self, field_data, field_name="field"):
@@ -40,7 +40,7 @@ class PortalEmployeeSyncController(http.Controller):
         _logger.info(f"   {field_name}: Got string value '{value}'")
         return value if value else None
 
-    @http.route('/api/employees', type='http', auth='public', methods=['POST'], csrf=False, cors='*')
+    @http.route('/api/employees', type='http', auth='public', methods=['POST','GET'], csrf=False, cors='*')
     def create_employee(self, **kwargs):
         """Create OR UPDATE employee from external system with all SharePoint fields"""
         try:
