@@ -5,8 +5,8 @@
     'data': [
         'security/ir.model.access.csv',
         'views/hr_department_views.xml',
-        'views/hr_employee_views.xml',
         'views/azure_license_views.xml',
+        'views/hr_employee_views.xml',
     ],
     'installable': True,
 }
