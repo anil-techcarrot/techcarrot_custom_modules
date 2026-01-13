@@ -7,29 +7,6 @@
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
 
-            <!-- Add SharePoint Fields to Personal Information Tab -->
-<!--            <xpath expr="//page[@name='personal_information']" position="inside">-->
-<!--                <group string="Name Details (From SharePoint)">-->
-<!--                    <group>-->
-<!--                        <field name="employee_first_name"/>-->
-<!--                        <field name="employee_middle_name"/>-->
-<!--                        <field name="employee_last_name"/>-->
-<!--                    </group>-->
-<!--                    <group>-->
-<!--                        <field name="place_of_birth"/>-->
-<!--                    </group>-->
-<!--                </group>-->
-
-<!--                <group string="Languages">-->
-<!--                    <group>-->
-<!--                        <field name="mother_tongue_id"/>-->
-<!--                    </group>-->
-<!--                    <group>-->
-<!--                        <field name="language_known_ids" widget="many2many_tags"/>-->
-<!--                    </group>-->
-<!--                </group>-->
-<!--            </xpath>-->
-
             <!-- Azure AD Info Tab -->
             <xpath expr="//notebook" position="inside">
                 <page string="Azure AD Info" name="azure_ad_info">
@@ -76,7 +53,8 @@
 
                     <!-- Quick Actions -->
                     <group string="Quick Actions" col="2">
-                        <button name="%(azure_ad_integration.action_azure_license_dashboard)d"
+                        <!-- FIXED: Removed module prefix -->
+                        <button name="%(action_azure_license_dashboard)d"
                                 type="action"
                                 string="👁 View All Licenses"
                                 class="btn-info btn-block"
