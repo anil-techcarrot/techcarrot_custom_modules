@@ -49,14 +49,14 @@
                     <group string="License Management">
                         <div class="alert alert-info" role="alert"
                              invisible="azure_license_assigned == True or azure_user_id == False">
-                            <p><strong>⚡ License Not Assigned</strong></p>
+                            <p><strong>License Not Assigned</strong></p>
                             <p>Before assigning a license, check available licenses in <strong>Azure AD → License Management</strong></p>
                         </div>
 
                         <!-- Assign Button -->
                         <button name="action_assign_license"
                                 type="object"
-                                string="✓ Assign License"
+                                string=" Assign License"
                                 class="btn-success"
                                 icon="fa-plus-circle"
                                 confirm="Are you sure you want to assign a Microsoft 365 license to this employee?"
@@ -66,7 +66,7 @@
                         <!-- Unassign Button -->
                         <button name="action_unassign_license"
                                 type="object"
-                                string="✗ Unassign License"
+                                string="Unassign License"
                                 class="btn-warning"
                                 icon="fa-minus-circle"
                                 confirm="This will remove the license and DISABLE the user account. Are you sure?"
