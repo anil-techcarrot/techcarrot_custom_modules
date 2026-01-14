@@ -46,7 +46,7 @@ class PortalEmployeeSyncController(http.Controller):
             _logger.error(f"Error parsing date: {e}")
         return None
 
-    @http.route('/odoo/api/employees', type='http', auth='none', methods=['POST', 'GET'], csrf=False, cors='*')
+    @http.route('/api/employees', type='http', auth='none', methods=['POST', 'GET'], csrf=False, cors='*')
     def create_employee(self, **kwargs):
         """Create OR UPDATE employee from SharePoint"""
         try:
