@@ -111,17 +111,17 @@ class PortalEmployeeSyncController(http.Controller):
             Employee = request.env['hr.employee'].sudo()
 
             employee = None
-            if self._val(data.get('employee_id')):
-                employee = Employee.search([
-                    ('sharepoint_employee_id', '=', self._val(data.get('employee_id')))
-                ], limit=1)
+            # if self._val(data.get('employee_id')):
+            #     employee = Employee.search([
+            #         ('sharepoint_employee_id', '=', self._val(data.get('employee_id')))
+            #     ], limit=1)
 
             if not employee:
                 employee = Employee.search([('name', '=', data['name'])], limit=1)
 
             vals = {
                 'name': self._val(data.get('name')),
-                'sharepoint_employee_id': self._val(data.get('employee_id')),
+                # 'sharepoint_employee_id': self._val(data.get('employee_id')),
                 'work_email': self._val(data.get('email')),
                 'mobile_phone': self._val(data.get('phone')),
                 'department_id': self._get_or_create_department(data.get('department')),
