@@ -18,11 +18,23 @@ class PortalEmployeeSyncController(http.Controller):
         """Extract value from SharePoint field data"""
         if not field_data:
             return None
+
+        # Handle JSON string
+        if isinstance(field_data, str):
+            try:
+                field_data = json.loads(field_data)
+            except:
+                # If it's not JSON, return as is
+                return field_data.strip()
+
+        # Handle dictionary with 'Value' key
         if isinstance(field_data, dict):
             value = field_data.get('Value') or field_data.get('value')
             if value:
                 return str(value).strip()
             return None
+
+        # Return as string
         value = str(field_data).strip()
         return value if value else None
 
@@ -143,9 +155,12 @@ class PortalEmployeeSyncController(http.Controller):
             if data.get('private_email'):
                 employee_vals['private_email'] = data.get('private_email')
 
-            # LANGUAGES
+            # LANGUAGES - FIXED TO HANDLE SHAREPOINT OBJECTS
             if data.get('names'):
-                employee_vals['names'] = data.get('names')
+                names_raw = self._extract_sharepoint_value(data.get('names'), 'Languages')
+                if names_raw:
+                    employee_vals['names'] = names_raw
+                    _logger.info(f"✓ Languages set to: {names_raw}")
 
             # MOTHER TONGUE
             if data.get('mother_tongue_id'):
@@ -161,33 +176,19 @@ class PortalEmployeeSyncController(http.Controller):
                 if country:
                     employee_vals['country_id'] = country.id
 
-            # ============================================
-            # PERMANENT ADDRESS (from new mapping)
-            # ============================================
-
-            # Buildings Name/Flat No (Private Street)
+            # PERMANENT ADDRESS
             if data.get('private_street'):
                 employee_vals['private_street'] = data.get('private_street')
-
-            # Country (Private Country)
             if data.get('private_country_id'):
                 country = self._find_country(data.get('private_country_id'))
                 if country:
                     employee_vals['private_country_id'] = country.id
-
-            # State (Private State)
             if data.get('private_state_id'):
                 employee_vals['private_state_id'] = data.get('private_state_id')
-
-            # City (Private City)
             if data.get('private_city'):
                 employee_vals['private_city'] = data.get('private_city')
-
-            # PO Box / PIN Code (Private Zip)
             if data.get('private_zip'):
                 employee_vals['private_zip'] = str(data.get('private_zip'))
-
-            # Contact Number (Private Phone)
             if data.get('private_phone'):
                 employee_vals['private_phone'] = data.get('private_phone')
 
@@ -218,8 +219,6 @@ class PortalEmployeeSyncController(http.Controller):
                 employee_vals['emergency_contact_person_name_1'] = data.get('emergency_contact_person_name_1')
             if data.get('emergency_contact_person_phone_1'):
                 employee_vals['emergency_contact_person_phone_1'] = data.get('emergency_contact_person_phone_1')
-            if data.get('relationship_with_emp_id_1'):
-                employee_vals['relationship_with_emp_id_1'] = data.get('relationship_with_emp_id_1')
 
             # PROFESSIONAL DETAILS
             if data.get('primary_skill'):
@@ -259,12 +258,10 @@ class PortalEmployeeSyncController(http.Controller):
                 employee_vals['industry_ref_mob_no'] = data.get('industry_ref_mob_no')
 
             # PROFESSIONAL EXPERIENCE DETAILS
-            if data.get('company_name'):
-                employee_vals['company_name'] = data.get('company_name')
-            if data.get('date_start'):
-                parsed_date = self._parse_date(data.get('date_start'))
+            if data.get('leave_date_from'):
+                parsed_date = self._parse_date(data.get('leave_date_from'))
                 if parsed_date:
-                    employee_vals['date_start'] = parsed_date
+                    employee_vals['leave_date_from'] = parsed_date
             if data.get('period_in_company'):
                 employee_vals['period_in_company'] = data.get('period_in_company')
 
