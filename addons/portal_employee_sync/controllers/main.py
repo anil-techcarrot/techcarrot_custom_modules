@@ -60,13 +60,14 @@ class PortalEmployeeSyncController(http.Controller):
         ], limit=1)
 
     def _find_state(self, name, country_id=None):
+        """🔧 FIXED: Changed from res.country to res.country.state"""
         name = self._val(name)
         if not name:
             return None
         domain = [('name', 'ilike', name)]
         if country_id:
             domain.append(('country_id', '=', country_id))
-        return request.env['res.country'].sudo().search(domain, limit=1)
+        return request.env['res.country.state'].sudo().search(domain, limit=1)
 
     def _find_language(self, name):
         name = self._val(name)
@@ -178,7 +179,7 @@ class PortalEmployeeSyncController(http.Controller):
 
             # GENDER & MARITAL
             if self._val(data.get('sex')):
-                vals['sex'] = self._val(data.get('sex')).lower()
+                vals['gender'] = self._val(data.get('sex')).lower()  # Changed from 'sex' to 'gender'
             if self._val(data.get('marital')):
                 vals['marital'] = self._val(data.get('marital')).lower()
 
