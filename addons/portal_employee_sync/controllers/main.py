@@ -179,9 +179,14 @@ class PortalEmployeeSyncController(http.Controller):
 
             # GENDER & MARITAL
             if self._val(data.get('sex')):
-                vals['gender'] = self._val(data.get('sex')).lower()  # Changed from 'sex' to 'gender'
+                sex_value = self._val(data.get('sex')).lower()
+                # Use 'sex' field (Odoo 14 and earlier) instead of 'gender' (Odoo 15+)
+                if sex_value in ['male', 'female', 'other']:
+                    vals['sex'] = sex_value
             if self._val(data.get('marital')):
-                vals['marital'] = self._val(data.get('marital')).lower()
+                marital_value = self._val(data.get('marital')).lower()
+                if marital_value in ['single', 'married', 'cohabitant', 'widower', 'divorced']:
+                    vals['marital'] = marital_value
 
             # DATES
             vals.update({
