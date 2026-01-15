@@ -79,6 +79,20 @@ class PortalEmployeeSyncController(http.Controller):
         job = request.env['hr.job'].sudo().search([('name', '=', name)], limit=1)
         return job.id if job else request.env['hr.job'].sudo().create({'name': name}).id
 
+    def _get_or_create_relationship(self, name):
+        name = self._val(name)
+        if not name:
+            return False
+
+        # ⚠️ CHANGE MODEL NAME IF DIFFERENT
+        Relationship = request.env['employee.relationship.master'].sudo()
+
+        rec = Relationship.search([('name', '=', name)], limit=1)
+        if not rec:
+            rec = Relationship.create({'name': name})
+
+        return rec.id
+
     # ---------------------------------------------------------
     # MAIN API
     # ---------------------------------------------------------
@@ -122,10 +136,17 @@ class PortalEmployeeSyncController(http.Controller):
                 'reason_for_leaving': self._val(data.get('reason_for_leaving')),
 
                 # ✅ CUSTOM EMERGENCY FIELDS
-                'relationship_with_emp_id': self._val(data.get('relationship_with_emp_id')),
+
                 'emergency_contact_person_name_1': self._val(data.get('emergency_contact_person_name_1')),
                 'emergency_contact_person_phone_1': self._val(data.get('emergency_contact_person_phone_1')),
             }
+
+            # ---------------- RELATIONSHIP (Many2one SAFE HANDLING) ----------------
+            relationship_id = self._get_or_create_relationship(
+                data.get('relationship_with_emp_id')
+            )
+            if relationship_id:
+                vals['relationship_with_emp_id'] = relationship_id
 
             if self._val(data.get('sex')):
                 vals['sex'] = self._val(data.get('sex')).lower()
