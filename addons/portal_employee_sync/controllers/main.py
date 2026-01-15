@@ -9,26 +9,32 @@ _logger = logging.getLogger(__name__)
 
 class PortalEmployeeSyncController(http.Controller):
 
-    # ---------------------------------------------------------
-    # API KEY
-    # ---------------------------------------------------------
     def _verify_api_key(self, api_key):
         return api_key == "a7cf0c4f99a71e9f63c60fda3aa32c0ecba87669"
 
-    # ---------------------------------------------------------
-    # SAFE VALUE
-    # ---------------------------------------------------------
     def _val(self, value):
+        """Extract value from string or SharePoint object"""
         if not value:
             return None
+
+        # Handle SharePoint JSON string
+        if isinstance(value, str) and value.startswith('{') and '"Value"' in value:
+            try:
+                parsed = json.loads(value)
+                value = parsed.get('Value') or parsed.get('value')
+            except:
+                pass
+
+        # Handle dictionary
         if isinstance(value, dict):
             value = value.get('Value') or value.get('value')
+
+        if value is None:
+            return None
+
         value = str(value).strip()
         return value if value else None
 
-    # ---------------------------------------------------------
-    # DATE PARSER
-    # ---------------------------------------------------------
     def _parse_date(self, value):
         value = self._val(value)
         if not value:
@@ -41,13 +47,10 @@ class PortalEmployeeSyncController(http.Controller):
         for fmt in formats:
             try:
                 return datetime.strptime(value, fmt).date()
-            except Exception:
+            except:
                 pass
         return None
 
-    # ---------------------------------------------------------
-    # HELPERS
-    # ---------------------------------------------------------
     def _find_country(self, name):
         name = self._val(name)
         if not name:
@@ -63,7 +66,19 @@ class PortalEmployeeSyncController(http.Controller):
         domain = [('name', 'ilike', name)]
         if country_id:
             domain.append(('country_id', '=', country_id))
-        return request.env['res.country.state'].sudo().search(domain, limit=1)
+        return request.env['res.country'].sudo().search(domain, limit=1)
+
+    def _find_language(self, name):
+        name = self._val(name)
+        if not name:
+            return None
+        return request.env['res.lang'].sudo().search([
+            '|', '|', '|',
+            ('name', 'ilike', name),
+            ('code', 'ilike', name),
+            ('iso_code', 'ilike', name),
+            ('name', '=', name)
+        ], limit=1)
 
     def _get_or_create_department(self, name):
         name = self._val(name)
@@ -83,25 +98,25 @@ class PortalEmployeeSyncController(http.Controller):
         name = self._val(name)
         if not name:
             return False
+        try:
+            Relationship = request.env['employee.relationship'].sudo()
+            rel = Relationship.search([('name', '=', name)], limit=1)
+            if not rel:
+                rel = Relationship.create({'name': name})
+            return rel.id
+        except:
+            _logger.warning(f"Relationship model not found, skipping")
+            return False
 
-        Relationship = request.env['employee.relationship'].sudo()
-        rel = Relationship.search([('name', '=', name)], limit=1)
-        if not rel:
-            rel = Relationship.create({'name': name})
-        return rel.id
-
-    # ---------------------------------------------------------
-    # MAIN API
-    # ---------------------------------------------------------
-    @http.route('/api/employees', type='http', auth='public', methods=['POST'], csrf=False, cors='*')
+    @http.route('/odoo/api/employees', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
     def create_employee(self, **kwargs):
-
         try:
             api_key = request.httprequest.headers.get('api-key')
             if not self._verify_api_key(api_key):
                 return self._json_response({'success': False, 'error': 'Invalid API key'}, 401)
 
             data = json.loads(request.httprequest.data or "{}")
+            _logger.info(f"📥 Received: {json.dumps(data, indent=2)}")
 
             if not self._val(data.get('name')):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
@@ -109,21 +124,18 @@ class PortalEmployeeSyncController(http.Controller):
             Employee = request.env['hr.employee'].sudo()
             employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
-            # ---------------- EMPLOYEE VALUES ----------------
+            # EMPLOYEE VALUES
             vals = {
                 'name': self._val(data.get('name')),
                 'work_email': self._val(data.get('email')),
                 'mobile_phone': self._val(data.get('phone')),
                 'department_id': self._get_or_create_department(data.get('department')),
                 'job_id': self._get_or_create_job(data.get('job_title')),
-
                 'employee_first_name': self._val(data.get('employee_first_name')),
                 'employee_middle_name': self._val(data.get('employee_middle_name')),
                 'employee_last_name': self._val(data.get('employee_last_name')),
-
                 'private_email': self._val(data.get('private_email')),
                 'place_of_birth': self._val(data.get('place_of_birth')),
-
                 'passport_id': self._val(data.get('passport_id')),
                 'primary_skill': self._val(data.get('primary_skill')),
                 'secondary_skill': self._val(data.get('secondary_skill')),
@@ -131,83 +143,136 @@ class PortalEmployeeSyncController(http.Controller):
                 'current_address': self._val(data.get('current_address')),
                 'notice_period': self._val(data.get('notice_period')),
                 'reason_for_leaving': self._val(data.get('reason_for_leaving')),
-
-
-                # ✅ CUSTOM EMERGENCY FIELDS
-
-                'emergency_contact_person_name_1': self._val(data.get('emergency_contact_person_name_1')),
+                'emergency_contact_person_name': self._val(data.get('emergency_contact_person_name')),
+                'emergency_contact_person_phone': self._val(data.get('emergency_contact_person_phone')),
+                'mergency_contact_person_name_1': self._val(data.get('emergency_contact_person_name_1')),
                 'emergency_contact_person_phone_1': self._val(data.get('emergency_contact_person_phone_1')),
+                'last_report_manager_name': self._val(data.get('last_report_manager_name')),
+                'last_report_manager_designation': self._val(data.get('last_report_manager_designation')),
+                'last_report_manager_mail': self._val(data.get('last_report_manager_mail')),
+                'last_report_manager_mob_no': self._val(data.get('last_report_manager_mob_no')),
+                'industry_ref_name': self._val(data.get('industry_ref_name')),
+                'industry_ref_email': self._val(data.get('industry_ref_email')),
+                'industry_ref_mob_no': self._val(data.get('industry_ref_mob_no')),
+                'degree_certificate_legal': self._val(data.get('degree_certificate_legal')),
+                'degree_name': self._val(data.get('degree_name')),
+                'institute_name': self._val(data.get('institute_name')),
+                'score': self._val(data.get('score')),
+                'period_in_company': self._val(data.get('period_in_company')),
             }
 
-            # ---------------- RELATIONSHIP (Many2one SAFE HANDLING) ----------------
-            relationship_id = self._get_or_create_relationship(
-                data.get('relationship_with_emp_id')
-            )
+            # PRIVATE ADDRESS FIELDS (direct on employee)
+            if self._val(data.get('private_street')):
+                vals['private_street'] = self._val(data.get('private_street'))
+            if self._val(data.get('private_city')):
+                vals['private_city'] = self._val(data.get('private_city'))
+            if self._val(data.get('private_zip')):
+                vals['private_zip'] = self._val(data.get('private_zip'))
+            if self._val(data.get('private_phone')):
+                vals['private_phone'] = self._val(data.get('private_phone'))
+
+            # RELATIONSHIP
+            relationship_id = self._get_or_create_relationship(data.get('relationship_with_emp_id'))
             if relationship_id:
                 vals['relationship_with_emp_id'] = relationship_id
 
+            # GENDER & MARITAL
             if self._val(data.get('sex')):
                 vals['sex'] = self._val(data.get('sex')).lower()
-
             if self._val(data.get('marital')):
                 vals['marital'] = self._val(data.get('marital')).lower()
 
+            # DATES
             vals.update({
                 'birthday': self._parse_date(data.get('birthday')),
                 'issue_date': self._parse_date(data.get('issue_date')),
                 'passport_expiration_date': self._parse_date(data.get('passport_expiration_date')),
+                'leave_date_from': self._parse_date(data.get('leave_date_from')),
+                'start_date_of_degree': self._parse_date(data.get('start_date_of_degree')),
+                'completion_date_of_degree': self._parse_date(data.get('completion_date_of_degree')),
             })
 
-            if employee:
-                employee.write(vals)
-                action = "updated"
-            else:
-                employee = Employee.create(vals)
-                action = "created"
+            # SALARY
+            try:
+                salary = self._val(data.get('last_salary_per_annum_amt'))
+                if salary:
+                    vals['last_salary_per_annum_amt'] = float(salary)
+            except:
+                pass
 
-            # ---------------- PRIVATE ADDRESS ----------------
+            # COUNTRIES & STATES
+            country = self._find_country(data.get('country_id'))
+            if country:
+                vals['country_id'] = country.id
+
             private_country = self._find_country(data.get('private_country_id'))
+            if private_country:
+                vals['private_country_id'] = private_country.id
+
+            issue_country = self._find_country(data.get('issue_countries_id'))
+            if issue_country:
+                vals['issue_countries_id'] = issue_country.id
+
             private_state = self._find_state(
                 data.get('private_state_id'),
                 private_country.id if private_country else None
             )
+            if private_state:
+                vals['private_state_id'] = private_state.id
 
-            address_vals = {
-                'street': self._val(data.get('private_street')),
-                'city': self._val(data.get('private_city')),
-                'zip': self._val(data.get('private_zip')),
-                'phone': self._val(data.get('private_phone')),
-                'email': self._val(data.get('private_email')),
-                'country_id': private_country.id if private_country else False,
-                'state_id': private_state.id if private_state else False,
-            }
+            # MOTHER TONGUE
+            lang = self._find_language(data.get('mother_tongue_id'))
+            if lang:
+                vals['mother_tongue_id'] = lang.id
 
-            address_vals = {k: v for k, v in address_vals.items() if v}
+            # LANGUAGES KNOWN (handle SharePoint JSON)
+            langs_raw = self._val(data.get('names'))
+            if langs_raw:
+                _logger.info(f"✓ Languages raw: {langs_raw}")
+                lang_ids = []
+                for name in langs_raw.split(','):
+                    name = name.strip()
+                    if name:
+                        lang = self._find_language(name)
+                        if lang:
+                            lang_ids.append(lang.id)
+                if lang_ids:
+                    vals['language_known_ids'] = [(6, 0, lang_ids)]
 
-            if address_vals:
-                if employee.address_home_id:
-                    employee.address_home_id.write(address_vals)
-                else:
-                    partner = request.env['res.partner'].sudo().create(address_vals)
-                    employee.address_home_id = partner.id
+            # LOG FINAL VALUES
+            _logger.info(f"📝 Final vals: {json.dumps(vals, default=str, indent=2)}")
+
+            # CREATE OR UPDATE
+            if employee:
+                employee.write(vals)
+                action = "updated"
+                _logger.info(f"✅ UPDATED: {employee.name} (ID: {employee.id})")
+            else:
+                employee = Employee.create(vals)
+                action = "created"
+                _logger.info(f"✅ CREATED: {employee.name} (ID: {employee.id})")
+
+            # COMMIT
+            request.env.cr.commit()
 
             return self._json_response({
                 'success': True,
                 'action': action,
                 'employee_id': employee.id,
-                'name': employee.name
+                'name': employee.name,
+                'email': employee.work_email or ''
             })
 
         except Exception as e:
-            _logger.exception("EMPLOYEE SYNC ERROR")
+            _logger.error(f"❌ ERROR: {str(e)}", exc_info=True)
             return self._json_response({'success': False, 'error': str(e)}, 500)
 
-    # ---------------------------------------------------------
-    # RESPONSE
-    # ---------------------------------------------------------
     def _json_response(self, data, status=200):
         return request.make_response(
             json.dumps(data, indent=2),
-            headers=[('Content-Type', 'application/json')],
+            headers=[
+                ('Content-Type', 'application/json'),
+                ('Access-Control-Allow-Origin', '*'),
+            ],
             status=status
         )
