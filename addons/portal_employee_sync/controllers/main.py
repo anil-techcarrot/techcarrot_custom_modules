@@ -60,7 +60,7 @@ class PortalEmployeeSyncController(http.Controller):
         ], limit=1)
 
     def _find_state(self, name, country_id=None):
-        """🔧 FIXED: Changed from res.country to res.country.state"""
+        """Fixed: Changed from res.country to res.country.state"""
         name = self._val(name)
         if not name:
             return None
@@ -146,7 +146,7 @@ class PortalEmployeeSyncController(http.Controller):
                 'reason_for_leaving': self._val(data.get('reason_for_leaving')),
                 'emergency_contact_person_name': self._val(data.get('emergency_contact_person_name')),
                 'emergency_contact_person_phone': self._val(data.get('emergency_contact_person_phone')),
-                'mergency_contact_person_name_1': self._val(data.get('emergency_contact_person_name_1')),
+                'emergency_contact_person_name_1': self._val(data.get('emergency_contact_person_name_1')),  # ✅ FIXED TYPO
                 'emergency_contact_person_phone_1': self._val(data.get('emergency_contact_person_phone_1')),
                 'last_report_manager_name': self._val(data.get('last_report_manager_name')),
                 'last_report_manager_designation': self._val(data.get('last_report_manager_designation')),
