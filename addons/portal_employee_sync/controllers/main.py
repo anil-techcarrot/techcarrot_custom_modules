@@ -16,15 +16,13 @@ class PortalEmployeeSyncController(http.Controller):
         return api_key == "a7cf0c4f99a71e9f63c60fda3aa32c0ecba87669"
 
     # ---------------------------------------------------------
-    # SAFE VALUE (STRING / SHAREPOINT OBJECT)
+    # SAFE VALUE
     # ---------------------------------------------------------
     def _val(self, value):
         if not value:
             return None
         if isinstance(value, dict):
             value = value.get('Value') or value.get('value')
-        if value is None:
-            return None
         value = str(value).strip()
         return value if value else None
 
@@ -42,7 +40,7 @@ class PortalEmployeeSyncController(http.Controller):
         ]
         for fmt in formats:
             try:
-                return datetime.strptime(value, fmt).strftime('%Y-%m-%d')
+                return datetime.strptime(value, fmt).date()
             except Exception:
                 pass
         return None
@@ -58,35 +56,28 @@ class PortalEmployeeSyncController(http.Controller):
             '|', ('name', 'ilike', name), ('code', 'ilike', name)
         ], limit=1)
 
-    def _find_language(self, name):
+    def _find_state(self, name, country_id=None):
         name = self._val(name)
         if not name:
             return None
-        return request.env['res.lang'].sudo().search([
-            '|', '|', '|',
-            ('name', 'ilike', name),
-            ('code', 'ilike', name),
-            ('iso_code', 'ilike', name),
-            ('name', '=', name)
-        ], limit=1)
+        domain = [('name', 'ilike', name)]
+        if country_id:
+            domain.append(('country_id', '=', country_id))
+        return request.env['res.country.state'].sudo().search(domain, limit=1)
 
     def _get_or_create_department(self, name):
         name = self._val(name)
         if not name:
             return False
         dept = request.env['hr.department'].sudo().search([('name', '=', name)], limit=1)
-        if not dept:
-            dept = request.env['hr.department'].sudo().create({'name': name})
-        return dept.id
+        return dept.id if dept else request.env['hr.department'].sudo().create({'name': name}).id
 
     def _get_or_create_job(self, name):
         name = self._val(name)
         if not name:
             return False
         job = request.env['hr.job'].sudo().search([('name', '=', name)], limit=1)
-        if not job:
-            job = request.env['hr.job'].sudo().create({'name': name})
-        return job.id
+        return job.id if job else request.env['hr.job'].sudo().create({'name': name}).id
 
     # ---------------------------------------------------------
     # MAIN API
@@ -95,11 +86,7 @@ class PortalEmployeeSyncController(http.Controller):
     def create_employee(self, **kwargs):
 
         try:
-            api_key = (
-                request.httprequest.headers.get('api-key')
-                or request.httprequest.headers.get('Authorization', '').replace('Bearer ', '')
-            )
-
+            api_key = request.httprequest.headers.get('api-key')
             if not self._verify_api_key(api_key):
                 return self._json_response({'success': False, 'error': 'Invalid API key'}, 401)
 
@@ -109,19 +96,11 @@ class PortalEmployeeSyncController(http.Controller):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
 
             Employee = request.env['hr.employee'].sudo()
+            employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
-            employee = None
-            # if self._val(data.get('employee_id')):
-            #     employee = Employee.search([
-            #         ('sharepoint_employee_id', '=', self._val(data.get('employee_id')))
-            #     ], limit=1)
-
-            if not employee:
-                employee = Employee.search([('name', '=', data['name'])], limit=1)
-
+            # ---------------- EMPLOYEE VALUES ----------------
             vals = {
                 'name': self._val(data.get('name')),
-                # 'sharepoint_employee_id': self._val(data.get('employee_id')),
                 'work_email': self._val(data.get('email')),
                 'mobile_phone': self._val(data.get('phone')),
                 'department_id': self._get_or_create_department(data.get('department')),
@@ -134,11 +113,6 @@ class PortalEmployeeSyncController(http.Controller):
                 'private_email': self._val(data.get('private_email')),
                 'place_of_birth': self._val(data.get('place_of_birth')),
 
-                'private_street': self._val(data.get('private_street')),
-                'private_city': self._val(data.get('private_city')),
-                'private_zip': self._val(data.get('private_zip')),
-                'private_phone': self._val(data.get('private_phone')),
-
                 'passport_id': self._val(data.get('passport_id')),
                 'primary_skill': self._val(data.get('primary_skill')),
                 'secondary_skill': self._val(data.get('secondary_skill')),
@@ -147,78 +121,24 @@ class PortalEmployeeSyncController(http.Controller):
                 'notice_period': self._val(data.get('notice_period')),
                 'reason_for_leaving': self._val(data.get('reason_for_leaving')),
 
-                'last_report_manager_name': self._val(data.get('last_report_manager_name')),
-                'last_report_manager_designation': self._val(data.get('last_report_manager_designation')),
-                'last_report_manager_mail': self._val(data.get('last_report_manager_mail')),
-                'last_report_manager_mob_no': self._val(data.get('last_report_manager_mob_no')),
-
-                'industry_ref_name': self._val(data.get('industry_ref_name')),
-                'industry_ref_email': self._val(data.get('industry_ref_email')),
-                'industry_ref_mob_no': self._val(data.get('industry_ref_mob_no')),
-
-                'degree_certificate_legal': self._val(data.get('degree_certificate_legal')),
-                'degree_name': self._val(data.get('degree_name')),
-                'institute_name': self._val(data.get('institute_name')),
-                'score': self._val(data.get('score')),
-                'period_in_company': self._val(data.get('period_in_company')),
+                # ✅ CUSTOM EMERGENCY FIELDS
+                'relationship_with_emp_id': self._val(data.get('relationship_with_emp_id')),
+                'emergency_contact_person_name_1': self._val(data.get('emergency_contact_person_name_1')),
+                'emergency_contact_person_phone_1': self._val(data.get('emergency_contact_person_phone_1')),
             }
 
-            # GENDER
-            gender = self._val(data.get('sex'))
-            if gender:
-                vals['sex'] = gender.lower()
+            if self._val(data.get('sex')):
+                vals['sex'] = self._val(data.get('sex')).lower()
 
-            # MARITAL
-            marital = self._val(data.get('marital'))
-            if marital:
-                vals['marital'] = marital.lower()
+            if self._val(data.get('marital')):
+                vals['marital'] = self._val(data.get('marital')).lower()
 
-            # DATES
             vals.update({
                 'birthday': self._parse_date(data.get('birthday')),
                 'issue_date': self._parse_date(data.get('issue_date')),
                 'passport_expiration_date': self._parse_date(data.get('passport_expiration_date')),
-                'leave_date_from': self._parse_date(data.get('leave_date_from')),
-                'start_date_of_degree': self._parse_date(data.get('start_date_of_degree')),
-                'completion_date_of_degree': self._parse_date(data.get('completion_date_of_degree')),
             })
 
-            # SALARY
-            try:
-                vals['last_salary_per_annum_amt'] = float(data.get('last_salary_per_annum_amt'))
-            except Exception:
-                pass
-
-            # COUNTRIES
-            country = self._find_country(data.get('country_id'))
-            if country:
-                vals['country_id'] = country.id
-
-            private_country = self._find_country(data.get('private_country_id'))
-            if private_country:
-                vals['private_country_id'] = private_country.id
-
-            issue_country = self._find_country(data.get('issue_countries_id'))
-            if issue_country:
-                vals['issue_countries_id'] = issue_country.id
-
-            # MOTHER TONGUE
-            lang = self._find_language(data.get('mother_tongue_id'))
-            if lang:
-                vals['mother_tongue_id'] = lang.id
-
-            # LANGUAGES KNOWN
-            langs_raw = self._val(data.get('names'))
-            if langs_raw:
-                lang_ids = []
-                for name in langs_raw.split(','):
-                    lang = self._find_language(name)
-                    if lang:
-                        lang_ids.append(lang.id)
-                if lang_ids:
-                    vals['language_known_ids'] = [(6, 0, lang_ids)]
-
-            # CREATE / UPDATE
             if employee:
                 employee.write(vals)
                 action = "updated"
@@ -226,16 +146,41 @@ class PortalEmployeeSyncController(http.Controller):
                 employee = Employee.create(vals)
                 action = "created"
 
+            # ---------------- PRIVATE ADDRESS ----------------
+            private_country = self._find_country(data.get('private_country_id'))
+            private_state = self._find_state(
+                data.get('private_state_id'),
+                private_country.id if private_country else None
+            )
+
+            address_vals = {
+                'street': self._val(data.get('private_street')),
+                'city': self._val(data.get('private_city')),
+                'zip': self._val(data.get('private_zip')),
+                'phone': self._val(data.get('private_phone')),
+                'email': self._val(data.get('private_email')),
+                'country_id': private_country.id if private_country else False,
+                'state_id': private_state.id if private_state else False,
+            }
+
+            address_vals = {k: v for k, v in address_vals.items() if v}
+
+            if address_vals:
+                if employee.address_home_id:
+                    employee.address_home_id.write(address_vals)
+                else:
+                    partner = request.env['res.partner'].sudo().create(address_vals)
+                    employee.address_home_id = partner.id
+
             return self._json_response({
                 'success': True,
                 'action': action,
                 'employee_id': employee.id,
-                'name': employee.name,
-                'email': employee.work_email or ''
+                'name': employee.name
             })
 
         except Exception as e:
-            _logger.error("EMPLOYEE SYNC ERROR", exc_info=True)
+            _logger.exception("EMPLOYEE SYNC ERROR")
             return self._json_response({'success': False, 'error': str(e)}, 500)
 
     # ---------------------------------------------------------
