@@ -241,7 +241,7 @@ class PortalEmployeeSyncController(http.Controller):
                     vals['language_known_ids'] = [(6, 0, lang_ids)]
 
             # LOG FINAL VALUES
-            _logger.info(f" Final vals: {json.dumps(vals, default=str, indent=2)}")
+            _logger.info(f"Final vals: {json.dumps(vals, default=str, indent=2)}")
 
             # CREATE OR UPDATE
             if employee:
