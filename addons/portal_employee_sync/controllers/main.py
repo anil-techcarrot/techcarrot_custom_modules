@@ -84,14 +84,11 @@ class PortalEmployeeSyncController(http.Controller):
         if not name:
             return False
 
-        # ⚠️ CHANGE MODEL NAME IF DIFFERENT
-        Relationship = request.env['employee.relationship.master'].sudo()
-
-        rec = Relationship.search([('name', '=', name)], limit=1)
-        if not rec:
-            rec = Relationship.create({'name': name})
-
-        return rec.id
+        Relationship = request.env['employee.relationship'].sudo()
+        rel = Relationship.search([('name', '=', name)], limit=1)
+        if not rel:
+            rel = Relationship.create({'name': name})
+        return rel.id
 
     # ---------------------------------------------------------
     # MAIN API
@@ -134,6 +131,7 @@ class PortalEmployeeSyncController(http.Controller):
                 'current_address': self._val(data.get('current_address')),
                 'notice_period': self._val(data.get('notice_period')),
                 'reason_for_leaving': self._val(data.get('reason_for_leaving')),
+
 
                 # ✅ CUSTOM EMERGENCY FIELDS
 
