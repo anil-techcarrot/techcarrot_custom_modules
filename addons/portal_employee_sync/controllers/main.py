@@ -241,17 +241,17 @@ class PortalEmployeeSyncController(http.Controller):
                     vals['language_known_ids'] = [(6, 0, lang_ids)]
 
             # LOG FINAL VALUES
-            _logger.info(f"Final vals: {json.dumps(vals, default=str, indent=2)}")
+            _logger.info(f"📝 Final vals: {json.dumps(vals, default=str, indent=2)}")
 
             # CREATE OR UPDATE
             if employee:
                 employee.write(vals)
                 action = "updated"
-                _logger.info(f" UPDATED: {employee.name} (ID: {employee.id})")
+                _logger.info(f"✅ UPDATED: {employee.name} (ID: {employee.id})")
             else:
                 employee = Employee.create(vals)
                 action = "created"
-                _logger.info(f" CREATED: {employee.name} (ID: {employee.id})")
+                _logger.info(f"✅ CREATED: {employee.name} (ID: {employee.id})")
 
             # COMMIT
             request.env.cr.commit()
@@ -265,7 +265,7 @@ class PortalEmployeeSyncController(http.Controller):
             })
 
         except Exception as e:
-            _logger.error(f" ERROR: {str(e)}", exc_info=True)
+            _logger.error(f"❌ ERROR: {str(e)}", exc_info=True)
             return self._json_response({'success': False, 'error': str(e)}, 500)
 
     def _json_response(self, data, status=200):
