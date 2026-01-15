@@ -122,7 +122,16 @@ class PortalEmployeeSyncController(http.Controller):
             if not self._val(data.get('name')):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
 
-            Employee = request.env['hr.employee'].sudo()
+            # Get or use admin user context to avoid NULL uid issues
+            try:
+                # Try to get admin user
+                admin_user = request.env.ref('base.user_admin')
+                env = request.env(user=admin_user.id)
+            except:
+                # Fallback to sudo with explicit uid
+                env = request.env.with_context(force_company=1).with_user(1)
+
+            Employee = env['hr.employee'].sudo()
             employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
             # EMPLOYEE VALUES
@@ -146,7 +155,8 @@ class PortalEmployeeSyncController(http.Controller):
                 'reason_for_leaving': self._val(data.get('reason_for_leaving')),
                 'emergency_contact_person_name': self._val(data.get('emergency_contact_person_name')),
                 'emergency_contact_person_phone': self._val(data.get('emergency_contact_person_phone')),
-                'emergency_contact_person_name_1': self._val(data.get('emergency_contact_person_name_1')),  # ✅ FIXED TYPO
+                'emergency_contact_person_name_1': self._val(data.get('emergency_contact_person_name_1')),
+                # ✅ FIXED TYPO
                 'emergency_contact_person_phone_1': self._val(data.get('emergency_contact_person_phone_1')),
                 'last_report_manager_name': self._val(data.get('last_report_manager_name')),
                 'last_report_manager_designation': self._val(data.get('last_report_manager_designation')),
