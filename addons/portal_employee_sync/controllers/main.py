@@ -70,16 +70,23 @@ class PortalEmployeeSyncController(http.Controller):
         return request.env['res.country.state'].sudo().search(domain, limit=1)
 
     def _find_language(self, name):
+        """Search in language.master table (custom model)"""
         name = self._val(name)
         if not name:
             return None
-        return request.env['res.lang'].sudo().search([
-            '|', '|', '|',
-            ('name', 'ilike', name),
-            ('code', 'ilike', name),
-            ('iso_code', 'ilike', name),
-            ('name', '=', name)
-        ], limit=1)
+        try:
+            return request.env['language.master'].sudo().search([
+                ('name', 'ilike', name)
+            ], limit=1)
+        except:
+            _logger.warning(f"language.master model not found, trying res.lang")
+            return request.env['res.lang'].sudo().search([
+                '|', '|', '|',
+                ('name', 'ilike', name),
+                ('code', 'ilike', name),
+                ('iso_code', 'ilike', name),
+                ('name', '=', name)
+            ], limit=1)
 
     def _get_or_create_department(self, name):
         name = self._val(name)
@@ -252,6 +259,8 @@ class PortalEmployeeSyncController(http.Controller):
                         lang = self._find_language(name)
                         if lang:
                             lang_ids.append(lang.id)
+                        else:
+                            _logger.warning(f"Language not found in language.master: {name}")
                 if lang_ids:
                     vals['language_known_ids'] = [(6, 0, lang_ids)]
 
