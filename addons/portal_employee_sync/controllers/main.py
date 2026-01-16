@@ -283,7 +283,7 @@ class PortalEmployeeSyncController(http.Controller):
                 _logger.info(f"✅ CREATED: {employee.name} (ID: {employee.id})")
 
             # COMMIT using the admin user environment to avoid singleton error
-            # employee.env.cr.commit()
+            employee.env.cr.commit()
 
             return self._json_response({
                 'success': True,
