@@ -92,25 +92,30 @@ class PortalEmployeeSyncController(http.Controller):
         name = self._val(name)
         if not name:
             return False
-        dept = request.env['hr.department'].sudo().search([('name', '=', name)], limit=1)
-        return dept.id if dept else request.env['hr.department'].sudo().create({'name': name}).id
+        admin_uid = request.env.ref('base.user_admin').id
+        dept = request.env(user=admin_uid)['hr.department'].search([('name', '=', name)], limit=1)
+        return dept.id if dept else request.env(user=admin_uid)['hr.department'].with_context(
+            tracking_disable=True).create({'name': name}).id
 
     def _get_or_create_job(self, name):
         name = self._val(name)
         if not name:
             return False
-        job = request.env['hr.job'].sudo().search([('name', '=', name)], limit=1)
-        return job.id if job else request.env['hr.job'].sudo().create({'name': name}).id
+        admin_uid = request.env.ref('base.user_admin').id
+        job = request.env(user=admin_uid)['hr.job'].search([('name', '=', name)], limit=1)
+        return job.id if job else request.env(user=admin_uid)['hr.job'].with_context(tracking_disable=True).create(
+            {'name': name}).id
 
     def _get_or_create_relationship(self, name):
         name = self._val(name)
         if not name:
             return False
         try:
-            Relationship = request.env['employee.relationship'].sudo()
+            admin_uid = request.env.ref('base.user_admin').id
+            Relationship = request.env(user=admin_uid)['employee.relationship']
             rel = Relationship.search([('name', '=', name)], limit=1)
             if not rel:
-                rel = Relationship.create({'name': name})
+                rel = Relationship.with_context(tracking_disable=True).create({'name': name})
             return rel.id
         except:
             _logger.warning(f"Relationship model not found, skipping")
