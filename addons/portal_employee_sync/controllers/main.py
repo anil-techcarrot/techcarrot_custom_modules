@@ -60,7 +60,6 @@ class PortalEmployeeSyncController(http.Controller):
         ], limit=1)
 
     def _find_state(self, name, country_id=None):
-        """Fixed: Changed from res.country to res.country.state"""
         name = self._val(name)
         if not name:
             return None
@@ -70,7 +69,6 @@ class PortalEmployeeSyncController(http.Controller):
         return request.env['res.country.state'].sudo().search(domain, limit=1)
 
     def _find_language(self, name):
-        """Search in language.master table (custom model)"""
         name = self._val(name)
         if not name:
             return None
@@ -92,37 +90,36 @@ class PortalEmployeeSyncController(http.Controller):
         name = self._val(name)
         if not name:
             return False
-        admin_uid = request.env.ref('base.user_admin').id
-        dept = request.env(user=admin_uid)['hr.department'].search([('name', '=', name)], limit=1)
-        return dept.id if dept else request.env(user=admin_uid)['hr.department'].with_context(
-            tracking_disable=True).create({'name': name}).id
+        dept = request.env['hr.department'].sudo().search([('name', '=', name)], limit=1)
+        return dept.id if dept else request.env['hr.department'].sudo().create({'name': name}).id
 
     def _get_or_create_job(self, name):
         name = self._val(name)
         if not name:
             return False
-        admin_uid = request.env.ref('base.user_admin').id
-        job = request.env(user=admin_uid)['hr.job'].search([('name', '=', name)], limit=1)
-        return job.id if job else request.env(user=admin_uid)['hr.job'].with_context(tracking_disable=True).create(
-            {'name': name}).id
+        job = request.env['hr.job'].sudo().search([('name', '=', name)], limit=1)
+        return job.id if job else request.env['hr.job'].sudo().create({'name': name}).id
 
     def _get_or_create_relationship(self, name):
         name = self._val(name)
         if not name:
             return False
         try:
-            admin_uid = request.env.ref('base.user_admin').id
-            Relationship = request.env(user=admin_uid)['employee.relationship']
+            Relationship = request.env['employee.relationship'].sudo()
             rel = Relationship.search([('name', '=', name)], limit=1)
             if not rel:
-                rel = Relationship.with_context(tracking_disable=True).create({'name': name})
+                rel = Relationship.create({'name': name})
             return rel.id
         except:
             _logger.warning(f"Relationship model not found, skipping")
             return False
 
-    @http.route('/odoo/api/employees', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    @http.route('/odoo/api/employees', type='http', auth='public', methods=['POST'], csrf=False, cors='*')
     def create_employee(self, **kwargs):
+        # CRITICAL: Set admin user context FIRST
+        admin_user = request.env.ref('base.user_admin')
+        request.update_env(user=admin_user.id)
+
         try:
             api_key = request.httprequest.headers.get('api-key')
             if not self._verify_api_key(api_key):
@@ -134,16 +131,8 @@ class PortalEmployeeSyncController(http.Controller):
             if not self._val(data.get('name')):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
 
-            # Get or use admin user context to avoid NULL uid issues
-            try:
-                # Try to get admin user
-                admin_user = request.env.ref('base.user_admin')
-                env = request.env(user=admin_user.id)
-            except:
-                # Fallback to sudo with explicit uid
-                env = request.env.with_context(force_company=1).with_user(1)
-
-            Employee = env['hr.employee'].sudo()
+            # Use request.env (already set to admin user)
+            Employee = request.env['hr.employee']
             employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
             # EMPLOYEE VALUES
@@ -168,7 +157,6 @@ class PortalEmployeeSyncController(http.Controller):
                 'emergency_contact_person_name': self._val(data.get('emergency_contact_person_name')),
                 'emergency_contact_person_phone': self._val(data.get('emergency_contact_person_phone')),
                 'emergency_contact_person_name_1': self._val(data.get('emergency_contact_person_name_1')),
-                # ✅ FIXED TYPO
                 'emergency_contact_person_phone_1': self._val(data.get('emergency_contact_person_phone_1')),
                 'last_report_manager_name': self._val(data.get('last_report_manager_name')),
                 'last_report_manager_designation': self._val(data.get('last_report_manager_designation')),
@@ -184,7 +172,7 @@ class PortalEmployeeSyncController(http.Controller):
                 'period_in_company': self._val(data.get('period_in_company')),
             }
 
-            # PRIVATE ADDRESS FIELDS (direct on employee)
+            # PRIVATE ADDRESS FIELDS
             if self._val(data.get('private_street')):
                 vals['private_street'] = self._val(data.get('private_street'))
             if self._val(data.get('private_city')):
@@ -202,7 +190,6 @@ class PortalEmployeeSyncController(http.Controller):
             # GENDER & MARITAL
             if self._val(data.get('sex')):
                 sex_value = self._val(data.get('sex')).lower()
-                # Use 'sex' field (Odoo 14 and earlier) instead of 'gender' (Odoo 15+)
                 if sex_value in ['male', 'female', 'other']:
                     vals['sex'] = sex_value
             if self._val(data.get('marital')):
@@ -253,7 +240,7 @@ class PortalEmployeeSyncController(http.Controller):
             if lang:
                 vals['mother_tongue_id'] = lang.id
 
-            # LANGUAGES KNOWN (handle SharePoint JSON)
+            # LANGUAGES KNOWN
             langs_raw = self._val(data.get('names'))
             if langs_raw:
                 _logger.info(f"✓ Languages raw: {langs_raw}")
@@ -265,7 +252,7 @@ class PortalEmployeeSyncController(http.Controller):
                         if lang:
                             lang_ids.append(lang.id)
                         else:
-                            _logger.warning(f"Language not found in language.master: {name}")
+                            _logger.warning(f"Language not found: {name}")
                 if lang_ids:
                     vals['language_known_ids'] = [(6, 0, lang_ids)]
 
@@ -282,19 +269,28 @@ class PortalEmployeeSyncController(http.Controller):
                 action = "created"
                 _logger.info(f"✅ CREATED: {employee.name} (ID: {employee.id})")
 
-            # COMMIT using the admin user environment to avoid singleton error
-            employee.env.cr.commit()
+            # Get Azure details if available
+            azure_email = employee.work_email or ''
+            azure_id = ''
+            if hasattr(employee, 'azure_user_id'):
+                azure_id = employee.azure_user_id or ''
 
+            # Return response immediately - Odoo will auto-commit
             return self._json_response({
                 'success': True,
                 'action': action,
                 'employee_id': employee.id,
                 'name': employee.name,
-                'email': employee.work_email or ''
+                'email': azure_email,
+                'azure_user_id': azure_id
             })
 
         except Exception as e:
             _logger.error(f"❌ ERROR: {str(e)}", exc_info=True)
+            try:
+                request.env.cr.rollback()
+            except:
+                pass
             return self._json_response({'success': False, 'error': str(e)}, 500)
 
     def _json_response(self, data, status=200):
