@@ -52,16 +52,31 @@ class PortalEmployeeSyncController(http.Controller):
         return None
 
     def _find_country(self, name):
-        """Find country by name or code"""
+        """Find country by name or code - exact match priority"""
         name = self._val(name)
         if not name:
             return None
+
         name = name.strip()
+
+        # First: Try exact code match (IN, AE, etc.)
         country = request.env['res.country'].sudo().search([
-            '|',
-            ('name', 'ilike', name),
             ('code', '=', name.upper())
         ], limit=1)
+        if country:
+            return country
+
+        # Second: Try EXACT name match (case insensitive)
+        country = request.env['res.country'].sudo().search([
+            ('name', '=ilike', name)
+        ], limit=1)
+        if country:
+            return country
+
+        # Third: Try partial match as fallback
+        country = request.env['res.country'].sudo().search([
+            ('name', 'ilike', name)
+        ], limit=1, order='name')
 
         return country if country else None
 
