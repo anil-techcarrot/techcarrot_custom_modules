@@ -146,6 +146,7 @@ class PortalEmployeeSyncController(http.Controller):
                 'name': self._val(data.get('name')),
                 'work_email': self._val(data.get('email')),
                 'mobile_phone': self._val(data.get('phone')),
+                'employee_code': self._val(data.get('employee_code')),
                 'department_id': self._get_or_create_department(data.get('department')),
                 'job_id': self._get_or_create_job(data.get('job_title')),
                 'employee_first_name': self._val(data.get('employee_first_name')),
