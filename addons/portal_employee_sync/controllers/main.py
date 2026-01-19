@@ -52,12 +52,18 @@ class PortalEmployeeSyncController(http.Controller):
         return None
 
     def _find_country(self, name):
+        """Find country by name or code"""
         name = self._val(name)
         if not name:
             return None
-        return request.env['res.country'].sudo().search([
-            '|', ('name', 'ilike', name), ('code', 'ilike', name)
+        name = name.strip()
+        country = request.env['res.country'].sudo().search([
+            '|',
+            ('name', 'ilike', name),
+            ('code', '=', name.upper())
         ], limit=1)
+
+        return country if country else None
 
     def _find_state(self, name, country_id=None):
         name = self._val(name)
@@ -126,7 +132,7 @@ class PortalEmployeeSyncController(http.Controller):
                 return self._json_response({'success': False, 'error': 'Invalid API key'}, 401)
 
             data = json.loads(request.httprequest.data or "{}")
-            _logger.info(f"📥 Received: {json.dumps(data, indent=2)}")
+            _logger.info(f" Received: {json.dumps(data, indent=2)}")
 
             if not self._val(data.get('name')):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
@@ -243,7 +249,7 @@ class PortalEmployeeSyncController(http.Controller):
             # LANGUAGES KNOWN
             langs_raw = self._val(data.get('names'))
             if langs_raw:
-                _logger.info(f"✓ Languages raw: {langs_raw}")
+                _logger.info(f" Languages raw: {langs_raw}")
                 lang_ids = []
                 for name in langs_raw.split(','):
                     name = name.strip()
@@ -257,17 +263,17 @@ class PortalEmployeeSyncController(http.Controller):
                     vals['language_known_ids'] = [(6, 0, lang_ids)]
 
             # LOG FINAL VALUES
-            _logger.info(f"📝 Final vals: {json.dumps(vals, default=str, indent=2)}")
+            _logger.info(f" Final vals: {json.dumps(vals, default=str, indent=2)}")
 
             # CREATE OR UPDATE
             if employee:
                 employee.write(vals)
                 action = "updated"
-                _logger.info(f"✅ UPDATED: {employee.name} (ID: {employee.id})")
+                _logger.info(f" UPDATED: {employee.name} (ID: {employee.id})")
             else:
                 employee = Employee.create(vals)
                 action = "created"
-                _logger.info(f"✅ CREATED: {employee.name} (ID: {employee.id})")
+                _logger.info(f" CREATED: {employee.name} (ID: {employee.id})")
 
             # Get Azure details if available
             azure_email = employee.work_email or ''
@@ -286,7 +292,7 @@ class PortalEmployeeSyncController(http.Controller):
             })
 
         except Exception as e:
-            _logger.error(f"❌ ERROR: {str(e)}", exc_info=True)
+            _logger.error(f" ERROR: {str(e)}", exc_info=True)
             try:
                 request.env.cr.rollback()
             except:
