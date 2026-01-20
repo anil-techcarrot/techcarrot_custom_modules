@@ -18,11 +18,15 @@ class PortalEmployeeSyncController(http.Controller):
             return None
 
         # Handle SharePoint JSON string
-        if isinstance(value, str) and value.startswith('{') and '"Value"' in value:
+        if isinstance(value, str) and value.startswith('{'):
             try:
-                parsed = json.loads(value)
-                value = parsed.get('Value') or parsed.get('value')
-            except:
+                # Check if it's a JSON string that needs parsing
+                if '"Value"' in value or '"value"' in value:
+                    parsed = json.loads(value)
+                    value = parsed.get('Value') or parsed.get('value')
+                    _logger.info(f"🔍 Extracted from SharePoint JSON: {value}")
+            except Exception as e:
+                _logger.warning(f"Failed to parse as JSON, using as-is: {e}")
                 pass
 
         # Handle dictionary
