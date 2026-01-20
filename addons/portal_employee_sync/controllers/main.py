@@ -24,7 +24,7 @@ class PortalEmployeeSyncController(http.Controller):
                 if '"Value"' in value or '"value"' in value:
                     parsed = json.loads(value)
                     value = parsed.get('Value') or parsed.get('value')
-                    _logger.info(f"🔍 Extracted from SharePoint JSON: {value}")
+                    _logger.info(f" Extracted from SharePoint JSON: {value}")
             except Exception as e:
                 _logger.warning(f"Failed to parse as JSON, using as-is: {e}")
                 pass
@@ -289,20 +289,41 @@ class PortalEmployeeSyncController(http.Controller):
                 vals['mother_tongue_id'] = lang.id
 
             # LANGUAGES KNOWN
-            langs_raw = self._val(data.get('names'))
+            # LANGUAGES KNOWN
+            langs_raw_data = data.get('names')
+            _logger.info(f" DEBUG - names field ORIGINAL TYPE: {type(langs_raw_data)}")
+            _logger.info(f" DEBUG - names field ORIGINAL VALUE: {langs_raw_data}")
+
+            langs_raw = self._val(langs_raw_data)
+            _logger.info(f" DEBUG - names AFTER _val(): {langs_raw}")
+
             if langs_raw:
-                _logger.info(f" Languages raw: {langs_raw}")
+                _logger.info(f" Languages raw value exists: '{langs_raw}'")
                 lang_ids = []
+
+                # Split by comma in case multiple languages are sent
                 for name in langs_raw.split(','):
                     name = name.strip()
                     if name:
+                        _logger.info(f" Searching for language: '{name}'")
                         lang = self._find_language(name)
                         if lang:
+                            _logger.info(f"Found language: {name} -> ID: {lang.id}")
                             lang_ids.append(lang.id)
                         else:
-                            _logger.warning(f"Language not found: {name}")
+                            _logger.warning(f" Language NOT found in language.master: {name}")
+
                 if lang_ids:
                     vals['language_known_ids'] = [(6, 0, lang_ids)]
+                    _logger.info(f" Setting language_known_ids with IDs: {lang_ids}")
+                else:
+                    _logger.warning(f" No valid language IDs found to set")
+            else:
+                _logger.info(f" No languages provided in 'names' field (after _val extraction)")
+
+
+
+
 
             # LOG FINAL VALUES
             _logger.info(f" Final vals: {json.dumps(vals, default=str, indent=2)}")
