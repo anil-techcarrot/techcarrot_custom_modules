@@ -329,6 +329,7 @@ class PortalEmployeeSyncController(http.Controller):
             _logger.info(f" Final vals: {json.dumps(vals, default=str, indent=2)}")
 
             # CREATE OR UPDATE
+
             if employee:
                 employee.write(vals)
                 action = "updated"
@@ -338,11 +339,35 @@ class PortalEmployeeSyncController(http.Controller):
                 action = "created"
                 _logger.info(f" CREATED: {employee.name} (ID: {employee.id})")
 
+            # ===== VERIFICATION: Check if languages were saved =====
+            try:
+                employee.invalidate_cache()  # Force refresh from database
+                _logger.info(f"🔍 VERIFICATION - Employee {employee.id} language data:")
+
+                if hasattr(employee, 'language_known_ids'):
+                    _logger.info(f"  language_known_ids exists: YES")
+                    _logger.info(f"  language_known_ids value: {employee.language_known_ids}")
+                    _logger.info(f"  language_known_ids IDs: {employee.language_known_ids.ids}")
+                    _logger.info(f"  language_known_ids names: {employee.language_known_ids.mapped('name')}")
+                else:
+                    _logger.error(f"  language_known_ids exists: NO")
+
+                if hasattr(employee, 'mother_tongue_id'):
+                    _logger.info(
+                        f"  mother_tongue_id: {employee.mother_tongue_id.name if employee.mother_tongue_id else 'None'}")
+
+            except Exception as e:
+                _logger.error(f" Verification error: {e}", exc_info=True)
+            # ===== END VERIFICATION =====
+
             # Get Azure details if available
             azure_email = employee.work_email or ''
             azure_id = ''
             if hasattr(employee, 'azure_user_id'):
                 azure_id = employee.azure_user_id or ''
+
+
+
 
             # Return response immediately - Odoo will auto-commit
             return self._json_response({
