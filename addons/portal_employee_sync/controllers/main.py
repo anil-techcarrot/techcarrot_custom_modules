@@ -90,15 +90,37 @@ class PortalEmployeeSyncController(http.Controller):
         return request.env['res.country.state'].sudo().search(domain, limit=1)
 
     def _find_language(self, name):
+        """Search in language.master table with exact match priority"""
         name = self._val(name)
         if not name:
             return None
+
+        name = name.strip()
+
         try:
-            return request.env['language.master'].sudo().search([
+            # First: Try EXACT match (case insensitive)
+            lang = request.env['language.master'].sudo().search([
+                ('name', '=ilike', name)
+            ], limit=1)
+            if lang:
+                _logger.info(f" Found language (exact): {name} -> ID: {lang.id}")
+                return lang
+
+            # Second: Try partial match
+            lang = request.env['language.master'].sudo().search([
                 ('name', 'ilike', name)
             ], limit=1)
-        except:
-            _logger.warning(f"language.master model not found, trying res.lang")
+            if lang:
+                _logger.info(f" Found language (partial): {name} -> ID: {lang.id}")
+                return lang
+
+            _logger.warning(f" Language NOT found in language.master: {name}")
+            return None
+
+        except Exception as e:
+            _logger.error(f" Error searching language.master: {e}")
+            # Fallback to res.lang
+            _logger.warning(f"Trying res.lang as fallback for: {name}")
             return request.env['res.lang'].sudo().search([
                 '|', '|', '|',
                 ('name', 'ilike', name),
