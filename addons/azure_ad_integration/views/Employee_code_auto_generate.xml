@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <!-- Add Generate Button to Employee Form -->
     <record id="view_employee_form_employee_code_button" model="ir.ui.view">
         <field name="name">hr.employee.form.employee.code.button</field>
         <field name="model">hr.employee</field>
@@ -11,11 +12,12 @@
                         type="object"
                         string="Generate Employee Code"
                         class="oe_highlight"
-                        t-if="!record.employee_code.raw_value"/>
+                        invisible="employee_code"/>
             </xpath>
         </field>
     </record>
 
+    <!-- Bulk Generate Action -->
     <record id="action_bulk_generate_employee_codes" model="ir.actions.server">
         <field name="name">Generate Employee Codes (Bulk)</field>
         <field name="model_id" ref="hr.model_hr_employee"/>
