@@ -28,6 +28,10 @@ class HREmployee(models.Model):
         string="Languages Known"
     )
 
+    total_it_experience = fields.Char("Total IT Experience")
+    alternate_mobile_number = fields.Char("Alternate Mobile Number")
+    second_alternative_number = fields.Char("Second Alternative Number")
+
     # sharepoint_employee_id = fields.Char(
     #     "SharePoint Employee ID",
     #     readonly=True,

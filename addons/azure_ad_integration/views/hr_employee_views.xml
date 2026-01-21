@@ -20,15 +20,36 @@
                     </group>
                 </group>
 
-                <group string="Languages">
+                <!--                <group string="Languages">-->
+                <!--                    <group>-->
+                <!--                        <field name="mother_tongue_id"/>-->
+                <!--                    </group>-->
+                <!--                    <group>-->
+                <!--                        <field name="language_known_ids" widget="many2many_tags"/>-->
+                <!--                    </group>-->
+                <!--                </group>-->
+            </xpath>
+
+
+            <xpath expr="//page[@name='techcarrot']" position="inside">
+
+                <!-- EMPLOYEE DETAILS -->
+                <group string="EMPLOYEE DETAILS">
                     <group>
-                        <field name="mother_tongue_id"/>
-                    </group>
-                    <group>
-                        <field name="language_known_ids" widget="many2many_tags"/>
+                        <field name="total_it_experience"/>
                     </group>
                 </group>
+
+                <!-- EMERGENCY CONTACT PERSON ADDRESS INSIDE UAE -->
+                <group string="EMERGENCY CONTACT PERSON ADDRESS INSIDE UAE">
+                    <group>
+                        <field name="alternate_mobile_number"/>
+                        <field name="second_alternative_number"/>
+                    </group>
+                </group>
+
             </xpath>
+
 
             <!-- Azure AD Info Tab -->
             <xpath expr="//notebook" position="inside">
@@ -49,8 +70,12 @@
                     <group string="License Management">
                         <div class="alert alert-info" role="alert"
                              invisible="azure_license_assigned == True or azure_user_id == False">
-                            <p><strong>License Not Assigned</strong></p>
-                            <p>Before assigning a license, check available licenses in <strong>Azure AD → License Management</strong></p>
+                            <p>
+                                <strong>License Not Assigned</strong>
+                            </p>
+                            <p>Before assigning a license, check available licenses in
+                                <strong>Azure AD → License Management</strong>
+                            </p>
                         </div>
 
                         <!-- Assign Button -->
