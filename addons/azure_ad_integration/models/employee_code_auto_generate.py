@@ -15,6 +15,24 @@ class HrEmployeeInherit(models.Model):
         index=True,
         help="Unique employee code (e.g., EMP001, B0012, TC221)"
     )
+    engagement_location = fields.Selection([
+        ('onsite_nearshore', 'Onsite / Nearshore'),
+        ('offshore', 'Offshore'),
+    ], string='Engagement Location')
+
+    payroll_location = fields.Selection([
+        ('dubai_onsite', 'Dubai- Onsite'),
+        ('dubai_offshore', 'Dubai-Offshore'),
+        ('tcip_india', 'TCIP India'),
+    ], string='Payroll')
+
+    employment_type = fields.Selection([
+        ('permanent', 'Permanent'),
+        ('temporary', 'Temporary'),
+        ('bootcamp', 'Bootcamp'),
+        ('seconded', 'Seconded'),
+        ('freelancer', 'Freelancer'),
+    ], string='Employment Type')
 
     def action_generate_employee_code(self):
         """Generate employee code with sequence"""
@@ -73,53 +91,103 @@ class HrEmployeeInherit(models.Model):
         }
 
     def _generate_next_employee_code(self):
-        """Generate the next sequential employee code"""
+        """
+        Generate employee code based on:
+        - Engagement Location
+        - Payroll
+        - Employment Type
+        """
 
-        # Default values (hardcoded for now, can be made configurable later)
-        default_prefix = 'EMP'
-        default_digits = 3
+        # Determine prefix based on the 3 fields
+        prefix = self._get_employee_code_prefix()
 
-        # Get all existing employee codes
-        all_employees = self.search([('employee_code', '!=', False)])
+        if not prefix:
+            # Fallback to default if fields not set
+            prefix = 'EMP'
+
+        # Get all existing codes with this prefix
+        all_employees = self.search([
+            ('employee_code', '!=', False),
+            ('employee_code', '=like', f'{prefix}%')
+        ])
+
         existing_codes = [emp.employee_code for emp in all_employees if emp.employee_code]
 
-        if not existing_codes:
-            # No codes exist, start fresh
-            return f"{default_prefix}{1:0{default_digits}d}"
-
-        # Analyze existing codes to find patterns
-        code_patterns = self._analyze_code_patterns(existing_codes)
-
-        if code_patterns:
-            # Use the most common pattern
-            most_common_prefix = max(code_patterns, key=lambda x: code_patterns[x]['count'])
-            pattern_info = code_patterns[most_common_prefix]
-
-            next_number = pattern_info['max_number'] + 1
-            digits = pattern_info['digits']
-
-            new_code = f"{most_common_prefix}{next_number:0{digits}d}"
-            _logger.info(f"Pattern detected: {most_common_prefix} (used {pattern_info['count']} times)")
-        else:
-            # Fallback: use default prefix
-            new_code = f"{default_prefix}{1:0{default_digits}d}"
-
-        # Ensure uniqueness
-        counter = 1
-        original_code = new_code
-        while self.search([('employee_code', '=', new_code)], limit=1):
-            match = re.match(r'^([A-Za-z]+)(\d+)$', original_code)
+        # Find the highest number with this prefix
+        max_number = 0
+        for code in existing_codes:
+            match = re.match(rf'^{re.escape(prefix)}(\d+)$', code)
             if match:
-                prefix, number = match.groups()
-                digits = len(number)
-                next_num = int(number) + counter
-                new_code = f"{prefix}{next_num:0{digits}d}"
-                counter += 1
-            else:
-                new_code = f"{original_code}_{counter}"
-                counter += 1
+                number = int(match.group(1))
+                max_number = max(max_number, number)
+
+        # Generate next code
+        next_number = max_number + 1
+        new_code = f"{prefix}{next_number:04d}"  # 4 digits with leading zeros
+
+        _logger.info(f"Generated code: {new_code} (Prefix: {prefix}, Next: {next_number})")
 
         return new_code
+
+    def _get_employee_code_prefix(self):
+        """
+        Determine prefix based on Engagement Location, Payroll, and Employment Type
+
+        Logic from table:
+        - P: Onsite/Nearshore + Dubai-Onsite + Permanent
+        - T: Onsite/Nearshore + Dubai-Onsite + Temporary
+        - OP: Offshore + Dubai-Offshore + Permanent/Temporary
+        - TCIP: Offshore + TCIP India + Permanent
+        - BC: Onsite + Dubai-Onsite + Bootcamp
+        - BCO: Offshore + Dubai-Offshore + Bootcamp
+        - BCI: Offshore + TCIP India + Bootcamp
+        - PT: Any + Any + Seconded (Manual entry)
+        - TFL: Onsite/Offshore/Nearshore + Dubai-Onsite/Dubai-Offshore/TCIP + Freelancer
+        """
+
+        engagement = self.engagement_location
+        payroll = self.payroll_location
+        emp_type = self.employment_type
+
+        _logger.info(f"Determining prefix for: Engagement={engagement}, Payroll={payroll}, Type={emp_type}")
+
+        # Seconded - Manual entry (PT prefix)
+        if emp_type == 'seconded':
+            return 'PT'
+
+        # Freelancer - TFL prefix
+        if emp_type == 'freelancer':
+            return 'TFL'
+
+        # Bootcamp
+        if emp_type == 'bootcamp':
+            if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite':
+                return 'BC'
+            elif engagement == 'offshore' and payroll == 'dubai_offshore':
+                return 'BCO'
+            elif engagement == 'offshore' and payroll == 'tcip_india':
+                return 'BCI'
+
+        # TCIP India Permanent
+        if engagement == 'offshore' and payroll == 'tcip_india' and emp_type == 'permanent':
+            return 'TCIP'
+
+        # Offshore Permanent/Temporary
+        if engagement == 'offshore' and payroll == 'dubai_offshore':
+            if emp_type in ['permanent', 'temporary']:
+                return 'OP'
+
+        # Onsite/Nearshore Permanent
+        if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite' and emp_type == 'permanent':
+            return 'P'
+
+        # Onsite/Nearshore Temporary
+        if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite' and emp_type == 'temporary':
+            return 'T'
+
+        # Default fallback
+        _logger.warning(f"No prefix match found for combination: {engagement}, {payroll}, {emp_type}")
+        return 'EMP'
 
     def _analyze_code_patterns(self, codes):
         """Analyze existing employee codes to detect patterns"""

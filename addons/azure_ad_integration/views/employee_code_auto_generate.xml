@@ -6,6 +6,11 @@
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
+            <field name="employee_code" position="after">
+                <field name="engagement_location"/>
+                <field name="payroll_location"/>
+                <field name="employment_type"/>
+            </field>
             <xpath expr="//header" position="inside">
                 <button name="action_generate_employee_code"
                         type="object"
