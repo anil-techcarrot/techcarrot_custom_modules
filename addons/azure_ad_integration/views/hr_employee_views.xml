@@ -32,22 +32,18 @@
 
 
             <xpath expr="//page[@name='techcarrot']" position="inside">
-
-                <!-- EMPLOYEE DETAILS -->
                 <group string="EMPLOYEE DETAILS">
                     <group>
                         <field name="total_it_experience"/>
                     </group>
                 </group>
 
-                <!-- EMERGENCY CONTACT PERSON ADDRESS INSIDE UAE -->
                 <group string="EMERGENCY CONTACT PERSON ADDRESS INSIDE UAE">
                     <group>
                         <field name="alternate_mobile_number"/>
                         <field name="second_alternative_number"/>
                     </group>
                 </group>
-
             </xpath>
 
 
