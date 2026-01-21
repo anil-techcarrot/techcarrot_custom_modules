@@ -182,6 +182,8 @@ class PortalEmployeeSyncController(http.Controller):
             Employee = request.env['hr.employee']
             employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
+
+
             # EMPLOYEE VALUES
             vals = {
                 'name': self._val(data.get('name')),
@@ -219,6 +221,14 @@ class PortalEmployeeSyncController(http.Controller):
                 'score': self._val(data.get('score')),
                 'period_in_company': self._val(data.get('period_in_company')),
             }
+
+
+            employee_code_value = self._val(data.get('employee_code'))
+            if employee_code_value:
+                vals['employee_code'] = employee_code_value
+                _logger.info(f"✓ Using employee_code from API: {employee_code_value}")
+
+
 
             # PRIVATE ADDRESS FIELDS
             if self._val(data.get('private_street')):
@@ -292,7 +302,7 @@ class PortalEmployeeSyncController(http.Controller):
 
 
             # LANGUAGES KNOWN
-
+          #modify from here to
             # PROCESS LANGUAGES KNOWN (collect IDs but don't add to vals yet)
             langs_raw_data = data.get('names')
             _logger.info(f"🔍 Processing languages from 'names' field: {langs_raw_data}")
@@ -319,19 +329,20 @@ class PortalEmployeeSyncController(http.Controller):
             else:
                 _logger.info(f"ℹ️ No languages provided in 'names' field")
 
-
+                 # here is the end to modify
 
             # LOG FINAL VALUES
             _logger.info(f" Final vals: {json.dumps(vals, default=str, indent=2)}")
 
             # CREATE OR UPDATE
-
+             # as well modify from here to
             if employee:
                 employee.write(vals)
                 action = "updated"
                 _logger.info(f"✅ UPDATED employee: {employee.name} (ID: {employee.id})")
             else:
-                employee = Employee.create(vals)
+                # Disable auto-generation of employee_code when coming from API
+                employee = Employee.with_context(auto_generate_code=False).create(vals)
                 action = "created"
                 _logger.info(f"✅ CREATED employee: {employee.name} (ID: {employee.id})")
 
@@ -372,6 +383,8 @@ class PortalEmployeeSyncController(http.Controller):
                     _logger.error(f"❌ Error setting languages via SQL: {e}", exc_info=True)
             else:
                 _logger.info(f"ℹ️ No languages to set for employee {employee.id}")
+
+                # over here to end to modify
             # ===== END LANGUAGE FIX =====
 
 

@@ -1,3 +1,5 @@
 from . import hr_employee
 from . import hr_department
 from . import azure_license_config
+from . import Employee_code_auto_generate
+from . import res_config_settings
