@@ -31,16 +31,16 @@
             </xpath>
 
 
-            <xpath expr="//page[@name='techcarrot']" position="inside">
-                <group string="EMPLOYEE DETAILS">
-                    <field name="total_it_experience"/>
-                </group>
+<!--            <xpath expr="//page[@name='techcarrot']" position="inside">-->
+<!--                <group string="EMPLOYEE DETAILS">-->
+<!--                    <field name="total_it_experience"/>-->
+<!--                </group>-->
 
-                <group string="EMERGENCY CONTACT PERSON ADDRESS INSIDE UAE">
-                    <field name="alternate_mobile_number"/>
-                    <field name="second_alternative_number"/>
-                </group>
-            </xpath>
+<!--                <group string="EMERGENCY CONTACT PERSON ADDRESS INSIDE UAE">-->
+<!--                    <field name="alternate_mobile_number"/>-->
+<!--                    <field name="second_alternative_number"/>-->
+<!--                </group>-->
+<!--            </xpath>-->
 
             <!-- Azure AD Info Tab -->
             <xpath expr="//notebook" position="inside">

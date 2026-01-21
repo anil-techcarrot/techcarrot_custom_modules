@@ -5,7 +5,7 @@
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-<!--inherited view place changed(sriman)-->
+            <!--inherited view place changed(sriman)-->
             <xpath expr="//field[@name='employee_properties']" position="before">
                 <group>
                     <group>
@@ -29,7 +29,7 @@
                 <field name="emp_code"/>
             </xpath>
             <xpath expr="//field[@name='mobile_phone']" position="before">
-                <field name="country_code_for_work_mobile" />
+                <field name="country_code_for_work_mobile"/>
             </xpath>
             <xpath expr="//field[@name='next_appraisal_date']" position="after">
                 <field name="billable"/>
@@ -40,32 +40,32 @@
         </field>
     </record>
 
-<!-- as contracts is not present in separate i am removing this code (sriman) -->
-<!--    <record id="techcarrot_employee_contract_button_form_view" model="ir.ui.view">-->
-<!--        <field name="name">hr.employee.form</field>-->
-<!--        <field name="model">hr.employee</field>-->
-<!--        <field name="inherit_id" ref="hr_contract.hr_hr_employee_view_form3"/>-->
-<!--        <field name="arch" type="xml">-->
-<!--            <xpath expr="//button[@name='action_open_contract']" position="attributes">-->
-<!--                <attribute name="invisible">employee_type not in ['employee', 'student', 'trainee', 'permanent', 'temporary', 'bootcamp', 'seconded', 'freelance']</attribute>-->
-<!--            </xpath>-->
-<!--        </field>-->
-<!--    </record>-->
+    <!-- as contracts is not present in separate i am removing this code (sriman) -->
+    <!--    <record id="techcarrot_employee_contract_button_form_view" model="ir.ui.view">-->
+    <!--        <field name="name">hr.employee.form</field>-->
+    <!--        <field name="model">hr.employee</field>-->
+    <!--        <field name="inherit_id" ref="hr_contract.hr_hr_employee_view_form3"/>-->
+    <!--        <field name="arch" type="xml">-->
+    <!--            <xpath expr="//button[@name='action_open_contract']" position="attributes">-->
+    <!--                <attribute name="invisible">employee_type not in ['employee', 'student', 'trainee', 'permanent', 'temporary', 'bootcamp', 'seconded', 'freelance']</attribute>-->
+    <!--            </xpath>-->
+    <!--        </field>-->
+    <!--    </record>-->
 
     <record id="techcarrot_employee_inherit_tree_view" model="ir.ui.view">
-    <field name="name">hr.employee.list</field>
-    <field name="model">hr.employee</field>
-    <field name="inherit_id" ref="hr.view_employee_tree"/>
-    <field name="arch" type="xml">
-        <xpath expr="//list" position="attributes">
-            <attribute name="decoration-danger">
-                <![CDATA[
+        <field name="name">hr.employee.list</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="attributes">
+                <attribute name="decoration-danger">
+                    <![CDATA[
                     is_expiry_today
                 ]]>
-            </attribute>
-        </xpath>
-    </field>
-</record>
+                </attribute>
+            </xpath>
+        </field>
+    </record>
 
     <!--Adding Notebook and Pages to the employee module-->
     <record id="techcarrot_employee_inherit_notebook_view" model="ir.ui.view">
@@ -82,9 +82,12 @@
                                 <field name="e_private_street" placeholder="Street..." class="o_address_street"/>
                                 <field name="e_private_street2" placeholder="Street 2..." class="o_address_street"/>
                                 <field name="e_private_city" placeholder="City" class="o_address_city"/>
-                                <field name="e_private_state_id" class="o_address_state" placeholder="State" options="{'no_open': True, 'no_quick_create': True}" context="{'default_country_id': private_country_id}"/>
+                                <field name="e_private_state_id" class="o_address_state" placeholder="State"
+                                       options="{'no_open': True, 'no_quick_create': True}"
+                                       context="{'default_country_id': private_country_id}"/>
                                 <field name="e_private_zip" placeholder="ZIP" class="o_address_zip"/>
-                                <field name="e_private_country_id" placeholder="Country" class="o_address_country" options='{"no_open": True, "no_create": True}'/>
+                                <field name="e_private_country_id" placeholder="Country" class="o_address_country"
+                                       options='{"no_open": True, "no_create": True}'/>
                             </div>
                         </group>
 
@@ -94,7 +97,8 @@
                                 <field name="branch_name" placeholder="Branch Name..." class="o_address_branch_name"/>
                                 <field name="bank_city" placeholder="Bank City..." class="o_address_bank_city"/>
                                 <field name="iban_no" placeholder="IBAN Number" class="o_address_iban_no"/>
-                                <field name="ifsc_code" placeholder="Bank SWIFT / IFSC Code" class="o_address_ifsc_code"/>
+                                <field name="ifsc_code" placeholder="Bank SWIFT / IFSC Code"
+                                       class="o_address_ifsc_code"/>
                             </div>
                             <field name="bank_name"/>
                         </group>
@@ -128,12 +132,15 @@
                             <field name="dependent_child_passport_no" string="Child 1 Passport No"/>
                             <field name="dependent_child_passport_issue_date_1" string="Child 1 Passport Issue Date"/>
                             <field name="dependent_child_passport_expiry_date_1" string="Child 1 Passport Expiry Date"/>
-                            <field name="dependent_child_passport_issuing_countries_1_id" string="Child 1 Passport Issuing Country"/>
+                            <field name="dependent_child_passport_issuing_countries_1_id"
+                                   string="Child 1 Passport Issuing Country"/>
                             <field name="dependent_child_visa_no_1" string="Child 1 Visa No"/>
                             <field name="dependent_child_visa_expiration_date_1" string="Child 1 Visa Expiration Date"/>
                             <field name="dependent_child_emirates_id_no_1" string="Child 1 Emirates ID Number"/>
-                            <field name="dependent_child_emirates_id_issue_date_1" string="Child 1 Emirates ID Issue Date"/>
-                            <field name="dependent_child_emirates_id_expiry_date_1" string="Child 1 Emirates ID Expiry Date"/>
+                            <field name="dependent_child_emirates_id_issue_date_1"
+                                   string="Child 1 Emirates ID Issue Date"/>
+                            <field name="dependent_child_emirates_id_expiry_date_1"
+                                   string="Child 1 Emirates ID Expiry Date"/>
                             <field name="dependent_child_aadhar_no_1" string="Child 1 Aadhar Number"/>
                         </group>
 
@@ -144,16 +151,19 @@
                             <field name="engagement_location" string="Engagement Location"/>
                             <field name="emp_inside_uae" string="Employee Inside UAE"/>
                         </group>
-                            <!--Full Address Inside UAE-->
+                        <!--Full Address Inside UAE-->
                         <group string="Full Address Inside UAE">
                             <label for="u_private_street" string="Full Address Inside UAE"/>
                             <div class="o_address_format">
                                 <field name="u_private_street" placeholder="Street..." class="o_address_street"/>
                                 <field name="u_private_street2" placeholder="Street 2..." class="o_address_street"/>
                                 <field name="u_private_city" placeholder="City" class="o_address_city"/>
-                                <field name="u_private_state_id" class="o_address_state" placeholder="State" options="{'no_open': True, 'no_quick_create': True}" context="{'default_country_id': private_country_id}"/>
+                                <field name="u_private_state_id" class="o_address_state" placeholder="State"
+                                       options="{'no_open': True, 'no_quick_create': True}"
+                                       context="{'default_country_id': private_country_id}"/>
                                 <field name="u_private_zip" placeholder="ZIP" class="o_address_zip"/>
-                                <field name="u_private_country_id" placeholder="Country" class="o_address_country" options='{"no_open": True, "no_create": True}'/>
+                                <field name="u_private_country_id" placeholder="Country" class="o_address_country"
+                                       options='{"no_open": True, "no_create": True}'/>
                             </div>
                         </group>
 
@@ -182,6 +192,8 @@
                         </group>
 
                         <group string="Emergency Contact Person Address Inside UAE">
+                            <field name="alternate_mobile_number"/>
+                            <field name="second_alternative_number"/>
                             <field name="emergency_contact_person_name" string="Contact Person Name"/>
                             <field name="emergency_contact_person_name_1" string="Contact Person Name(1)"/>
                             <field name="relationship_with_emp_id" string="Relationship with Employee"/>
@@ -228,6 +240,7 @@
                         </group>
 
                         <group string="Employee Details">
+                            <field name="total_it_experience"/>
                             <field name="employee_nominee_name" string="Nominee Name"/>
                             <field name="employee_nominee_contact_no" string="Nominee Contact Number"/>
                             <field name="domain_worked" string="Domains Worked"/>
@@ -316,12 +329,12 @@
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='emergency_contact']" position="before">
-            <field name="country_code_for_emergency_contact_person_phone_no"/>
-        </xpath>
-<!--            <xpath expr="//group[@name='Emergency Contact']/separator" position="before">-->
-<!--                &lt;!&ndash; Adding country code field &ndash;&gt;-->
-<!--                <field name="country_code_for_emergency_contact_person_phone_no" string="Country Code"/>-->
-<!--            </xpath>-->
+                <field name="country_code_for_emergency_contact_person_phone_no"/>
+            </xpath>
+            <!--            <xpath expr="//group[@name='Emergency Contact']/separator" position="before">-->
+            <!--                &lt;!&ndash; Adding country code field &ndash;&gt;-->
+            <!--                <field name="country_code_for_emergency_contact_person_phone_no" string="Country Code"/>-->
+            <!--            </xpath>-->
         </field>
     </record>
 </odoo>

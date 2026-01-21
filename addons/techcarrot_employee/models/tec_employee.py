@@ -17,6 +17,11 @@ class HrEmployeeInherit(models.Model):
     employee_name_english = fields.Char('Employee Name - English', copy=False)
     employee_name_arabic = fields.Char('Employee Name - Arabic', copy=False)
     nationality_at_birth_id = fields.Many2one("res.country", string="Nationality At Birth", copy=False)
+
+
+    total_it_experience = fields.Char("Total IT Experience")
+    alternate_mobile_number = fields.Char("Alternate Mobile Number")
+    second_alternative_number = fields.Char("Second Alternative Number")
     # sriman removed the country_code because it is already present in hr_employee,if we add this field it is disturbing the UI in the employee payroll page
     # country_code = fields.Char('Country Code', copy=False)
 
