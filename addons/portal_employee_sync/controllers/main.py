@@ -288,40 +288,36 @@ class PortalEmployeeSyncController(http.Controller):
             if lang:
                 vals['mother_tongue_id'] = lang.id
 
+
+
+
             # LANGUAGES KNOWN
-            # LANGUAGES KNOWN
+
+            # PROCESS LANGUAGES KNOWN (collect IDs but don't add to vals yet)
             langs_raw_data = data.get('names')
-            _logger.info(f" DEBUG - names field ORIGINAL TYPE: {type(langs_raw_data)}")
-            _logger.info(f" DEBUG - names field ORIGINAL VALUE: {langs_raw_data}")
+            _logger.info(f"🔍 Processing languages from 'names' field: {langs_raw_data}")
 
             langs_raw = self._val(langs_raw_data)
-            _logger.info(f" DEBUG - names AFTER _val(): {langs_raw}")
+            language_ids_to_set = []  # Store IDs for later use
 
             if langs_raw:
-                _logger.info(f" Languages raw value exists: '{langs_raw}'")
-                lang_ids = []
+                _logger.info(f"✓ Languages raw value: '{langs_raw}'")
 
-                # Split by comma in case multiple languages are sent
+                # Split by comma for multiple languages
                 for name in langs_raw.split(','):
                     name = name.strip()
                     if name:
-                        _logger.info(f" Searching for language: '{name}'")
-                        lang = self._find_language(name)
-                        if lang:
-                            _logger.info(f"Found language: {name} -> ID: {lang.id}")
-                            lang_ids.append(lang.id)
+                        _logger.info(f"🔍 Searching for language: '{name}'")
+                        lang_obj = self._find_language(name)
+                        if lang_obj:
+                            language_ids_to_set.append(lang_obj.id)
+                            _logger.info(f"✅ Added language ID: {lang_obj.id} ({lang_obj.name})")
                         else:
-                            _logger.warning(f" Language NOT found in language.master: {name}")
+                            _logger.warning(f"❌ Language not found: {name}")
 
-                if lang_ids:
-                    vals['language_known_ids'] = [(6, 0, lang_ids)]
-                    _logger.info(f" Setting language_known_ids with IDs: {lang_ids}")
-                else:
-                    _logger.warning(f" No valid language IDs found to set")
+                _logger.info(f"📋 Total language IDs collected: {language_ids_to_set}")
             else:
-                _logger.info(f" No languages provided in 'names' field (after _val extraction)")
-
-
+                _logger.info(f"ℹ️ No languages provided in 'names' field")
 
 
 
@@ -333,31 +329,54 @@ class PortalEmployeeSyncController(http.Controller):
             if employee:
                 employee.write(vals)
                 action = "updated"
-                _logger.info(f" UPDATED: {employee.name} (ID: {employee.id})")
+                _logger.info(f"✅ UPDATED employee: {employee.name} (ID: {employee.id})")
             else:
                 employee = Employee.create(vals)
                 action = "created"
-                _logger.info(f" CREATED: {employee.name} (ID: {employee.id})")
+                _logger.info(f"✅ CREATED employee: {employee.name} (ID: {employee.id})")
 
-            # ===== VERIFICATION: Check if languages were saved =====
-            try:
-                employee.invalidate_cache()  # Force refresh from database
-                _logger.info(f"🔍 VERIFICATION - Employee {employee.id} language data:")
+            # ===== NOW SET LANGUAGES KNOWN SEPARATELY (CRITICAL FIX) =====
+            if language_ids_to_set:
+                try:
+                    _logger.info(f"🔧 Setting language_known_ids separately for employee {employee.id}")
+                    _logger.info(f"   Language IDs to set: {language_ids_to_set}")
 
-                if hasattr(employee, 'language_known_ids'):
-                    _logger.info(f"  language_known_ids exists: YES")
-                    _logger.info(f"  language_known_ids value: {employee.language_known_ids}")
-                    _logger.info(f"  language_known_ids IDs: {employee.language_known_ids.ids}")
-                    _logger.info(f"  language_known_ids names: {employee.language_known_ids.mapped('name')}")
-                else:
-                    _logger.error(f"  language_known_ids exists: NO")
+                    # Direct SQL insert (most reliable method)
+                    request.env.cr.execute(
+                        "DELETE FROM hr_employee_language_master_rel WHERE hr_employee_id = %s",
+                        (employee.id,)
+                    )
+                    _logger.info(f"   Cleared existing language relationships")
 
-                if hasattr(employee, 'mother_tongue_id'):
-                    _logger.info(
-                        f"  mother_tongue_id: {employee.mother_tongue_id.name if employee.mother_tongue_id else 'None'}")
+                    for lang_id in language_ids_to_set:
+                        request.env.cr.execute(
+                            "INSERT INTO hr_employee_language_master_rel (hr_employee_id, language_master_id) VALUES (%s, %s)",
+                            (employee.id, lang_id)
+                        )
+                    _logger.info(f"   Inserted {len(language_ids_to_set)} language relationships via SQL")
 
-            except Exception as e:
-                _logger.error(f" Verification error: {e}", exc_info=True)
+                    # Verify what was saved
+                    request.env.cr.execute(
+                        "SELECT language_master_id FROM hr_employee_language_master_rel WHERE hr_employee_id = %s",
+                        (employee.id,)
+                    )
+                    saved_ids = [row[0] for row in request.env.cr.fetchall()]
+                    _logger.info(f"✅ VERIFICATION: Language IDs in DB: {saved_ids}")
+
+                    if set(saved_ids) == set(language_ids_to_set):
+                        _logger.info(f"✅✅ Languages saved successfully!")
+                    else:
+                        _logger.error(f"❌ Mismatch! Expected {language_ids_to_set}, got {saved_ids}")
+
+                except Exception as e:
+                    _logger.error(f"❌ Error setting languages via SQL: {e}", exc_info=True)
+            else:
+                _logger.info(f"ℹ️ No languages to set for employee {employee.id}")
+            # ===== END LANGUAGE FIX =====
+
+
+
+
             # ===== END VERIFICATION =====
 
             # Get Azure details if available
