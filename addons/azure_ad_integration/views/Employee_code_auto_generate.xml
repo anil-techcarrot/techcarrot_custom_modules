@@ -1,9 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Inherit the view that has employee_code field -->
+    <record id="view_employee_form_employee_code_generate" model="ir.ui.view">
+        <field name="name">hr.employee.form.employee.code.generate</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="azure_ad_integration.view_employee_form_inherit"/>
+        <field name="arch" type="xml">
+            <!-- Add Generate button after employee_code field -->
+            <field name="employee_code" position="after">
+                <button name="action_generate_employee_code"
+                        type="object"
+                        string="Generate Code"
+                        class="btn btn-primary btn-sm"
+                        icon="fa-refresh"
+                        invisible="employee_code"/>
+            </field>
+        </field>
+    </record>
 
-    <!-- Add Generate Button to Employee Form -->
-    <record id="view_employee_form_employee_code_button" model="ir.ui.view">
-        <field name="name">hr.employee.form.employee.code.button</field>
+    <!-- Also add button in header for easy access -->
+    <record id="view_employee_form_employee_code_header_button" model="ir.ui.view">
+        <field name="name">hr.employee.form.employee.code.header</field>
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
@@ -17,16 +34,13 @@
         </field>
     </record>
 
-    <!-- Bulk Generate Action -->
+    <!-- Bulk Generate Action in List View -->
     <record id="action_bulk_generate_employee_codes" model="ir.actions.server">
         <field name="name">Generate Employee Codes (Bulk)</field>
         <field name="model_id" ref="hr.model_hr_employee"/>
         <field name="binding_model_id" ref="hr.model_hr_employee"/>
         <field name="binding_view_types">list</field>
         <field name="state">code</field>
-        <field name="code">
-            action = records.action_bulk_generate_employee_codes()
-        </field>
+        <field name="code">action = records.action_bulk_generate_employee_codes()</field>
     </record>
-
 </odoo>
