@@ -20,14 +20,14 @@
                     </group>
                 </group>
 
-                <!--                <group string="Languages">-->
-                <!--                    <group>-->
-                <!--                        <field name="mother_tongue_id"/>-->
-                <!--                    </group>-->
-                <!--                    <group>-->
-                <!--                        <field name="language_known_ids" widget="many2many_tags"/>-->
-                <!--                    </group>-->
-                <!--                </group>-->
+                <group string="Languages">
+                    <group>
+                        <field name="mother_tongue_id"/>
+                    </group>
+                    <group>
+                        <field name="language_known_ids" widget="many2many_tags"/>
+                    </group>
+                </group>
             </xpath>
 
 
