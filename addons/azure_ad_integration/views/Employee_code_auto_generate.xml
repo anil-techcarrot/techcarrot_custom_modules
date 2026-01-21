@@ -6,23 +6,12 @@
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-            <!-- Add button in header (top right) -->
+            <!-- Add Generate Button in header (top of form) -->
             <xpath expr="//header" position="inside">
                 <button name="action_generate_employee_code"
                         type="object"
                         string="Generate Employee Code"
                         class="oe_highlight"
-                        attrs="{'invisible': [('employee_code', '!=', False)]}"/>
-            </xpath>
-
-            <!-- Make employee_code readonly and add button next to field -->
-            <xpath expr="//field[@name='employee_code']" position="replace">
-                <field name="employee_code" readonly="1"/>
-                <button name="action_generate_employee_code"
-                        type="object"
-                        string="Generate"
-                        class="btn-primary"
-                        icon="fa-refresh"
                         attrs="{'invisible': [('employee_code', '!=', False)]}"/>
             </xpath>
         </field>
