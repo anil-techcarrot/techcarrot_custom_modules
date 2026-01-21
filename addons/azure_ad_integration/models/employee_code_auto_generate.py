@@ -147,12 +147,23 @@ class HrEmployeeInherit(models.Model):
         return patterns
 
     @api.model
-    def create(self, vals):
-        """Auto-generate employee code on creation if not provided"""
-        if not vals.get('employee_code'):
-            if self.env.context.get('auto_generate_code', True):
-                vals['employee_code'] = self._generate_next_employee_code()
-        return super(HrEmployeeInherit, self).create(vals)
+    def create(self, vals_list):
+        """
+        Odoo 19 safe create override:
+        - Handles dict and list
+        - Supports bulk create
+        - Respects auto_generate_code context
+        """
+
+        if isinstance(vals_list, dict):
+            vals_list = [vals_list]
+
+        for vals in vals_list:
+            if not vals.get('employee_code'):
+                if self.env.context.get('auto_generate_code', True):
+                    vals['employee_code'] = self._generate_next_employee_code()
+
+        return super(HrEmployeeInherit, self).create(vals_list)
 
     @api.constrains('employee_code')
     def _check_employee_code_unique(self):
