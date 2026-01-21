@@ -7,7 +7,7 @@
         'views/hr_department_views.xml',
         'views/azure_license_views.xml',
         'views/hr_employee_views.xml',
-        'views/Employee_code_auto_generate.xml',
+        'views/employee_code_auto_generate.xml',
         'views/res_config_settings.xml',
     ],
     'installable': True,

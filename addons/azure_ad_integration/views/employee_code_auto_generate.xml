@@ -1,35 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Inherit the view that has employee_code field -->
-    <record id="view_employee_form_employee_code_generate" model="ir.ui.view">
-        <field name="name">hr.employee.form.employee.code.generate</field>
-        <field name="model">hr.employee</field>
-        <field name="inherit_id" ref="azure_ad_integration.view_employee_form_inherit"/>
-        <field name="arch" type="xml">
-            <!-- Add Generate button after employee_code field -->
-            <field name="employee_code" position="after">
-                <button name="action_generate_employee_code"
-                        type="object"
-                        string="Generate Code"
-                        class="btn btn-primary btn-sm"
-                        icon="fa-refresh"
-                        invisible="employee_code"/>
-            </field>
-        </field>
-    </record>
-
-    <!-- Also add button in header for easy access -->
+    <!-- Add Generate Button in Header (This will work 100%) -->
     <record id="view_employee_form_employee_code_header_button" model="ir.ui.view">
         <field name="name">hr.employee.form.employee.code.header</field>
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
+            <!-- Add button in header -->
             <xpath expr="//header" position="inside">
                 <button name="action_generate_employee_code"
                         type="object"
                         string="Generate Employee Code"
                         class="oe_highlight"
                         invisible="employee_code"/>
+            </xpath>
+
+            <!-- Try to add button after employee_code if it exists -->
+            <!-- This will only work if employee_code field exists in base hr form -->
+            <xpath expr="//field[@name='barcode']" position="after">
+                <group name="portal_integration_group" string="Portal Integration">
+                    <field name="employee_code" readonly="1"/>
+                    <div>
+                        <button name="action_generate_employee_code"
+                                type="object"
+                                string="Generate Code"
+                                class="btn-primary"
+                                icon="fa-refresh"
+                                invisible="employee_code"/>
+                    </div>
+                </group>
             </xpath>
         </field>
     </record>
