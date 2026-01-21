@@ -1,23 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Add Generate Button to Employee Form -->
+
     <record id="view_employee_form_employee_code_button" model="ir.ui.view">
         <field name="name">hr.employee.form.employee.code.button</field>
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-            <!-- Add Generate Button in header (top of form) -->
             <xpath expr="//header" position="inside">
                 <button name="action_generate_employee_code"
                         type="object"
                         string="Generate Employee Code"
                         class="oe_highlight"
-                        attrs="{'invisible': [('employee_code', '!=', False)]}"/>
+                        t-if="!record.employee_code.raw_value"/>
             </xpath>
         </field>
     </record>
 
-    <!-- Add Bulk Generate Action in Employees List -->
     <record id="action_bulk_generate_employee_codes" model="ir.actions.server">
         <field name="name">Generate Employee Codes (Bulk)</field>
         <field name="model_id" ref="hr.model_hr_employee"/>
@@ -25,7 +23,8 @@
         <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
-action = records.action_bulk_generate_employee_codes()
+            action = records.action_bulk_generate_employee_codes()
         </field>
     </record>
+
 </odoo>
