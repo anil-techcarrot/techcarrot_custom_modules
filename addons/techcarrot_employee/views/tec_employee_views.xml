@@ -175,6 +175,7 @@
                             <field name="reason_for_leaving" string="Reason for Leaving"/>
                             <field name="last_report_manager_name" string="Reporting Manager Name"/>
                             <field name="last_report_manager_designation" string="Reporting Manager Designation"/>
+                            <field name="last_report_manager_mob_no" string="Last Reporting Manager Mobile Number"/>
                             <field name="last_report_manager_mail" string="Reporting Manager Email-ID"/>
                         </group>
                         <!--Continuation of last organisation Info-->
@@ -192,11 +193,11 @@
                         </group>
 
                         <group string="Emergency Contact Person Address Inside UAE">
-                            <field name="alternate_mobile_number"/>
-                            <field name="second_alternative_number"/>
                             <field name="emergency_contact_person_name" string="Contact Person Name"/>
                             <field name="emergency_contact_person_name_1" string="Contact Person Name(1)"/>
                             <field name="relationship_with_emp_id" string="Relationship with Employee"/>
+                            <field name="alternate_mobile_number"/>
+                            <field name="second_alternative_number"/>
                             <field name="emergency_contact_person_phone" string="Contact Person Phone Number"/>
                             <field name="emergency_contact_person_phone_1" string="Contact Person Phone Number(1)"/>
                             <field name="phone_code" string="Countrycode"/>
@@ -240,9 +241,9 @@
                         </group>
 
                         <group string="Employee Details">
-                            <field name="total_it_experience"/>
                             <field name="employee_nominee_name" string="Nominee Name"/>
                             <field name="employee_nominee_contact_no" string="Nominee Contact Number"/>
+                            <field name="total_it_experience"/>
                             <field name="domain_worked" string="Domains Worked"/>
                             <field name="primary_skill" string="Primary Skills"/>
                             <field name="secondary_skill" string="Secondary Skills"/>
@@ -283,7 +284,6 @@
                         </group>
 
                         <group string="Industry Details">
-                            <field name="last_report_manager_mob_no" string="Last Reporting Manager Mobile Number"/>
                             <field name="industry_ref_name" string="Reference Name"/>
                             <field name="industry_ref_email" string="Reference Email"/>
                             <field name="industry_ref_mob_no" string="Reference Mobile Number"/>
