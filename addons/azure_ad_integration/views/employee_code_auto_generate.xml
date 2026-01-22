@@ -6,9 +6,9 @@
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-            <field name="work_email" position="after">
-                <field name="employee_code"/>
-            </field>
+             <xpath expr="//field[@name='work_email']" position="after">
+                <field name="employee_code" readonly="1"/>
+            </xpath>
 <!--                <group string="Employee Code &amp; Classification" colspan="4">-->
 <!--                    <group>-->
 <!--                        -->

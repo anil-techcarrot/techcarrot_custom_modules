@@ -7,18 +7,18 @@
         <field name="arch" type="xml">
             <!--inherited view place changed(sriman)-->
             <xpath expr="//field[@name='employee_properties']" position="before">
-                <group colspan="4" col="6">
-                    <group>
+                <group colspan="4" col="3">
+                    <group string="">
                         <field name="employee_first_name"/>
                         <field name="employee_name_english"/>
                         <field name="engagement_location"/>
                     </group>
-                    <group>
+                    <group string="">
                         <field name="employee_middle_name"/>
                         <field name="employee_name_arabic"/>
                         <field name="payroll_location"/>
                     </group>
-                    <group>
+                    <group string="">
                         <field name="employee_last_name"/>
                         <field name="nationality_at_birth_id"/>
                         <field name="employment_type"/>
@@ -26,9 +26,9 @@
                 </group>
                 <field name="country_code" invisible="1"/>
             </xpath>
-            <!--            <xpath expr="//field[@name='department_id']" position="before">-->
-            <!--                <field name="emp_code"/>-->
-            <!--            </xpath>-->
+            <xpath expr="//field[@name='department_id']" position="before">
+                <field name="emp_code"/>
+            </xpath>
             <xpath expr="//field[@name='mobile_phone']" position="before">
                 <field name="country_code_for_work_mobile"/>
             </xpath>
