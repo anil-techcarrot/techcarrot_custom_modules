@@ -8,10 +8,16 @@
         <field name="arch" type="xml">
             <!-- Add fields after work_email -->
             <field name="work_email" position="after">
-                <field name="employee_code" readonly="1"/>
-                <field name="engagement_location"/>
-                <field name="payroll_location"/>
-                <field name="employment_type"/>
+                <group string="Employee Code &amp; Classification" colspan="4">
+                    <group>
+                        <field name="employee_code" readonly="1"/>
+                        <field name="engagement_location"/>
+                    </group>
+                    <group>
+                        <field name="payroll_location"/>
+                        <field name="employment_type"/>
+                    </group>
+                </group>
             </field>
 
             <!-- Add Generate Button in header -->
