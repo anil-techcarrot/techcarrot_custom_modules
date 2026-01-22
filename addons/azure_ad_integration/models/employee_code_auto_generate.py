@@ -36,6 +36,25 @@ class HrEmployeeInherit(models.Model):
         ('freelancer', 'Freelancer'),
     ], string='Employment Type')
 
+    @api.model
+    def create(self, vals):
+        """Sync employee_code to emp_code on create"""
+        res = super(HrEmployeeInherit, self).create(vals)
+        if res.employee_code:
+            res.emp_code = res.employee_code
+        return res
+
+    # ADD THIS METHOD - Auto-sync employee_code to emp_code
+    def write(self, vals):
+        """Sync employee_code to emp_code on write"""
+        res = super(HrEmployeeInherit, self).write(vals)
+        # If employee_code is updated, sync it to emp_code
+        if 'employee_code' in vals:
+            for record in self:
+                if record.employee_code:
+                    record.sudo().write({'emp_code': record.employee_code})
+        return res
+
     def action_open_code_generation_wizard(self):
         """Open wizard to generate employee code"""
         self.ensure_one()
