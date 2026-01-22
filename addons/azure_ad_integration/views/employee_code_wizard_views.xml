@@ -42,13 +42,4 @@
             </form>
         </field>
     </record>
-
-    <!-- Action for Wizard -->
-    <record id="action_employee_code_generation_wizard" model="ir.actions.act_window">
-        <field name="name">Generate Employee Code</field>
-        <field name="res_model">employee.code.generation.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-        <field name="binding_model_id" ref="hr.model_hr_employee"/>
-    </record>
 </odoo>

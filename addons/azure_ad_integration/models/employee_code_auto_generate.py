@@ -13,9 +13,10 @@ class HrEmployeeInherit(models.Model):
         string='Employee Code',
         copy=False,
         index=True,
-        readonly=True,  # Make it readonly since it's generated
-        help="Unique employee code (e.g., EMP001, P0012, TCIP0221)"
+        readonly=True,
+        help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
     )
+
     engagement_location = fields.Selection([
         ('onsite_nearshore', 'Onsite / Nearshore'),
         ('offshore', 'Offshore'),
@@ -58,6 +59,18 @@ class HrEmployeeInherit(models.Model):
                 'default_employment_type': self.employment_type,
             }
         }
+
+    def action_generate_employee_code(self):
+        """
+        BACKWARD COMPATIBILITY METHOD
+        This redirects old button calls to new wizard
+        Keep this until azure_ad_integration module is updated
+        """
+        _logger.warning(
+            "action_generate_employee_code is deprecated. "
+            "Use action_open_code_generation_wizard instead"
+        )
+        return self.action_open_code_generation_wizard()
 
     def action_bulk_generate_employee_codes(self):
         """Generate employee codes for all employees without codes"""
@@ -103,7 +116,6 @@ class HrEmployeeInherit(models.Model):
     def _generate_next_employee_code(self):
         """Generate employee code based on classification fields"""
 
-        # Determine prefix based on the 3 fields
         prefix = self._get_employee_code_prefix()
 
         if not prefix:
@@ -127,7 +139,7 @@ class HrEmployeeInherit(models.Model):
 
         # Generate next code
         next_number = max_number + 1
-        new_code = f"{prefix}{next_number:04d}"  # 4 digits with leading zeros
+        new_code = f"{prefix}{next_number:04d}"
 
         _logger.info(f"Generated code: {new_code} (Prefix: {prefix}, Next: {next_number})")
 
@@ -139,8 +151,6 @@ class HrEmployeeInherit(models.Model):
         engagement = self.engagement_location
         payroll = self.payroll_location
         emp_type = self.employment_type
-
-        _logger.info(f"Determining prefix for: Engagement={engagement}, Payroll={payroll}, Type={emp_type}")
 
         # Seconded - Manual entry (PT prefix)
         if emp_type == 'seconded':
@@ -177,7 +187,7 @@ class HrEmployeeInherit(models.Model):
             return 'T'
 
         # Default fallback
-        _logger.warning(f"No prefix match found for combination: {engagement}, {payroll}, {emp_type}")
+        _logger.warning(f"No prefix match for: {engagement}, {payroll}, {emp_type}")
         return 'EMP'
 
     @api.constrains('employee_code')

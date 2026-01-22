@@ -6,7 +6,6 @@
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-            <!-- Add fields after work_email -->
             <field name="work_email" position="after">
                 <group string="Employee Code &amp; Classification" colspan="4">
                     <group>
@@ -22,7 +21,7 @@
         </field>
     </record>
 
-    <!-- Add Generate Button in header - SEPARATE VIEW -->
+    <!-- Add Generate Button in header -->
     <record id="view_employee_form_code_button" model="ir.ui.view">
         <field name="name">hr.employee.form.code.button</field>
         <field name="model">hr.employee</field>

@@ -1,24 +1,34 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+import re
 
 
 class EmployeeCodeGenerationWizard(models.TransientModel):
     _name = 'employee.code.generation.wizard'
     _description = 'Employee Code Generation Wizard'
 
-    employee_id = fields.Many2one('hr.employee', string='Employee', required=True, readonly=True)
-    employee_name = fields.Char(related='employee_id.name', string='Employee Name', readonly=True)
+    employee_id = fields.Many2one(
+        'hr.employee',
+        string='Employee',
+        required=True,
+        readonly=True
+    )
+    employee_name = fields.Char(
+        related='employee_id.name',
+        string='Employee Name',
+        readonly=True
+    )
 
     engagement_location = fields.Selection([
         ('onsite_nearshore', 'Onsite / Nearshore'),
         ('offshore', 'Offshore'),
-    ], string='Engagement Location', required=True, ondelete='set null')
+    ], string='Engagement Location', required=True)
 
     payroll_location = fields.Selection([
         ('dubai_onsite', 'Dubai- Onsite'),
         ('dubai_offshore', 'Dubai-Offshore'),
         ('tcip_india', 'TCIP India'),
-    ], string='Payroll', required=True, ondelete='set null')
+    ], string='Payroll', required=True)
 
     employment_type = fields.Selection([
         ('permanent', 'Permanent'),
@@ -26,18 +36,20 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         ('bootcamp', 'Bootcamp'),
         ('seconded', 'Seconded'),
         ('freelancer', 'Freelancer'),
-    ], string='Employment Type', required=True, ondelete='set null')
+    ], string='Employment Type', required=True)
 
-    preview_code = fields.Char(string='Preview Code', readonly=True, compute='_compute_preview_code')
+    preview_code = fields.Char(
+        string='Preview Code',
+        readonly=True,
+        compute='_compute_preview_code'
+    )
 
     @api.depends('engagement_location', 'payroll_location', 'employment_type')
     def _compute_preview_code(self):
         """Show preview of what the code will be"""
         for wizard in self:
             if wizard.engagement_location and wizard.payroll_location and wizard.employment_type:
-                # Get prefix
                 prefix = wizard._get_employee_code_prefix()
-                # Get next number
                 next_number = wizard._get_next_number(prefix)
                 wizard.preview_code = f"{prefix}{next_number:04d}"
             else:
@@ -49,15 +61,12 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         payroll = self.payroll_location
         emp_type = self.employment_type
 
-        # Seconded - Manual entry (PT prefix)
         if emp_type == 'seconded':
             return 'PT'
 
-        # Freelancer - TFL prefix
         if emp_type == 'freelancer':
             return 'TFL'
 
-        # Bootcamp
         if emp_type == 'bootcamp':
             if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite':
                 return 'BC'
@@ -66,30 +75,23 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
             elif engagement == 'offshore' and payroll == 'tcip_india':
                 return 'BCI'
 
-        # TCIP India Permanent
         if engagement == 'offshore' and payroll == 'tcip_india' and emp_type == 'permanent':
             return 'TCIP'
 
-        # Offshore Permanent/Temporary
         if engagement == 'offshore' and payroll == 'dubai_offshore':
             if emp_type in ['permanent', 'temporary']:
                 return 'OP'
 
-        # Onsite/Nearshore Permanent
         if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite' and emp_type == 'permanent':
             return 'P'
 
-        # Onsite/Nearshore Temporary
         if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite' and emp_type == 'temporary':
             return 'T'
 
-        # Default fallback
         return 'EMP'
 
     def _get_next_number(self, prefix):
         """Get next number for the prefix"""
-        import re
-
         all_employees = self.env['hr.employee'].search([
             ('employee_code', '!=', False),
             ('employee_code', '=like', f'{prefix}%')
@@ -110,14 +112,12 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         """Generate the employee code and update employee"""
         self.ensure_one()
 
-        # Check if employee already has code
         if self.employee_id.employee_code:
             raise UserError(_(
                 'Employee Code already exists: %s\n'
                 'Cannot generate a new code for employee: %s'
             ) % (self.employee_id.employee_code, self.employee_id.name))
 
-        # Generate the code
         prefix = self._get_employee_code_prefix()
         next_number = self._get_next_number(prefix)
         new_code = f"{prefix}{next_number:04d}"
