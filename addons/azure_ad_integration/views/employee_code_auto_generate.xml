@@ -19,8 +19,16 @@
                     </group>
                 </group>
             </field>
+        </field>
+    </record>
 
-            <!-- Add Generate Button in header -->
+    <!-- Add Generate Button in header - SEPARATE VIEW -->
+    <record id="view_employee_form_code_button" model="ir.ui.view">
+        <field name="name">hr.employee.form.code.button</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
                 <button name="action_open_code_generation_wizard"
                         type="object"

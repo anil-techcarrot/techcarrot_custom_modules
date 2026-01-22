@@ -12,13 +12,13 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
     engagement_location = fields.Selection([
         ('onsite_nearshore', 'Onsite / Nearshore'),
         ('offshore', 'Offshore'),
-    ], string='Engagement Location', required=True)
+    ], string='Engagement Location', required=True, ondelete='set null')
 
     payroll_location = fields.Selection([
         ('dubai_onsite', 'Dubai- Onsite'),
         ('dubai_offshore', 'Dubai-Offshore'),
         ('tcip_india', 'TCIP India'),
-    ], string='Payroll', required=True)
+    ], string='Payroll', required=True, ondelete='set null')
 
     employment_type = fields.Selection([
         ('permanent', 'Permanent'),
@@ -26,7 +26,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         ('bootcamp', 'Bootcamp'),
         ('seconded', 'Seconded'),
         ('freelancer', 'Freelancer'),
-    ], string='Employment Type', required=True)
+    ], string='Employment Type', required=True, ondelete='set null')
 
     preview_code = fields.Char(string='Preview Code', readonly=True, compute='_compute_preview_code')
 
