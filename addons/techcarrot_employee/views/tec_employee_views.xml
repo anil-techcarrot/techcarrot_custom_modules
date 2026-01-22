@@ -196,10 +196,10 @@
                             <field name="emergency_contact_person_name" string="Contact Person Name"/>
                             <field name="emergency_contact_person_name_1" string="Contact Person Name(1)"/>
                             <field name="relationship_with_emp_id" string="Relationship with Employee"/>
-                            <field name="alternate_mobile_number"/>
-                            <field name="second_alternative_number"/>
                             <field name="emergency_contact_person_phone" string="Contact Person Phone Number"/>
                             <field name="emergency_contact_person_phone_1" string="Contact Person Phone Number(1)"/>
+                            <field name="alternate_mobile_number"/>
+                            <field name="second_alternative_number"/>
                             <field name="phone_code" string="Countrycode"/>
                             <field name="home_land_line_no" string="Home Land Line Number"/>
                         </group>
