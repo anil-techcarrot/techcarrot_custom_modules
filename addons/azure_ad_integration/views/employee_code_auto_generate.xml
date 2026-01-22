@@ -1,16 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Add Generate Button in Header -->
-    <record id="view_employee_form_code_button" model="ir.ui.view">
-        <field name="name">hr.employee.form.code.button</field>
+    <!-- Add Employee Code and Related Fields to Form -->
+    <record id="view_employee_form_code_fields" model="ir.ui.view">
+        <field name="name">hr.employee.form.code.fields</field>
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-            <field name="employee_code" position="after">
+            <!-- Add fields after work_email -->
+            <field name="work_email" position="after">
+                <field name="employee_code" readonly="1"/>
                 <field name="engagement_location"/>
                 <field name="payroll_location"/>
                 <field name="employment_type"/>
             </field>
+
+            <!-- Add Generate Button in header -->
             <xpath expr="//header" position="inside">
                 <button name="action_generate_employee_code"
                         type="object"
