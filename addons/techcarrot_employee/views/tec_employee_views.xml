@@ -11,24 +11,24 @@
                     <group>
                         <field name="employee_first_name"/>
                         <field name="employee_name_english"/>
-                        <!--            <field name="engagement_location"/>-->
+                        <field name="engagement_location"/>
                     </group>
                     <group>
                         <field name="employee_middle_name"/>
                         <field name="employee_name_arabic"/>
-                        <!--            <field name="payroll_location"/>-->
+                        <field name="payroll_location"/>
                     </group>
                     <group>
                         <field name="employee_last_name"/>
                         <field name="nationality_at_birth_id"/>
-<!--                        <field name="employment_type"/>-->
+                        <field name="employment_type"/>
                     </group>
                 </group>
                 <field name="country_code" invisible="1"/>
             </xpath>
-            <xpath expr="//field[@name='department_id']" position="before">
-                <field name="emp_code"/>
-            </xpath>
+            <!--            <xpath expr="//field[@name='department_id']" position="before">-->
+            <!--                <field name="emp_code"/>-->
+            <!--            </xpath>-->
             <xpath expr="//field[@name='mobile_phone']" position="before">
                 <field name="country_code_for_work_mobile"/>
             </xpath>
