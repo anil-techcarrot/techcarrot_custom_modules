@@ -6,19 +6,31 @@
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-            <field name="work_email" position="after">
-                <group string="Employee Code &amp; Classification" colspan="4">
-                    <group>
-                        <field name="employee_code"/>
-                        <field name="engagement_location"/>
-                    </group>
-                    <group>
-                        <field name="payroll_location"/>
-                        <field name="employment_type"/>
-                    </group>
-                </group>
-            </field>
+            <!--            <field name="work_email" position="after">-->
+            <xpath expr="//field[@name='work_mail']" position="after">
+                <field name="employee_code"/>
+            </xpath>
+
+            <!--                <group string="Employee Code &amp; Classification" colspan="4">-->
+            <!--                    <group>-->
+
+            <xpath expr="//field[@name='employee_name_english']" position="after">
+                <field name="engagement_location"/>
+            </xpath>
+            <xpath expr="//field[@name='employee_name_arabic']" position="after">
+                <field name="payroll_location"/>
+            </xpath>
+            <xpath expr="//field[@name='nationality_at_birth_id']" position="after">
+                <field name="employment_type"/>
+            </xpath>
+            <!--                    </group>-->
+            <!--                    <group>-->
+
+
+            <!--                    </group>-->
+            <!--                </group>-->
         </field>
+        <!--        </field>-->
     </record>
 
     <!-- Add Generate Button in header -->
