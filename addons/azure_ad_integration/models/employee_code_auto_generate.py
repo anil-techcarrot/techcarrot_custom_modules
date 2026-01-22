@@ -13,7 +13,8 @@ class HrEmployeeInherit(models.Model):
         string='Employee Code',
         copy=False,
         index=True,
-        help="Unique employee code (e.g., EMP001, B0012, TC221)"
+        readonly=True,  # Make it readonly since it's generated
+        help="Unique employee code (e.g., EMP001, P0012, TCIP0221)"
     )
     engagement_location = fields.Selection([
         ('onsite_nearshore', 'Onsite / Nearshore'),
@@ -34,29 +35,27 @@ class HrEmployeeInherit(models.Model):
         ('freelancer', 'Freelancer'),
     ], string='Employment Type')
 
-    def action_generate_employee_code(self):
-        """Generate employee code with sequence"""
-        for employee in self:
-            if employee.employee_code:
-                raise UserError(_(
-                    'Employee Code already exists: %s\n'
-                    'Cannot generate a new code for employee: %s'
-                ) % (employee.employee_code, employee.name))
+    def action_open_code_generation_wizard(self):
+        """Open wizard to generate employee code"""
+        self.ensure_one()
 
-            # Generate new code
-            new_code = self._generate_next_employee_code()
-            employee.write({'employee_code': new_code})
-
-            _logger.info(f"Generated Employee Code: {new_code} for {employee.name} (ID: {employee.id})")
+        if self.employee_code:
+            raise UserError(_(
+                'Employee Code already exists: %s\n'
+                'Cannot generate a new code for this employee.'
+            ) % self.employee_code)
 
         return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Success'),
-                'message': _('Employee Code "%s" generated successfully!') % new_code,
-                'type': 'success',
-                'sticky': False,
+            'name': _('Generate Employee Code'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'employee.code.generation.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_employee_id': self.id,
+                'default_engagement_location': self.engagement_location,
+                'default_payroll_location': self.payroll_location,
+                'default_employment_type': self.employment_type,
             }
         }
 
@@ -71,10 +70,21 @@ class HrEmployeeInherit(models.Model):
         if not employees_without_code:
             raise UserError(_('All employees already have employee codes!'))
 
+        # Check if any employee is missing classification fields
+        incomplete_employees = employees_without_code.filtered(
+            lambda e: not e.engagement_location or not e.payroll_location or not e.employment_type
+        )
+
+        if incomplete_employees:
+            raise UserError(_(
+                'Cannot generate codes in bulk. The following employees are missing classification fields:\n\n%s\n\n'
+                'Please complete their Engagement Location, Payroll, and Employment Type fields first.'
+            ) % '\n'.join(incomplete_employees.mapped('name')))
+
         generated_count = 0
 
         for employee in employees_without_code:
-            new_code = self._generate_next_employee_code()
+            new_code = employee._generate_next_employee_code()
             employee.write({'employee_code': new_code})
             generated_count += 1
             _logger.info(f"Bulk Generated: {new_code} for {employee.name}")
@@ -91,18 +101,12 @@ class HrEmployeeInherit(models.Model):
         }
 
     def _generate_next_employee_code(self):
-        """
-        Generate employee code based on:
-        - Engagement Location
-        - Payroll
-        - Employment Type
-        """
+        """Generate employee code based on classification fields"""
 
         # Determine prefix based on the 3 fields
         prefix = self._get_employee_code_prefix()
 
         if not prefix:
-            # Fallback to default if fields not set
             prefix = 'EMP'
 
         # Get all existing codes with this prefix
@@ -130,20 +134,7 @@ class HrEmployeeInherit(models.Model):
         return new_code
 
     def _get_employee_code_prefix(self):
-        """
-        Determine prefix based on Engagement Location, Payroll, and Employment Type
-
-        Logic from table:
-        - P: Onsite/Nearshore + Dubai-Onsite + Permanent
-        - T: Onsite/Nearshore + Dubai-Onsite + Temporary
-        - OP: Offshore + Dubai-Offshore + Permanent/Temporary
-        - TCIP: Offshore + TCIP India + Permanent
-        - BC: Onsite + Dubai-Onsite + Bootcamp
-        - BCO: Offshore + Dubai-Offshore + Bootcamp
-        - BCI: Offshore + TCIP India + Bootcamp
-        - PT: Any + Any + Seconded (Manual entry)
-        - TFL: Onsite/Offshore/Nearshore + Dubai-Onsite/Dubai-Offshore/TCIP + Freelancer
-        """
+        """Determine prefix based on Engagement Location, Payroll, and Employment Type"""
 
         engagement = self.engagement_location
         payroll = self.payroll_location
@@ -188,50 +179,6 @@ class HrEmployeeInherit(models.Model):
         # Default fallback
         _logger.warning(f"No prefix match found for combination: {engagement}, {payroll}, {emp_type}")
         return 'EMP'
-
-    def _analyze_code_patterns(self, codes):
-        """Analyze existing employee codes to detect patterns"""
-        patterns = {}
-
-        for code in codes:
-            match = re.match(r'^([A-Za-z]+)(\d+)$', code)
-
-            if match:
-                prefix, number_str = match.groups()
-                number = int(number_str)
-                digits = len(number_str)
-
-                if prefix not in patterns:
-                    patterns[prefix] = {
-                        'count': 0,
-                        'max_number': 0,
-                        'digits': digits
-                    }
-
-                patterns[prefix]['count'] += 1
-                patterns[prefix]['max_number'] = max(patterns[prefix]['max_number'], number)
-                patterns[prefix]['digits'] = min(patterns[prefix]['digits'], digits)
-
-        return patterns
-
-    @api.model
-    def create(self, vals_list):
-        """
-        Odoo 19 safe create override:
-        - Handles dict and list
-        - Supports bulk create
-        - Respects auto_generate_code context
-        """
-
-        if isinstance(vals_list, dict):
-            vals_list = [vals_list]
-
-        for vals in vals_list:
-            if not vals.get('employee_code'):
-                if self.env.context.get('auto_generate_code', True):
-                    vals['employee_code'] = self._generate_next_employee_code()
-
-        return super(HrEmployeeInherit, self).create(vals_list)
 
     @api.constrains('employee_code')
     def _check_employee_code_unique(self):

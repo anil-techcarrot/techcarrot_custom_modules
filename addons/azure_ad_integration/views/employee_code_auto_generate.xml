@@ -10,7 +10,7 @@
             <field name="work_email" position="after">
                 <group string="Employee Code &amp; Classification" colspan="4">
                     <group>
-                        <field name="employee_code" readonly="1"/>
+                        <field name="employee_code"/>
                         <field name="engagement_location"/>
                     </group>
                     <group>
@@ -22,7 +22,7 @@
 
             <!-- Add Generate Button in header -->
             <xpath expr="//header" position="inside">
-                <button name="action_generate_employee_code"
+                <button name="action_open_code_generation_wizard"
                         type="object"
                         string="Generate Employee Code"
                         class="oe_highlight"
