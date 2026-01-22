@@ -311,8 +311,8 @@ class PortalEmployeeSyncController(http.Controller):
             # LANGUAGES KNOWN
           #modify from here to
             # PROCESS LANGUAGES KNOWN (collect IDs but don't add to vals yet)
-            langs_raw_data = data.get('names')
-            _logger.info(f"🔍 Processing languages from 'names' field: {langs_raw_data}")
+            langs_raw_data = data.get('names') or data.get('language_known_ids')
+            _logger.info(f"🔍 Processing languages from API: {langs_raw_data}")
 
             langs_raw = self._val(langs_raw_data)
             language_ids_to_set = []  # Store IDs for later use
@@ -334,7 +334,7 @@ class PortalEmployeeSyncController(http.Controller):
 
                 _logger.info(f"📋 Total language IDs collected: {language_ids_to_set}")
             else:
-                _logger.info(f"ℹ️ No languages provided in 'names' field")
+                _logger.info(f"ℹ️ No languages provided")
 
                  # here is the end to modify
 
