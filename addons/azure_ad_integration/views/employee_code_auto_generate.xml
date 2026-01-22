@@ -6,20 +6,21 @@
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-              <xpath expr="//field[@name='work_email']" position="after">
+            <xpath expr="//field[@name='work_email']/.." position="after">
+                <label for="employee_code" string="Employee Code"/>
                 <field name="employee_code" readonly="1" placeholder="Generate Employee Code"/>
             </xpath>
-<!--                <group string="Employee Code &amp; Classification" colspan="4">-->
-<!--                    <group>-->
-<!--                        -->
-<!--                        <field name="engagement_location"/>-->
-<!--                    </group>-->
-<!--                    <group>-->
-<!--                        <field name="payroll_location"/>-->
-<!--                        <field name="employment_type"/>-->
-<!--                    </group>-->
-<!--                </group>-->
-            </field>
+            <!--                <group string="Employee Code &amp; Classification" colspan="4">-->
+            <!--                    <group>-->
+            <!--                        -->
+            <!--                        <field name="engagement_location"/>-->
+            <!--                    </group>-->
+            <!--                    <group>-->
+            <!--                        <field name="payroll_location"/>-->
+            <!--                        <field name="employment_type"/>-->
+            <!--                    </group>-->
+            <!--                </group>-->
+        </field>
 
     </record>
 

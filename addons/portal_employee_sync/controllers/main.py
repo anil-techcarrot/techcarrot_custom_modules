@@ -196,6 +196,7 @@ class PortalEmployeeSyncController(http.Controller):
                 'engagement_location': self._val(data.get('engagement_location')),
                 'payroll_location': self._val(data.get('payroll_location')),
                 'employment_type': self._val(data.get('employment_type')),
+                'language_known_ids' : self._val(data.get('language_known_ids')),
                 'department_id': self._get_or_create_department(data.get('department')),
                 'job_id': self._get_or_create_job(data.get('job_title')),
                 'employee_first_name': self._val(data.get('employee_first_name')),
