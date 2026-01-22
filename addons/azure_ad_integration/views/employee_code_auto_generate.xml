@@ -7,18 +7,20 @@
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
             <field name="work_email" position="after">
-                <group string="Employee Code &amp; Classification" colspan="4">
-                    <group>
-                        <field name="employee_code"/>
-                        <field name="engagement_location"/>
-                    </group>
-                    <group>
-                        <field name="payroll_location"/>
-                        <field name="employment_type"/>
-                    </group>
-                </group>
+                <field name="employee_code"/>
             </field>
-        </field>
+<!--                <group string="Employee Code &amp; Classification" colspan="4">-->
+<!--                    <group>-->
+<!--                        -->
+<!--                        <field name="engagement_location"/>-->
+<!--                    </group>-->
+<!--                    <group>-->
+<!--                        <field name="payroll_location"/>-->
+<!--                        <field name="employment_type"/>-->
+<!--                    </group>-->
+<!--                </group>-->
+            </field>
+
     </record>
 
     <!-- Add Generate Button in header -->
