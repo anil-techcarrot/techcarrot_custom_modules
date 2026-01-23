@@ -32,6 +32,18 @@
 
                 <field name="country_code" invisible="1"/>
             </xpath>
+            <xpath expr="//field[@name='department_id']" position="before">
+                <field name="emp_code"/>
+            </xpath>
+            <xpath expr="//field[@name='mobile_phone']" position="before">
+                <field name="country_code_for_work_mobile"/>
+            </xpath>
+            <xpath expr="//field[@name='next_appraisal_date']" position="after">
+                <field name="billable"/>
+                <field name="billing_amt"/>
+                <field name="billing_currency_id"/>
+                <field name="emp_category_id" options="{'no_open': True, 'no_create': True}"/>
+            </xpath>
         </field>
     </record>
 
