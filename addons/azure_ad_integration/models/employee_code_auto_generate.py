@@ -20,7 +20,7 @@ class HrEmployeeInherit(models.Model):
     engagement_location = fields.Selection([
         ('onsite', 'Onsite'),
         ('offshore', 'Offshore'),
-        ('near shore', 'Near shore'),
+        ('near_shore', 'Near shore'),
     ], string='Engagement Location')
 
     payroll_location = fields.Selection([

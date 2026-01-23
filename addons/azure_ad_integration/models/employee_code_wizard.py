@@ -22,7 +22,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
     engagement_location = fields.Selection([
         ('onsite', 'Onsite'),
         ('offshore', 'Offshore'),
-        ('near shore', 'Near shore'),
+        ('near_shore', 'Near shore'),
     ], string='Engagement Location', required=True)
 
     payroll_location = fields.Selection([
