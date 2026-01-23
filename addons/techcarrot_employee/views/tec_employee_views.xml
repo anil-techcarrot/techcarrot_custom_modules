@@ -7,26 +7,35 @@
         <field name="arch" type="xml">
             <!--inherited view place changed(sriman)-->
             <xpath expr="//field[@name='employee_properties']" position="before">
-                <group colspan="4" col="4" string="">
-                    <group string="" colspan="1">
+                <!-- 3 COLUMN LAYOUT with proper alignment -->
+                <group colspan="2" col="2">
+                    <group string="">
                         <field name="employee_first_name"/>
                         <field name="employee_name_english"/>
                         <field name="engagement_location"/>
                     </group>
-
-                    <group string="" colspan="1">
+                    <group string="">
                         <field name="employee_middle_name"/>
                         <field name="employee_name_arabic"/>
                         <field name="payroll_location"/>
                     </group>
+                </group>
 
-                    <group string="" colspan="1">
+                <group colspan="2" col="2">
+                    <group string="">
                         <field name="employee_last_name"/>
-                        <field name="nationality_at_birth_id"
-                               widget="many2one"
-                               options="{'no_create': True, 'no_open': True}"/>
-                        <field name="employment_type"
-                               widget="selection"/>
+                    </group>
+                    <group string="">
+                        <field name="nationality_at_birth_id" options="{'no_create': True, 'no_open': True}"/>
+                    </group>
+                </group>
+
+                <group colspan="2" col="2">
+                    <group string="">
+                        <!-- Empty placeholder to maintain alignment -->
+                    </group>
+                    <group string="">
+                        <field name="employment_type"/>
                     </group>
                 </group>
 
