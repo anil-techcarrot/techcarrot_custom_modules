@@ -85,7 +85,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
 
         if engagement == 'offshore' and payroll == 'dubai_offshore':
             if emp_type in ['permanent', 'temporary']:
-                return 'OP'
+                return 'T'
 
         if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
             return 'P'
