@@ -18,8 +18,9 @@ class HrEmployeeInherit(models.Model):
     )
 
     engagement_location = fields.Selection([
-        ('onsite_nearshore', 'Onsite / Nearshore'),
+        ('onsite', 'Onsite'),
         ('offshore', 'Offshore'),
+        ('near shore', 'Near shore'),
     ], string='Engagement Location')
 
     payroll_location = fields.Selection([
@@ -181,7 +182,8 @@ class HrEmployeeInherit(models.Model):
 
         # Bootcamp
         if emp_type == 'bootcamp':
-            if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite':
+
+            if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite':
                 return 'BC'
             elif engagement == 'offshore' and payroll == 'dubai_offshore':
                 return 'BCO'
@@ -197,12 +199,14 @@ class HrEmployeeInherit(models.Model):
             if emp_type in ['permanent', 'temporary']:
                 return 'OP'
 
-        # Onsite/Nearshore Permanent
-        if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite' and emp_type == 'permanent':
+        # Onsite/Nearshore Permanent (SAME PREFIX FOR BOTH)
+
+        if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
             return 'P'
 
-        # Onsite/Nearshore Temporary
-        if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite' and emp_type == 'temporary':
+        # Onsite/Nearshore Temporary (SAME PREFIX FOR BOTH)
+
+        if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite' and emp_type == 'temporary':
             return 'T'
 
         # Default fallback

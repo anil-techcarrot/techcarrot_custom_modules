@@ -20,8 +20,9 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
     )
 
     engagement_location = fields.Selection([
-        ('onsite_nearshore', 'Onsite / Nearshore'),
+        ('onsite', 'Onsite'),
         ('offshore', 'Offshore'),
+        ('near shore', 'Near shore'),
     ], string='Engagement Location', required=True)
 
     payroll_location = fields.Selection([
@@ -68,7 +69,8 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
             return 'TFL'
 
         if emp_type == 'bootcamp':
-            if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite':
+
+            if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite':
                 return 'BC'
             elif engagement == 'offshore' and payroll == 'dubai_offshore':
                 return 'BCO'
@@ -82,10 +84,12 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
             if emp_type in ['permanent', 'temporary']:
                 return 'OP'
 
-        if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite' and emp_type == 'permanent':
+
+        if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
             return 'P'
 
-        if engagement == 'onsite_nearshore' and payroll == 'dubai_onsite' and emp_type == 'temporary':
+
+        if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite' and emp_type == 'temporary':
             return 'T'
 
         return 'EMP'
