@@ -354,57 +354,40 @@ class PortalEmployeeSyncController(http.Controller):
                 _logger.info(f"✅ CREATED employee: {employee.name} (ID: {employee.id})")
 
             # ===== NOW SET LANGUAGES KNOWN SEPARATELY (CRITICAL FIX) =====
-            # ===== NOW SET LANGUAGES KNOWN SEPARATELY (CRITICAL FIX) =====
-            # ===== NOW SET LANGUAGES KNOWN SEPARATELY (CRITICAL FIX) =====
+            # ===== SET LANGUAGES KNOWN VIA ORM (AUTOMATIC CACHE HANDLING) =====
+
             if language_ids_to_set:
                 try:
-                    _logger.info(f"🔧 Setting language_known_ids separately for employee {employee.id}")
+                    _logger.info(f"🔧 Setting language_known_ids for employee {employee.id}")
                     _logger.info(f"   Language IDs to set: {language_ids_to_set}")
 
-                    # Direct SQL insert (most reliable method)
-                    request.env.cr.execute(
-                        "DELETE FROM hr_employee_language_master_rel WHERE hr_employee_id = %s",
-                        (employee.id,)
-                    )
-                    _logger.info(f"   Cleared existing language relationships")
+                    # Use ORM write with many2many command (6, 0, IDs)
+                    # This automatically handles cache, triggers, and UI updates
+                    employee.write({
+                        'language_known_ids': [(6, 0, language_ids_to_set)]
+                    })
 
-                    for lang_id in language_ids_to_set:
-                        request.env.cr.execute(
-                            "INSERT INTO hr_employee_language_master_rel (hr_employee_id, language_master_id) VALUES (%s, %s)",
-                            (employee.id, lang_id)
-                        )
-                    _logger.info(f"   Inserted {len(language_ids_to_set)} language relationships via SQL")
-
-                    # ✅ CRITICAL: Invalidate cache and refresh the record
-                    request.env.cr.commit()  # Commit the SQL changes
-                    employee.invalidate_recordset(['language_known_ids'])  # Clear cache for this field
-
-                    # Re-read the employee to get fresh data
-                    employee = Employee.browse(employee.id)
-
-                    _logger.info(f"🔄 Cache invalidated and record refreshed")
+                    _logger.info(f"✅ Languages set via ORM write")
 
                     # Verify what was saved
-                    request.env.cr.execute(
-                        "SELECT language_master_id FROM hr_employee_language_master_rel WHERE hr_employee_id = %s",
-                        (employee.id,)
-                    )
-                    saved_ids = [row[0] for row in request.env.cr.fetchall()]
-                    _logger.info(f"✅ VERIFICATION: Language IDs in DB: {saved_ids}")
+                    saved_langs = employee.language_known_ids
+                    saved_ids = saved_langs.ids
+                    saved_names = saved_langs.mapped('name')
 
-                    # Also verify through ORM
-                    orm_langs = employee.language_known_ids.ids if hasattr(employee, 'language_known_ids') else []
-                    _logger.info(f"✅ VERIFICATION: Language IDs via ORM: {orm_langs}")
+                    _logger.info(f"✅ VERIFICATION: Language IDs: {saved_ids}")
+                    _logger.info(f"✅ VERIFICATION: Language Names: {saved_names}")
 
                     if set(saved_ids) == set(language_ids_to_set):
-                        _logger.info(f"✅✅ Languages saved successfully!")
+                        _logger.info(f"✅✅ Languages saved and verified successfully!")
                     else:
                         _logger.error(f"❌ Mismatch! Expected {language_ids_to_set}, got {saved_ids}")
 
                 except Exception as e:
-                    _logger.error(f"❌ Error setting languages via SQL: {e}", exc_info=True)
+                    _logger.error(f"❌ Error setting languages: {e}", exc_info=True)
             else:
                 _logger.info(f"ℹ️ No languages to set for employee {employee.id}")
+            # ===== END LANGUAGE FIX =====
+
 
                 # over here to end to modify
             # ===== END LANGUAGE FIX =====
