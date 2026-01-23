@@ -354,6 +354,8 @@ class PortalEmployeeSyncController(http.Controller):
                 _logger.info(f"✅ CREATED employee: {employee.name} (ID: {employee.id})")
 
             # ===== NOW SET LANGUAGES KNOWN SEPARATELY (CRITICAL FIX) =====
+            # ===== NOW SET LANGUAGES KNOWN SEPARATELY (CRITICAL FIX) =====
+            # ===== NOW SET LANGUAGES KNOWN SEPARATELY (CRITICAL FIX) =====
             if language_ids_to_set:
                 try:
                     _logger.info(f"🔧 Setting language_known_ids separately for employee {employee.id}")
@@ -373,6 +375,15 @@ class PortalEmployeeSyncController(http.Controller):
                         )
                     _logger.info(f"   Inserted {len(language_ids_to_set)} language relationships via SQL")
 
+                    # ✅ CRITICAL: Invalidate cache and refresh the record
+                    request.env.cr.commit()  # Commit the SQL changes
+                    employee.invalidate_recordset(['language_known_ids'])  # Clear cache for this field
+
+                    # Re-read the employee to get fresh data
+                    employee = Employee.browse(employee.id)
+
+                    _logger.info(f"🔄 Cache invalidated and record refreshed")
+
                     # Verify what was saved
                     request.env.cr.execute(
                         "SELECT language_master_id FROM hr_employee_language_master_rel WHERE hr_employee_id = %s",
@@ -380,6 +391,10 @@ class PortalEmployeeSyncController(http.Controller):
                     )
                     saved_ids = [row[0] for row in request.env.cr.fetchall()]
                     _logger.info(f"✅ VERIFICATION: Language IDs in DB: {saved_ids}")
+
+                    # Also verify through ORM
+                    orm_langs = employee.language_known_ids.ids if hasattr(employee, 'language_known_ids') else []
+                    _logger.info(f"✅ VERIFICATION: Language IDs via ORM: {orm_langs}")
 
                     if set(saved_ids) == set(language_ids_to_set):
                         _logger.info(f"✅✅ Languages saved successfully!")
