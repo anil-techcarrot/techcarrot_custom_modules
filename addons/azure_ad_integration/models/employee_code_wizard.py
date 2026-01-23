@@ -71,7 +71,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
 
         if emp_type == 'bootcamp':
 
-            if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite':
+            if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite':
                 return 'BC'
             elif engagement == 'offshore' and payroll == 'dubai_offshore':
                 return 'BCO'
@@ -86,11 +86,11 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
                 return 'OP'
 
 
-        if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
+        if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
             return 'P'
 
 
-        if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite' and emp_type == 'temporary':
+        if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'temporary':
             return 'T'
 
         return 'EMP'

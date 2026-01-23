@@ -184,7 +184,7 @@ class HrEmployeeInherit(models.Model):
         # Bootcamp
         if emp_type == 'bootcamp':
 
-            if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite':
+            if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite':
                 return 'BC'
             elif engagement == 'offshore' and payroll == 'dubai_offshore':
                 return 'BCO'
@@ -202,12 +202,12 @@ class HrEmployeeInherit(models.Model):
 
         # Onsite/Nearshore Permanent (SAME PREFIX FOR BOTH)
 
-        if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
+        if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
             return 'P'
 
         # Onsite/Nearshore Temporary (SAME PREFIX FOR BOTH)
 
-        if engagement in ['onsite', 'near shore'] and payroll == 'dubai_onsite' and emp_type == 'temporary':
+        if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'temporary':
             return 'T'
 
         # Default fallback
