@@ -7,23 +7,27 @@
         <field name="arch" type="xml">
             <!--inherited view place changed(sriman)-->
             <xpath expr="//field[@name='employee_properties']" position="before">
-                <group colspan="4" col="3">
-                    <group string="">
-                        <field name="employee_first_name"/>
-                        <field name="employee_name_english"/>
-                        <field name="engagement_location"/>
-                    </group>
-                    <group string="">
-                        <field name="employee_middle_name"/>
-                        <field name="employee_name_arabic"/>
-                        <field name="payroll_location"/>
-                    </group>
-                    <group string="">
-                        <field name="employee_last_name"/>
-                        <field name="nationality_at_birth_id"/>
-                        <field name="employment_type"/>
-                    </group>
+                <!-- Row 1: First Names -->
+                <group colspan="4" col="6">
+                    <field name="employee_first_name" colspan="2"/>
+                    <field name="employee_middle_name" colspan="2"/>
+                    <field name="employee_last_name" colspan="2"/>
                 </group>
+
+                <!-- Row 2: Names in Other Languages -->
+                <group colspan="4" col="6">
+                    <field name="employee_name_english" colspan="2"/>
+                    <field name="employee_name_arabic" colspan="2"/>
+                    <field name="nationality_at_birth_id" colspan="2"/>
+                </group>
+
+                <!-- Row 3: Location and Employment -->
+                <group colspan="4" col="6">
+                    <field name="engagement_location" colspan="2"/>
+                    <field name="payroll_location" colspan="2"/>
+                    <field name="employment_type" colspan="2"/>
+                </group>
+
                 <field name="country_code" invisible="1"/>
             </xpath>
             <xpath expr="//field[@name='department_id']" position="before">
@@ -279,8 +283,8 @@
                             <field name="career_break_detail" string="Career Break Detail"/>
                             <field name="career_break_start_date" string="Career Break Start Date"/>
                             <field name="career_break_end_date" string="Career Break End Date"/>
-<!--                            <field name="names" widget="many2many_tags" string="Language Known"/>-->
-<!--                            <field name="mother_tongue_id" string="Mother Tongue"/>-->
+                            <!--                            <field name="names" widget="many2many_tags" string="Language Known"/>-->
+                            <!--                            <field name="mother_tongue_id" string="Mother Tongue"/>-->
                             <field name="phone_code_2" string="Country Code for Mobile Number"/>
                         </group>
 
