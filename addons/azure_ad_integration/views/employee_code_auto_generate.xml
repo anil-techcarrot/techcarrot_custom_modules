@@ -7,8 +7,10 @@
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='work_email']/.." position="after">
-                <label for="employee_code" string="Employee Code"/>
-                <field name="employee_code" readonly="1" placeholder="Generate Employee Code"/>
+                <group>
+                    <label for="employee_code" string="Employee Code"/>
+                    <field name="employee_code" readonly="1" placeholder="Generate Employee Code"/>
+                </group>
             </xpath>
             <!--                <group string="Employee Code &amp; Classification" colspan="4">-->
             <!--                    <group>-->
