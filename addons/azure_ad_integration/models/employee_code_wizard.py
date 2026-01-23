@@ -23,8 +23,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         ('onsite', 'Onsite'),
         ('offshore', 'Offshore'),
         ('near_shore', 'Near shore'),
-    ], string='Engagement Location', required=True),
-    ondelete = {'near_shore': 'set null'}
+    ], string='Engagement Location', required=True)
 
     payroll_location = fields.Selection([
         ('dubai_onsite', 'Dubai- Onsite'),

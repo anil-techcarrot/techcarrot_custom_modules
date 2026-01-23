@@ -21,8 +21,7 @@ class HrEmployeeInherit(models.Model):
         ('onsite', 'Onsite'),
         ('offshore', 'Offshore'),
         ('near_shore', 'Near shore'),
-    ], string='Engagement Location'),
-    ondelete = {'near_shore': 'set null'}
+    ], string='Engagement Location')
 
     payroll_location = fields.Selection([
         ('dubai_onsite', 'Dubai- Onsite'),
