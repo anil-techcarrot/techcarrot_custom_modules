@@ -7,25 +7,28 @@
         <field name="arch" type="xml">
             <!--inherited view place changed(sriman)-->
             <xpath expr="//field[@name='employee_properties']" position="before">
-                <!-- Row 1: First Names -->
-                <group colspan="4" col="6">
-                    <field name="employee_first_name" colspan="2"/>
-                    <field name="employee_middle_name" colspan="2"/>
-                    <field name="employee_last_name" colspan="2"/>
-                </group>
+                <!-- 3 COLUMN LAYOUT - Each column in separate group -->
+                <group colspan="4" col="4" string="">
+                    <!-- COLUMN 1 -->
+                    <group string="" colspan="1">
+                        <field name="employee_first_name"/>
+                        <field name="employee_name_english"/>
+                        <field name="engagement_location"/>
+                    </group>
 
-                <!-- Row 2: Names in Other Languages -->
-                <group colspan="4" col="6">
-                    <field name="employee_name_english" colspan="2"/>
-                    <field name="employee_name_arabic" colspan="2"/>
-                    <field name="nationality_at_birth_id" colspan="2"/>
-                </group>
+                    <!-- COLUMN 2 -->
+                    <group string="" colspan="1">
+                        <field name="employee_middle_name"/>
+                        <field name="employee_name_arabic"/>
+                        <field name="payroll_location"/>
+                    </group>
 
-                <!-- Row 3: Location and Employment -->
-                <group colspan="4" col="6">
-                    <field name="engagement_location" colspan="2"/>
-                    <field name="payroll_location" colspan="2"/>
-                    <field name="employment_type" colspan="2"/>
+                    <!-- COLUMN 3 -->
+                    <group string="" colspan="1">
+                        <field name="employee_last_name"/>
+                        <field name="nationality_at_birth_id"/>
+                        <field name="employment_type"/>
+                    </group>
                 </group>
 
                 <field name="country_code" invisible="1"/>
