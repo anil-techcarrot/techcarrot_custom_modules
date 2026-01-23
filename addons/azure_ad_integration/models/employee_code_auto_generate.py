@@ -17,12 +17,19 @@ class HrEmployeeInherit(models.Model):
         help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
     )
 
-    engagement_location = fields.Selection([
-        ('onsite', 'Onsite'),
-        ('offshore', 'Offshore'),
-        ('near_shore', 'Near shore'),
-    ], string='Engagement Location',
-    ondelete={'near_shore': 'set null'})
+    engagement_location = fields.Selection(
+        [
+            ('onsite', 'Onsite'),
+            ('offshore', 'Offshore'),
+            ('near_shore', 'Near shore'),
+        ],
+        string='Engagement Location',
+        ondelete={
+            'onsite': 'set null',
+            'offshore': 'set null',
+            'near_shore': 'set null',
+        }
+    )
 
     payroll_location = fields.Selection([
         ('dubai_onsite', 'Dubai- Onsite'),

@@ -19,12 +19,19 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         readonly=True
     )
 
-    engagement_location = fields.Selection([
-        ('onsite', 'Onsite'),
-        ('offshore', 'Offshore'),
-        ('near_shore', 'Near shore'),
-    ], string='Engagement Location', required=True,
-    ondelete={'near_shore': 'set null'})
+    engagement_location = fields.Selection(
+        [
+            ('onsite', 'Onsite'),
+            ('offshore', 'Offshore'),
+            ('near_shore', 'Near shore'),
+        ],
+        string='Engagement Location',
+        ondelete={
+            'onsite': 'set null',
+            'offshore': 'set null',
+            'near_shore': 'set null',
+        }
+    )
 
     payroll_location = fields.Selection([
         ('dubai_onsite', 'Dubai- Onsite'),
