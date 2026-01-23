@@ -8,23 +8,23 @@
             <!--inherited view place changed(sriman)-->
             <xpath expr="//field[@name='employee_properties']" position="before">
                 <!-- 3 COLUMN LAYOUT - Each column in separate group -->
-                <group colspan="4" col="4" string="">
+                <group colspan="4" col="6" string="">
                     <!-- COLUMN 1 -->
-                    <group string="" colspan="1">
+                    <group string="" colspan="2">
                         <field name="employee_first_name"/>
                         <field name="employee_name_english"/>
                         <field name="engagement_location"/>
                     </group>
 
                     <!-- COLUMN 2 -->
-                    <group string="" colspan="1">
+                    <group string="" colspan="2">
                         <field name="employee_middle_name"/>
                         <field name="employee_name_arabic"/>
                         <field name="payroll_location"/>
                     </group>
 
                     <!-- COLUMN 3 -->
-                    <group string="" colspan="1">
+                    <group string="" colspan="2">
                         <field name="employee_last_name"/>
                         <field name="nationality_at_birth_id" options="{'no_create': True, 'no_open': True}"/>
                         <field name="employment_type"/>
