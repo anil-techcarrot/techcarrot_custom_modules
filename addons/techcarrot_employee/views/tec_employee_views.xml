@@ -279,8 +279,8 @@
                             <field name="career_break_detail" string="Career Break Detail"/>
                             <field name="career_break_start_date" string="Career Break Start Date"/>
                             <field name="career_break_end_date" string="Career Break End Date"/>
-                            <field name="names" widget="many2many_tags" string="Language Known"/>
-                            <field name="mother_tongue_id" string="Mother Tongue"/>
+<!--                            <field name="names" widget="many2many_tags" string="Language Known"/>-->
+<!--                            <field name="mother_tongue_id" string="Mother Tongue"/>-->
                             <field name="phone_code_2" string="Country Code for Mobile Number"/>
                         </group>
 
