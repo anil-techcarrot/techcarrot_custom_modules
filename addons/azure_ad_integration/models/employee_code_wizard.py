@@ -23,14 +23,10 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         [
             ('onsite', 'Onsite'),
             ('offshore', 'Offshore'),
-            ('near_shore', 'Near shore'),
+            ('near_shore', 'Nearshore'),
         ],
         string='Engagement Location',
-        ondelete={
-            'onsite': 'set null',
-            'offshore': 'set null',
-            'near_shore': 'set null',
-        }
+        required=True
     )
 
     payroll_location = fields.Selection([
@@ -77,7 +73,6 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
             return 'TFL'
 
         if emp_type == 'bootcamp':
-
             if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite':
                 return 'BC'
             elif engagement == 'offshore' and payroll == 'dubai_offshore':
@@ -92,10 +87,8 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
             if emp_type in ['permanent', 'temporary']:
                 return 'OP'
 
-
         if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
             return 'P'
-
 
         if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'temporary':
             return 'T'
@@ -134,7 +127,6 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         next_number = self._get_next_number(prefix)
         new_code = f"{prefix}{next_number:04d}"
 
-        # Update employee record with all fields
         self.employee_id.write({
             'employee_code': new_code,
             'engagement_location': self.engagement_location,

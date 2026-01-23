@@ -21,14 +21,9 @@ class HrEmployeeInherit(models.Model):
         [
             ('onsite', 'Onsite'),
             ('offshore', 'Offshore'),
-            ('near_shore', 'Near shore'),
+            ('near_shore', 'Nearshore'),
         ],
-        string='Engagement Location',
-        ondelete={
-            'onsite': 'set null',
-            'offshore': 'set null',
-            'near_shore': 'set null',
-        }
+        string='Engagement Location'
     )
 
     payroll_location = fields.Selection([
@@ -53,11 +48,9 @@ class HrEmployeeInherit(models.Model):
             res.emp_code = res.employee_code
         return res
 
-    # ADD THIS METHOD - Auto-sync employee_code to emp_code
     def write(self, vals):
         """Sync employee_code to emp_code on write"""
         res = super(HrEmployeeInherit, self).write(vals)
-        # If employee_code is updated, sync it to emp_code
         if 'employee_code' in vals:
             for record in self:
                 if record.employee_code:
@@ -111,7 +104,6 @@ class HrEmployeeInherit(models.Model):
         if not employees_without_code:
             raise UserError(_('All employees already have employee codes!'))
 
-        # Check if any employee is missing classification fields
         incomplete_employees = employees_without_code.filtered(
             lambda e: not e.engagement_location or not e.payroll_location or not e.employment_type
         )
@@ -143,13 +135,11 @@ class HrEmployeeInherit(models.Model):
 
     def _generate_next_employee_code(self):
         """Generate employee code based on classification fields"""
-
         prefix = self._get_employee_code_prefix()
 
         if not prefix:
             prefix = 'EMP'
 
-        # Get all existing codes with this prefix
         all_employees = self.search([
             ('employee_code', '!=', False),
             ('employee_code', '=like', f'{prefix}%')
@@ -157,7 +147,6 @@ class HrEmployeeInherit(models.Model):
 
         existing_codes = [emp.employee_code for emp in all_employees if emp.employee_code]
 
-        # Find the highest number with this prefix
         max_number = 0
         for code in existing_codes:
             match = re.match(rf'^{re.escape(prefix)}(\d+)$', code)
@@ -165,7 +154,6 @@ class HrEmployeeInherit(models.Model):
                 number = int(match.group(1))
                 max_number = max(max_number, number)
 
-        # Generate next code
         next_number = max_number + 1
         new_code = f"{prefix}{next_number:04d}"
 
@@ -175,22 +163,17 @@ class HrEmployeeInherit(models.Model):
 
     def _get_employee_code_prefix(self):
         """Determine prefix based on Engagement Location, Payroll, and Employment Type"""
-
         engagement = self.engagement_location
         payroll = self.payroll_location
         emp_type = self.employment_type
 
-        # Seconded - Manual entry (PT prefix)
         if emp_type == 'seconded':
             return 'PT'
 
-        # Freelancer - TFL prefix
         if emp_type == 'freelancer':
             return 'TFL'
 
-        # Bootcamp
         if emp_type == 'bootcamp':
-
             if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite':
                 return 'BC'
             elif engagement == 'offshore' and payroll == 'dubai_offshore':
@@ -198,26 +181,19 @@ class HrEmployeeInherit(models.Model):
             elif engagement == 'offshore' and payroll == 'tcip_india':
                 return 'BCI'
 
-        # TCIP India Permanent
         if engagement == 'offshore' and payroll == 'tcip_india' and emp_type == 'permanent':
             return 'TCIP'
 
-        # Offshore Permanent/Temporary
         if engagement == 'offshore' and payroll == 'dubai_offshore':
             if emp_type in ['permanent', 'temporary']:
                 return 'OP'
 
-        # Onsite/Nearshore Permanent (SAME PREFIX FOR BOTH)
-
         if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
             return 'P'
-
-        # Onsite/Nearshore Temporary (SAME PREFIX FOR BOTH)
 
         if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'temporary':
             return 'T'
 
-        # Default fallback
         _logger.warning(f"No prefix match for: {engagement}, {payroll}, {emp_type}")
         return 'EMP'
 
