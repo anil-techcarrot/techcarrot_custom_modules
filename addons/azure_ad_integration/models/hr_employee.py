@@ -191,28 +191,13 @@ class HREmployee(models.Model):
             return
 
         try:
-            # Generate email from name
-            parts = self.name.strip().lower().split()
+            # Generate base email from name
+            parts = self.name.strip().lower().replace('!', '').split()  # Remove special chars
             first = parts[0]
             last = parts[-1] if len(parts) > 1 else first
             base = f"{first}.{last}"
-            email = f"{base}@{domain}"
 
-            _logger.info(f" Processing: {self.name} → {email}")
-
-            # Check for duplicate in Odoo first
-            existing_emp = self.env['hr.employee'].search([
-                ('azure_email', '=', email),
-                ('id', '!=', self.id)
-            ], limit=1)
-
-            if existing_emp:
-                _logger.error(f" DUPLICATE: {email} already assigned to {existing_emp.name}")
-                raise UserError(
-                    f"Cannot create Azure user!\n\n"
-                    f"Email '{email}' is already assigned to '{existing_emp.name}'.\n\n"
-                    f"Please use a different name."
-                )
+            _logger.info(f" Processing: {self.name} → base: {base}")
 
             # Get Azure AD token
             token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
@@ -236,31 +221,46 @@ class HREmployee(models.Model):
                 "Content-Type": "application/json"
             }
 
-            # Check for unique email in Azure
+            # NEW: Check for unique email in BOTH Odoo AND Azure
             count = 1
-            unique_email = email
+            unique_email = f"{base}@{domain}"
 
             while count < 100:
+                _logger.info(f" Trying: {unique_email}")
+
+                # Check 1: Odoo database
+                existing_in_odoo = self.env['hr.employee'].search([
+                    ('azure_email', '=', unique_email),
+                    ('id', '!=', self.id)
+                ], limit=1)
+
+                if existing_in_odoo:
+                    _logger.warning(f" {unique_email} exists in Odoo ({existing_in_odoo.name})")
+                    count += 1
+                    unique_email = f"{base}{count}@{domain}"
+                    continue  # Try next number
+
+                # Check 2: Azure AD
                 check_url = f"https://graph.microsoft.com/v1.0/users/{unique_email}"
                 check = requests.get(check_url, headers=headers, timeout=30)
 
                 if check.status_code == 404:
-                    _logger.info(f" Email available: {unique_email}")
-                    break
+                    _logger.info(f" ✓ Email available: {unique_email}")
+                    break  # Found unique email!
+
                 elif check.status_code == 200:
                     existing_user = check.json()
                     existing_display_name = existing_user.get('displayName')
-
                     _logger.warning(f" {unique_email} exists in Azure ({existing_display_name})")
 
                     count += 1
                     unique_email = f"{base}{count}@{domain}"
-                    _logger.info(f" Trying: {unique_email}")
+
                 else:
                     _logger.error(f" Error checking email: {check.status_code}")
                     return
 
-            # Create user in Azure AD
+            # Create user in Azure AD with the unique email
             payload = {
                 "accountEnabled": True,
                 "displayName": self.name,
@@ -288,7 +288,7 @@ class HREmployee(models.Model):
                     'work_email': unique_email,
                     'azure_user_id': user_data.get("id")
                 })
-                _logger.info(f" Created: {unique_email} | ID: {self.azure_user_id}")
+                _logger.info(f" ✓ Created: {unique_email} | ID: {self.azure_user_id}")
             else:
                 error = create_response.json().get('error', {}).get('message', 'Unknown')
                 _logger.error(f" Failed to create user: {error}")
