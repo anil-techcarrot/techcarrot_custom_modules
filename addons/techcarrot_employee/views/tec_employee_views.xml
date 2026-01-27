@@ -13,7 +13,7 @@
                     <group string="" colspan="2">
                         <field name="employee_first_name"/>
                         <field name="employee_name_english"/>
-<!--                        <field name="engagement_location" widget="selection"/>-->
+                        <field name="engagement_location" widget="selection"/>
                     </group>
 
                     <!-- COLUMN 2 -->
