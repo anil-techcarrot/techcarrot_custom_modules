@@ -45,7 +45,7 @@ class PortalEmployeeSyncController(http.Controller):
             return None
 
         formats = [
-            '%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y', '%d/%m/%Y',
+            '%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d',
             '%Y-%m-%dT%H:%M:%S.%fZ', '%Y-%m-%dT%H:%M:%SZ'
         ]
         for fmt in formats:
