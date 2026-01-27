@@ -9,16 +9,16 @@
 
             <!-- Add SharePoint Fields to Personal Information Tab -->
             <xpath expr="//page[@name='personal_information']" position="inside">
-                <group string="Name Details (From SharePoint)">
-                    <group>
-                        <field name="employee_first_name"/>
-                        <field name="employee_middle_name"/>
-                        <field name="employee_last_name"/>
-                    </group>
-                    <group>
-                        <field name="place_of_birth"/>
-                    </group>
-                </group>
+<!--                <group string="Name Details (From SharePoint)">-->
+<!--                    <group>-->
+<!--                        <field name="employee_first_name"/>-->
+<!--                        <field name="employee_middle_name"/>-->
+<!--                        <field name="employee_last_name"/>-->
+<!--                    </group>-->
+<!--                    <group>-->
+<!--                        <field name="place_of_birth"/>-->
+<!--                    </group>-->
+<!--                </group>-->
 
                 <group string="Languages">
                     <group>
