@@ -8,13 +8,13 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='work_email']/.." position="after">
                 <group col="2" colspan="2">
-                    <label for="employee_code" string="Employee Code"/>
+                    <label for="employee_code">
+                        <span style="font-weight: 700; color: #212529;">Employee Code</span>
+                    </label>
                     <field name="employee_code"
                            readonly="1"
-                           force_save="1"
                            placeholder="Generate Employee Code"
-                           nolabel="1"
-                           class="o_field_char"/>
+                           nolabel="1"/>
                 </group>
             </xpath>
 
