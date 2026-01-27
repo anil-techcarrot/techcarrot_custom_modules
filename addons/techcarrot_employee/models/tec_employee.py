@@ -130,7 +130,15 @@ class HrEmployeeInherit(models.Model):
     practice = fields.Many2one('employee.practice', copy=False)
     sub_practice = fields.Many2one('sub.practice', copy=False)
     practice_heads_id = fields.Many2one('hr.employee', string='Practice Head', copy=False)
-    engagement_location = fields.Char('Engagement Location', copy=False)
+    engagement_location = fields.Selection(
+        [
+            ('onsite', 'Onsite'),
+            ('offshore', 'Offshore'),
+            ('near_shore', 'Nearshore'),
+        ],
+        string='Engagement Location',
+
+    )
     created_by = fields.Many2one('res.users', string='Created By', readonly=True, copy=False)
     created_date_time = fields.Datetime('Created Date and Time', readonly=True, copy=False)
     last_modified_by = fields.Many2one('res.users', string='Last Modified By', readonly=True, copy=False)
