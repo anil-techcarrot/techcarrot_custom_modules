@@ -182,7 +182,21 @@ class PortalEmployeeSyncController(http.Controller):
             Employee = request.env['hr.employee']
             employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
+            # DIAGNOSTIC: Check if field exists
+            _logger.info("🔍 DIAGNOSTIC: Checking if 'second_relation_with_employee' field exists")
+            try:
+                if 'second_relation_with_employee' in Employee._fields:
+                    _logger.info("✅ Field 'second_relation_with_employee' EXISTS in hr.employee model")
+                    field_info = Employee._fields['second_relation_with_employee']
+                    _logger.info(f"✅ Field type: {field_info.type}, required: {field_info.required}")
+                else:
+                    _logger.error("❌ Field 'second_relation_with_employee' DOES NOT EXIST in hr.employee model")
+            except Exception as e:
+                _logger.error(f"❌ Error checking field: {e}")
 
+            # DIAGNOSTIC: Extract and log the value
+            second_relation_value = self._val(data.get('second_relation_with_employee'))
+            _logger.info(f"🔍 DIAGNOSTIC: Extracted second_relation_with_employee value: '{second_relation_value}'")
 
             # EMPLOYEE VALUES
             vals = {
@@ -197,7 +211,7 @@ class PortalEmployeeSyncController(http.Controller):
                 'payroll_location': self._val(data.get('payroll_location')),
                 'employment_type': self._val(data.get('employment_type')),
                 'last_location': self._val(data.get('last_location')),
-                'expiry_date': self._parse_date(data.get('expiry_date')),
+                # 'expiry_date' will be added in the DATES section below after parsing
                 # 'language_known_ids' : self._val(data.get('language_known_ids')),
                 'department_id': self._get_or_create_department(data.get('department')),
                 'job_id': self._get_or_create_job(data.get('job_title')),
@@ -231,13 +245,17 @@ class PortalEmployeeSyncController(http.Controller):
                 'period_in_company': self._val(data.get('period_in_company')),
             }
 
+            # Add second_relation_with_employee conditionally with logging
+            if second_relation_value:
+                vals['second_relation_with_employee'] = second_relation_value
+                _logger.info(f"✅ Added 'second_relation_with_employee' to vals: '{second_relation_value}'")
+            else:
+                _logger.warning(f"⚠️ 'second_relation_with_employee' is empty, not adding to vals")
 
             employee_code_value = self._val(data.get('employee_code'))
             if employee_code_value:
                 vals['employee_code'] = employee_code_value
                 _logger.info(f"✓ Using employee_code from API: {employee_code_value}")
-
-
 
             # PRIVATE ADDRESS FIELDS
             if self._val(data.get('private_street')):
@@ -272,6 +290,7 @@ class PortalEmployeeSyncController(http.Controller):
                 'leave_date_from': self._parse_date(data.get('leave_date_from')),
                 'start_date_of_degree': self._parse_date(data.get('start_date_of_degree')),
                 'completion_date_of_degree': self._parse_date(data.get('completion_date_of_degree')),
+                'expiry_date': self._parse_date(data.get('expiry_date')),
             })
 
             # SALARY
@@ -307,11 +326,7 @@ class PortalEmployeeSyncController(http.Controller):
             if lang:
                 vals['mother_tongue_id'] = lang.id
 
-
-
-
             # LANGUAGES KNOWN
-          #modify from here to
             # PROCESS LANGUAGES KNOWN (collect IDs but don't add to vals yet)
             langs_raw_data = data.get('names') or data.get('language_known_ids')
             _logger.info(f"🔍 Processing languages from API: {langs_raw_data}")
@@ -338,33 +353,48 @@ class PortalEmployeeSyncController(http.Controller):
             else:
                 _logger.info(f"ℹ️ No languages provided")
 
-                 # here is the end to modify
-
             # LOG FINAL VALUES
             _logger.info(f" Final vals: {json.dumps(vals, default=str, indent=2)}")
+            _logger.info(
+                f"🔍 DIAGNOSTIC: 'second_relation_with_employee' in vals: {'second_relation_with_employee' in vals}")
+            if 'second_relation_with_employee' in vals:
+                _logger.info(f"🔍 DIAGNOSTIC: Value = '{vals['second_relation_with_employee']}'")
 
             # CREATE OR UPDATE
-             # as well modify from here to
             if employee:
+                _logger.info(f"📝 UPDATING existing employee: {employee.name} (ID: {employee.id})")
                 employee.write(vals)
                 action = "updated"
                 _logger.info(f"✅ UPDATED employee: {employee.name} (ID: {employee.id})")
+
+                # DIAGNOSTIC: Verify the field was saved
+                employee.refresh()
+                if hasattr(employee, 'second_relation_with_employee'):
+                    saved_value = employee.second_relation_with_employee
+                    _logger.info(f"🔍 DIAGNOSTIC: After update, second_relation_with_employee = '{saved_value}'")
+                else:
+                    _logger.error("❌ DIAGNOSTIC: Field 'second_relation_with_employee' not found on employee object")
             else:
+                _logger.info(f"📝 CREATING new employee")
                 # Disable auto-generation of employee_code when coming from API
                 employee = Employee.with_context(auto_generate_code=False).create(vals)
                 action = "created"
                 _logger.info(f"✅ CREATED employee: {employee.name} (ID: {employee.id})")
 
-            # ===== NOW SET LANGUAGES KNOWN SEPARATELY (CRITICAL FIX) =====
-            # ===== SET LANGUAGES KNOWN VIA ORM (AUTOMATIC CACHE HANDLING) =====
+                # DIAGNOSTIC: Verify the field was saved
+                if hasattr(employee, 'second_relation_with_employee'):
+                    saved_value = employee.second_relation_with_employee
+                    _logger.info(f"🔍 DIAGNOSTIC: After create, second_relation_with_employee = '{saved_value}'")
+                else:
+                    _logger.error("❌ DIAGNOSTIC: Field 'second_relation_with_employee' not found on employee object")
 
+            # ===== NOW SET LANGUAGES KNOWN SEPARATELY (CRITICAL FIX) =====
             if language_ids_to_set:
                 try:
                     _logger.info(f"🔧 Setting language_known_ids for employee {employee.id}")
                     _logger.info(f"   Language IDs to set: {language_ids_to_set}")
 
                     # Use ORM write with many2many command (6, 0, IDs)
-                    # This automatically handles cache, triggers, and UI updates
                     employee.write({
                         'language_known_ids': [(6, 0, language_ids_to_set)]
                     })
@@ -390,23 +420,11 @@ class PortalEmployeeSyncController(http.Controller):
                 _logger.info(f"ℹ️ No languages to set for employee {employee.id}")
             # ===== END LANGUAGE FIX =====
 
-
-                # over here to end to modify
-            # ===== END LANGUAGE FIX =====
-
-
-
-
-            # ===== END VERIFICATION =====
-
             # Get Azure details if available
             azure_email = employee.work_email or ''
             azure_id = ''
             if hasattr(employee, 'azure_user_id'):
                 azure_id = employee.azure_user_id or ''
-
-
-
 
             # Return response immediately - Odoo will auto-commit
             return self._json_response({

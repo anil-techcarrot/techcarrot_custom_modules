@@ -17,7 +17,7 @@ class HrEmployeeInherit(models.Model):
     employee_name_english = fields.Char('Employee Name-English', copy=False)
     employee_name_arabic = fields.Char('Employee Name-Arabic', copy=False)
     nationality_at_birth_id = fields.Many2one("res.country", string="Nationality At Birth", copy=False)
-    second_relation_with_employee = fields.Char("Second Relation With Employee", copy=False)
+    second_relation_with_employee = fields.Char("Relationship with Employee (1)", copy=False)
 
 
     total_it_experience = fields.Char("Total IT Experience")
