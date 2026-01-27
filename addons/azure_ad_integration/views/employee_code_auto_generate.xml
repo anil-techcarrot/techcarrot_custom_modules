@@ -12,6 +12,17 @@
                     <field name="employee_code" readonly="1" placeholder="Generate Employee Code" nolabel="1"/>
                 </group>
             </xpath>
+
+            <xpath expr="//field[@name='employee_properties']" position="before">
+                <!-- 3 COLUMN LAYOUT - Each column in separate group -->
+
+                    <xpath expr="//field[@name='employee_name_english']/.." position="after">
+
+<!--                        <field name="employee_first_name"/>-->
+<!--                        <field name="employee_name_english"/>-->
+                        <field name="engagement_location"/>
+                    </xpath>
+            </xpath>
             <!--                <group string="Employee Code &amp; Classification" colspan="4">-->
             <!--                    <group>-->
             <!--                        -->
