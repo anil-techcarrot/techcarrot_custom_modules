@@ -15,6 +15,7 @@ class HrEmployeeInherit(models.Model):
         index=True,
         readonly=True,
         store=True,
+        tracking=True,
         help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
     )
 

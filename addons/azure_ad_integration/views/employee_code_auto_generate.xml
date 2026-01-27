@@ -7,13 +7,17 @@
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='work_email']/.." position="after">
-                <group col="2" colspan="2">
-                    <!-- METHOD 1: Using field with string attribute (RECOMMENDED) -->
-                    <field name="employee_code"
-                           string="Employee Code"
-                           readonly="1"
-                           placeholder="Generate Employee Code"
-                           class="fw-bold"/>
+                <group col="2" colspan="2" class="o_label_nowrap">
+                    <label for="employee_code"
+                           class="fw-bold o_form_label"
+                           style="font-weight: bold !important; color: #000000 !important;"/>
+                    <div>
+                        <field name="employee_code"
+                               readonly="1"
+                               placeholder="Generate Employee Code"
+                               nolabel="1"
+                               style="font-weight: 500;"/>
+                    </div>
                 </group>
             </xpath>
 
