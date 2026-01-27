@@ -23,7 +23,8 @@ class HrEmployeeInherit(models.Model):
             ('offshore', 'Offshore'),
             ('near_shore', 'Nearshore'),
         ],
-        string='Engagement Location'
+        string='Engagement Location',
+
     )
 
     payroll_location = fields.Selection([

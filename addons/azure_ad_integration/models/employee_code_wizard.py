@@ -142,5 +142,6 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
                 'message': _('Employee Code "%s" generated successfully for %s!') % (new_code, self.employee_id.name),
                 'type': 'success',
                 'sticky': False,
+                'next': {'type': 'ir.actions.act_window_close'},
             }
         }
