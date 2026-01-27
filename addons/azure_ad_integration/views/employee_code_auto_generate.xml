@@ -6,29 +6,20 @@
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr.view_employee_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//sheet" position="before">
-                <style type="text/css">
-                    /* Target Employee Code label with maximum specificity */
-                    body .o_form_view label[for="employee_code"],
-                    .o_form_view .o_group label[for="employee_code"],
-                    label[for="employee_code"].o_form_label,
-                    .o_form_label[for="employee_code"] {
-                    font-weight: 700 !important;
-                    color: #000000 !important;
-                    opacity: 1 !important;
-                    }
-                </style>
-            </xpath>
-
             <xpath expr="//field[@name='work_email']/.." position="after">
                 <group col="2" colspan="2">
-                    <field name="employee_code"
+                    <!-- Direct inline style - bypasses all CSS -->
+                    <label for="employee_code"
                            string="Employee Code"
-                           readonly="1"
-                           placeholder="Generate Employee Code"/>
+                           style="font-weight: bold !important; color: #000000 !important; font-size: 13px !important; opacity: 1 !important;"/>
+                    <div>
+                        <field name="employee_code"
+                               readonly="1"
+                               placeholder="Generate Employee Code"
+                               nolabel="1"/>
+                    </div>
                 </group>
             </xpath>
-
 
             <!--                <group string="Employee Code &amp; Classification" colspan="4">-->
             <!--                    <group>-->
