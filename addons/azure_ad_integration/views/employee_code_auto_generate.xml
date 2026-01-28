@@ -8,12 +8,13 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='work_email']/.." position="after">
                 <group col="2" colspan="2">
-                    <!-- Direct inline style - bypasses all CSS -->
+                    <!-- ULTRA BOLD - Multiple style attributes -->
                     <label for="employee_code"
-                           string="Employee Code"
-                           style="font-weight: bold !important; color: #000000 !important; font-size: 13px !important; opacity: 1 !important;"/>
+                           class="fw-bold text-dark"
+                           style="font-weight: 900 !important; color: #000000 !important; font-size: 14px !important; opacity: 1 !important; font-family: inherit !important;"/>
                     <div>
                         <field name="employee_code"
+                               string="Employee Code"
                                readonly="1"
                                placeholder="Generate Employee Code"
                                nolabel="1"/>
