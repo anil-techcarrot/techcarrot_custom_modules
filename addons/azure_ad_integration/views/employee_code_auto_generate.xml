@@ -9,11 +9,8 @@
             <xpath expr="//field[@name='work_email']/.." position="after">
                 <group col="2" colspan="2">
                     <field name="employee_code"
-                           string="Employee Code"
                            readonly="1"
-                           placeholder="Generate Employee Code"
-                           required="1"
-                           force_save="1"/>
+                           placeholder="Generate Employee Code"/>
                 </group>
             </xpath>
 
