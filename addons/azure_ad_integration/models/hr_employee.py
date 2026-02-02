@@ -233,10 +233,11 @@ class HREmployee(models.Model):
 
                 # Check 1: Odoo database (check both emails)
                 existing_in_odoo = self.env['hr.employee'].search([
+                    '&',
+                    ('id', '!=', self.id),
                     '|',
                     ('azure_email', '=', azure_unique_email),
                     ('work_email', '=', unique_email),
-                    ('id', '!=', self.id)
                 ], limit=1)
 
                 if existing_in_odoo:
