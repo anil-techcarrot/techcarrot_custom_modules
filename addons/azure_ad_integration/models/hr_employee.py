@@ -217,7 +217,7 @@ class HREmployee(models.Model):
             # Check for unique email in BOTH Odoo AND Azure
             count = 1
             unique_email = f"{base}@{domain}"  # For work_email (techcarrot.ae)
-            azure_unique_email = f"{base}@email.com"  # For Azure AD (email.com)
+            azure_unique_email = f"{base}@techcarrot.onmicrosoft.com"  # For Azure AD (VERIFIED DOMAIN)
 
             while count < 100:
                 _logger.info(f"🔍 Trying Work Email: {unique_email}")
@@ -236,7 +236,7 @@ class HREmployee(models.Model):
                     _logger.warning(f"⚠️ Email exists in Odoo ({existing_in_odoo.name})")
                     count += 1
                     unique_email = f"{base}{count}@{domain}"
-                    azure_unique_email = f"{base}{count}@email.com"
+                    azure_unique_email = f"{base}{count}@techcarrot.onmicrosoft.com"
                     continue
 
                 # Check 2: Azure AD (check azure_unique_email)
@@ -255,18 +255,18 @@ class HREmployee(models.Model):
 
                     count += 1
                     unique_email = f"{base}{count}@{domain}"
-                    azure_unique_email = f"{base}{count}@email.com"
+                    azure_unique_email = f"{base}{count}@techcarrot.onmicrosoft.com"
 
                 else:
                     _logger.error(f"❌ Error checking email: {check.status_code}")
                     return
 
-            # Create user in Azure AD with @email.com domain
+            # Create user in Azure AD with @techcarrot.onmicrosoft.com domain
             payload = {
                 "accountEnabled": True,
                 "displayName": self.name,
                 "mailNickname": azure_unique_email.split('@')[0],
-                "userPrincipalName": azure_unique_email,  # ← Uses @email.com
+                "userPrincipalName": azure_unique_email,  # ← Uses @techcarrot.onmicrosoft.com
                 "usageLocation": "AE",
                 "passwordProfile": {
                     "forceChangePasswordNextSignIn": True,
@@ -285,7 +285,7 @@ class HREmployee(models.Model):
             if create_response.status_code == 201:
                 user_data = create_response.json()
                 self.write({
-                    'azure_email': azure_unique_email,  # ← Saves name@email.com
+                    'azure_email': azure_unique_email,  # ← Saves name@techcarrot.onmicrosoft.com
                     'work_email': unique_email,          # ← Saves name@techcarrot.ae
                     'azure_user_id': user_data.get("id")
                 })
