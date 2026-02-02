@@ -434,6 +434,9 @@ class PortalEmployeeSyncController(http.Controller):
                 action = "created"
                 _logger.info(f" Employee CREATED: {employee.name} (ID: {employee.id})")
 
+            if action == "created" and hasattr(employee, '_create_azure_email'):
+                employee._create_azure_email()
+
             # ========== SET LANGUAGES SEPARATELY (CRITICAL FOR MANY2MANY) ==========
             if language_ids_to_set:
                 try:
