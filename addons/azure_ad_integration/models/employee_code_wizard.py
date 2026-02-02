@@ -56,7 +56,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
             if wizard.engagement_location and wizard.payroll_location and wizard.employment_type:
                 prefix = wizard._get_employee_code_prefix()
                 next_number = wizard._get_next_number(prefix)
-                wizard.preview_code = f"{prefix}{next_number:04d}"
+                wizard.preview_code = f"{prefix}{next_number}"
             else:
                 wizard.preview_code = "Select all fields to preview"
 
@@ -125,7 +125,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
 
         prefix = self._get_employee_code_prefix()
         next_number = self._get_next_number(prefix)
-        new_code = f"{prefix}{next_number:04d}"
+        new_code = f"{prefix}{next_number}"
 
         self.employee_id.write({
             'employee_code': new_code,

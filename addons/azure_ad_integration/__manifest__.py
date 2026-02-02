@@ -9,7 +9,6 @@
         'views/hr_employee_views.xml',
         'views/employee_code_auto_generate.xml',
         'views/employee_code_wizard_views.xml',
-        # 'views/res_config_settings.xml',
     ],
     'installable': True,
 }

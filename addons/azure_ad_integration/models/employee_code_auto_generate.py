@@ -157,7 +157,7 @@ class HrEmployeeInherit(models.Model):
                 max_number = max(max_number, number)
 
         next_number = max_number + 1
-        new_code = f"{prefix}{next_number:04d}"
+        new_code = f"{prefix}{next_number}"
 
         _logger.info(f"Generated code: {new_code} (Prefix: {prefix}, Next: {next_number})")
 
