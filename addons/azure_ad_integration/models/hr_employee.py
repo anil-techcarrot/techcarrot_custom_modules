@@ -15,6 +15,7 @@ class HREmployee(models.Model):
     azure_license_assigned = fields.Boolean("License Assigned", default=False, readonly=True)
     azure_license_name = fields.Char("License Name", readonly=True)
 
+
     employee_first_name = fields.Char("First Name")
     employee_middle_name = fields.Char("Middle Name")
     employee_last_name = fields.Char("Last Name")
@@ -176,7 +177,7 @@ class HREmployee(models.Model):
         _logger.info(f"=" * 80)
 
     def _create_azure_email(self):
-        """Create unique email in Azure AD"""
+        """Create unique email in Azure AD with @email.com domain"""
         self.ensure_one()
 
         IrConfig = self.env['ir.config_parameter'].sudo()
@@ -184,7 +185,7 @@ class HREmployee(models.Model):
         tenant_id = IrConfig.get_param("azure_tenant_id")
         client_id = IrConfig.get_param("azure_client_id")
         client_secret = IrConfig.get_param("azure_client_secret")
-        domain = IrConfig.get_param("azure_domain")
+        domain = IrConfig.get_param("azure_domain")  # This is still techcarrot.ae
 
         if not all([tenant_id, client_id, client_secret, domain]):
             _logger.error(" Azure credentials missing in System Parameters!")
@@ -192,7 +193,7 @@ class HREmployee(models.Model):
 
         try:
             # Generate base email from name
-            parts = self.name.strip().lower().replace('!', '').split()  # Remove special chars
+            parts = self.name.strip().lower().replace('!', '').split()
             first = parts[0]
             last = parts[-1] if len(parts) > 1 else first
             base = f"{first}.{last}"
@@ -221,51 +222,58 @@ class HREmployee(models.Model):
                 "Content-Type": "application/json"
             }
 
-            # NEW: Check for unique email in BOTH Odoo AND Azure
+            # Check for unique email in BOTH Odoo AND Azure
             count = 1
-            unique_email = f"{base}@{domain}"
+            unique_email = f"{base}@{domain}"  # For work_email (techcarrot.ae)
+            azure_unique_email = f"{base}@email.com"  # For Azure AD (email.com)
 
             while count < 100:
-                _logger.info(f" Trying: {unique_email}")
+                _logger.info(f" Trying Work Email: {unique_email}")
+                _logger.info(f" Trying Azure Email: {azure_unique_email}")
 
-                # Check 1: Odoo database
+                # Check 1: Odoo database (check both emails)
                 existing_in_odoo = self.env['hr.employee'].search([
-                    ('azure_email', '=', unique_email),
+                    '|',
+                    ('azure_email', '=', azure_unique_email),
+                    ('work_email', '=', unique_email),
                     ('id', '!=', self.id)
                 ], limit=1)
 
                 if existing_in_odoo:
-                    _logger.warning(f" {unique_email} exists in Odoo ({existing_in_odoo.name})")
+                    _logger.warning(f" Email exists in Odoo ({existing_in_odoo.name})")
                     count += 1
                     unique_email = f"{base}{count}@{domain}"
-                    continue  # Try next number
+                    azure_unique_email = f"{base}{count}@email.com"
+                    continue
 
-                # Check 2: Azure AD
-                check_url = f"https://graph.microsoft.com/v1.0/users/{unique_email}"
+                # Check 2: Azure AD (check azure_unique_email)
+                check_url = f"https://graph.microsoft.com/v1.0/users/{azure_unique_email}"
                 check = requests.get(check_url, headers=headers, timeout=30)
 
                 if check.status_code == 404:
-                    _logger.info(f" ✓ Email available: {unique_email}")
-                    break  # Found unique email!
+                    _logger.info(f" ✓ Azure Email available: {azure_unique_email}")
+                    _logger.info(f" ✓ Work Email available: {unique_email}")
+                    break
 
                 elif check.status_code == 200:
                     existing_user = check.json()
                     existing_display_name = existing_user.get('displayName')
-                    _logger.warning(f" {unique_email} exists in Azure ({existing_display_name})")
+                    _logger.warning(f" {azure_unique_email} exists in Azure ({existing_display_name})")
 
                     count += 1
                     unique_email = f"{base}{count}@{domain}"
+                    azure_unique_email = f"{base}{count}@email.com"
 
                 else:
                     _logger.error(f" Error checking email: {check.status_code}")
                     return
 
-            # Create user in Azure AD with the unique email
+            # Create user in Azure AD with @email.com domain
             payload = {
                 "accountEnabled": True,
                 "displayName": self.name,
-                "mailNickname": unique_email.split('@')[0],
-                "userPrincipalName": unique_email,
+                "mailNickname": azure_unique_email.split('@')[0],
+                "userPrincipalName": azure_unique_email,  # ← Uses @email.com
                 "usageLocation": "AE",
                 "passwordProfile": {
                     "forceChangePasswordNextSignIn": True,
@@ -284,11 +292,13 @@ class HREmployee(models.Model):
             if create_response.status_code == 201:
                 user_data = create_response.json()
                 self.write({
-                    'azure_email': unique_email,
-                    'work_email': unique_email,
+                    'azure_email': azure_unique_email,  # ← Saves test.tcpi@email.com
+                    'work_email': unique_email,  # ← Saves test.tcpi@techcarrot.ae
                     'azure_user_id': user_data.get("id")
                 })
-                _logger.info(f" ✓ Created: {unique_email} | ID: {self.azure_user_id}")
+                _logger.info(f" ✓ Azure Email: {azure_unique_email}")
+                _logger.info(f" ✓ Work Email: {unique_email}")
+                _logger.info(f" ✓ Azure User ID: {self.azure_user_id}")
             else:
                 error = create_response.json().get('error', {}).get('message', 'Unknown')
                 _logger.error(f" Failed to create user: {error}")
