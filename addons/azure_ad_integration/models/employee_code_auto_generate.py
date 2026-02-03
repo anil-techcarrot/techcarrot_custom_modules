@@ -17,6 +17,14 @@ class HrEmployeeInherit(models.Model):
         store=True,
         help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
     )
+    employee_code = fields.Char(
+        string='Employee Code',
+        copy=False,
+        index=True,
+        readonly=True,
+        store=True,
+        help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
+    )
 
     engagement_location = fields.Selection(
         [
