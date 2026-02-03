@@ -202,7 +202,7 @@ class PortalEmployeeSyncController(http.Controller):
             # EMPLOYEE VALUES
             vals = {
                 'name': self._val(data.get('name')),
-                'work_email': self._val(data.get('email')),
+                # 'work_email': self._val(data.get('email')),
                 'mobile_phone': self._val(data.get('phone')),
                 'employee_code': self._val(data.get('employee_code')),
                 'total_it_experience': self._val(data.get('total_it_experience')),
