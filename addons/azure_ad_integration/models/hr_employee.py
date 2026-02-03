@@ -40,7 +40,7 @@ class HREmployee(models.Model):
         _logger.info(f"🔵 CREATE METHOD CALLED - Processing {len(vals_list)} employee(s)")
         _logger.info(f"{'=' * 80}")
 
-        # Remove work_email from vals if provided - it will be auto-generated
+        # Remove work_email from vals if provided
         for vals in vals_list:
             if 'work_email' in vals:
                 _logger.warning(f"⚠️ work_email provided, removing it - will auto-generate")
@@ -52,11 +52,9 @@ class HREmployee(models.Model):
             _logger.info(f"🔄 Post-create processing for: {emp.name} (ID: {emp.id})")
 
             if emp.name:
-                # Create Azure user and emails
                 _logger.info(f"📧 Calling _create_azure_email() for {emp.name}")
                 emp._create_azure_email()
 
-                # Refresh to get updated values
                 emp.invalidate_recordset(['work_email', 'azure_email', 'azure_user_id'])
 
                 _logger.info(f"✅ After Azure creation:")
@@ -64,7 +62,6 @@ class HREmployee(models.Model):
                 _logger.info(f"   azure_email: {emp.azure_email}")
                 _logger.info(f"   azure_user_id: {emp.azure_user_id}")
 
-                # Add to department DL
                 if emp.department_id and emp.azure_user_id:
                     emp._sync_dept_and_add_to_dl()
 
@@ -76,15 +73,12 @@ class HREmployee(models.Model):
 
     def write(self, vals):
         """Monitor department changes and validate email changes"""
-
-        # VALIDATE work_email if it's being changed
         if 'work_email' in vals and vals['work_email']:
             for emp in self:
                 emp._validate_work_email(vals['work_email'], exclude_id=emp.id)
 
         result = super().write(vals)
 
-        # If department changed, update DL membership
         if 'department_id' in vals:
             for emp in self:
                 if emp.azure_user_id and emp.department_id:
@@ -144,16 +138,19 @@ class HREmployee(models.Model):
 
     def _create_azure_email(self):
         """
-        ✅ SOLUTION 1: TWO UNIQUE EMAILS USING DIFFERENT DOMAINS
+        ✅ FINAL SOLUTION: TWO UNIQUE EMAILS USING SAME DOMAIN (techcarrot.ae)
 
         Creates:
-        - work_email: firstname.lastname@techcarrot.ae (for business use)
-        - azure_email: firstname.lastname@techcarrot.onmicrosoft.com (for Azure login)
+        - work_email: firstname.lastname@techcarrot.ae (standard format)
+        - azure_email: flastname@techcarrot.ae (short format - for Azure login)
+
+        Both use @techcarrot.ae (the ONLY verified domain)
+        But they are DIFFERENT and UNIQUE
         """
         self.ensure_one()
 
         _logger.info(f"{'=' * 80}")
-        _logger.info(f"🔑 STARTING AZURE EMAIL CREATION - SOLUTION 1 (Two Domains)")
+        _logger.info(f"🔑 STARTING AZURE EMAIL CREATION - FINAL SOLUTION (Same Domain, Different Formats)")
         _logger.info(f"   Employee: {self.name} (ID: {self.id})")
         _logger.info(f"{'=' * 80}")
 
@@ -162,29 +159,25 @@ class HREmployee(models.Model):
         tenant_id = IrConfig.get_param("azure_tenant_id")
         client_id = IrConfig.get_param("azure_client_id")
         client_secret = IrConfig.get_param("azure_client_secret")
-        business_domain = IrConfig.get_param("azure_domain")  # techcarrot.ae
-
-        # ✅ CRITICAL: Define the two domains
-        # work_email uses business domain (techcarrot.ae)
-        # azure_email uses Microsoft domain (techcarrot.onmicrosoft.com)
-        azure_login_domain = "techcarrot.onmicrosoft.com"
+        domain = IrConfig.get_param("azure_domain")  # techcarrot.ae (ONLY verified domain)
 
         _logger.info(f"📋 Configuration:")
-        _logger.info(f"   Business domain (work_email): {business_domain}")
-        _logger.info(f"   Azure login domain (azure_email): {azure_login_domain}")
+        _logger.info(f"   Domain: {domain} (ONLY verified domain)")
+        _logger.info(f"   Strategy: Different email formats on same domain")
 
-        if not all([tenant_id, client_id, client_secret, business_domain]):
+        if not all([tenant_id, client_id, client_secret, domain]):
             _logger.error("❌ Azure credentials missing!")
             return
 
         try:
-            # Generate base email from name
+            # Generate base from name
             parts = self.name.strip().lower().replace('!', '').replace('.', '').split()
             first = parts[0]
             last = parts[-1] if len(parts) > 1 else first
-            base = f"{first}.{last}"
 
-            _logger.info(f"🔄 Processing: {self.name} → base: {base}")
+            _logger.info(f"🔄 Processing: {self.name}")
+            _logger.info(f"   First name: {first}")
+            _logger.info(f"   Last name: {last}")
 
             # Get Azure AD token
             _logger.info(f"🔐 Requesting Azure AD token...")
@@ -211,14 +204,20 @@ class HREmployee(models.Model):
                 "Content-Type": "application/json"
             }
 
-            # ✅ Generate TWO UNIQUE EMAILS
+            # ✅ STRATEGY: Create TWO DIFFERENT email formats using SAME domain
+            # Format 1: firstname.lastname@techcarrot.ae (for work_email)
+            # Format 2: flastname@techcarrot.ae (for azure_email - Azure login)
+
             count = 1
-            work_email_unique = f"{base}@{business_domain}"  # firstname.lastname@techcarrot.ae
-            azure_email_unique = f"{base}@{azure_login_domain}"  # firstname.lastname@techcarrot.onmicrosoft.com
+            work_email_base = f"{first}.{last}"  # john.smith
+            azure_email_base = f"{first[0]}{last}"  # jsmith
+
+            work_email_unique = f"{work_email_base}@{domain}"  # john.smith@techcarrot.ae
+            azure_email_unique = f"{azure_email_base}@{domain}"  # jsmith@techcarrot.ae
 
             _logger.info(f"🔍 Starting uniqueness check...")
-            _logger.info(f"   Initial work_email: {work_email_unique}")
-            _logger.info(f"   Initial azure_email: {azure_email_unique}")
+            _logger.info(f"   work_email format: {work_email_base}@{domain}")
+            _logger.info(f"   azure_email format: {azure_email_base}@{domain}")
 
             # Loop to find unique combination
             while count < 100:
@@ -226,7 +225,7 @@ class HREmployee(models.Model):
                 _logger.info(f"   Checking work_email: {work_email_unique}")
                 _logger.info(f"   Checking azure_email: {azure_email_unique}")
 
-                # Check 1: Odoo database - check both emails
+                # Check 1: Odoo database - check BOTH emails don't exist
                 existing_in_odoo = self.env['hr.employee'].search([
                     '&',
                     ('id', '!=', self.id),
@@ -242,47 +241,62 @@ class HREmployee(models.Model):
                 if existing_in_odoo:
                     _logger.warning(f"⚠️ Email conflict in Odoo: {existing_in_odoo.name}")
                     count += 1
-                    work_email_unique = f"{base}{count}@{business_domain}"
-                    azure_email_unique = f"{base}{count}@{azure_login_domain}"
+                    work_email_unique = f"{work_email_base}{count}@{domain}"
+                    azure_email_unique = f"{azure_email_base}{count}@{domain}"
                     continue
 
-                # Check 2: Azure AD - check azure_email (the one used for login)
+                # Check 2: Azure AD - check azure_email (the login email)
                 check_url = f"https://graph.microsoft.com/v1.0/users/{azure_email_unique}"
                 check = requests.get(check_url, headers=headers, timeout=30)
 
                 if check.status_code == 404:
-                    # Perfect! Both emails are available
-                    _logger.info(f"✅ Both emails available!")
-                    _logger.info(f"   work_email: {work_email_unique}")
-                    _logger.info(f"   azure_email: {azure_email_unique}")
-                    break
+                    # Azure email doesn't exist - now check work_email too
+                    work_check_url = f"https://graph.microsoft.com/v1.0/users/{work_email_unique}"
+                    work_check = requests.get(work_check_url, headers=headers, timeout=30)
+
+                    if work_check.status_code == 404:
+                        # Perfect! Both emails are available
+                        _logger.info(f"✅ Both emails available!")
+                        _logger.info(f"   work_email: {work_email_unique}")
+                        _logger.info(f"   azure_email: {azure_email_unique}")
+                        _logger.info(f"   ✅ They are DIFFERENT!")
+                        break
+                    else:
+                        # work_email exists in Azure
+                        _logger.warning(f"⚠️ work_email exists in Azure")
+                        count += 1
+                        work_email_unique = f"{work_email_base}{count}@{domain}"
+                        azure_email_unique = f"{azure_email_base}{count}@{domain}"
+
                 elif check.status_code == 200:
                     existing_user = check.json()
                     existing_display_name = existing_user.get('displayName', 'Unknown')
-                    _logger.warning(f"⚠️ Azure email exists: {existing_display_name}")
+                    _logger.warning(f"⚠️ azure_email exists in Azure: {existing_display_name}")
                     count += 1
-                    work_email_unique = f"{base}{count}@{business_domain}"
-                    azure_email_unique = f"{base}{count}@{azure_login_domain}"
+                    work_email_unique = f"{work_email_base}{count}@{domain}"
+                    azure_email_unique = f"{azure_email_base}{count}@{domain}"
                 else:
                     _logger.error(f"❌ Error checking Azure: {check.status_code}")
                     _logger.error(f"   Response: {check.text}")
                     return
 
             # ✅ Create user in Azure AD
-            # IMPORTANT: userPrincipalName MUST use a VERIFIED domain
-            # We use azure_email_unique (techcarrot.onmicrosoft.com) which is always verified
+            # userPrincipalName = azure_email (the short format - for LOGIN)
+            # mail = work_email (the standard format - for BUSINESS EMAIL)
 
             _logger.info(f"\n📧 Creating Azure user:")
             _logger.info(f"   Display Name: {self.name}")
-            _logger.info(f"   UserPrincipalName (login): {azure_email_unique}")
-            _logger.info(f"   Mail (business email): {work_email_unique}")
+            _logger.info(f"   UserPrincipalName (LOGIN): {azure_email_unique}")
+            _logger.info(f"   Mail (BUSINESS): {work_email_unique}")
+            _logger.info(f"   Both use domain: {domain}")
+            _logger.info(f"   But formats are DIFFERENT!")
 
             payload = {
                 "accountEnabled": True,
                 "displayName": self.name,
                 "mailNickname": azure_email_unique.split('@')[0],
-                "userPrincipalName": azure_email_unique,  # ← Login email (techcarrot.onmicrosoft.com)
-                "mail": work_email_unique,  # ← Business email (techcarrot.ae)
+                "userPrincipalName": azure_email_unique,  # ← SHORT format (jsmith@techcarrot.ae) - for LOGIN
+                "mail": work_email_unique,  # ← STANDARD format (john.smith@techcarrot.ae) - for BUSINESS
                 "usageLocation": "AE",
                 "passwordProfile": {
                     "forceChangePasswordNextSignIn": True,
@@ -312,17 +326,18 @@ class HREmployee(models.Model):
 
                 # ✅ Update Odoo record with TWO DIFFERENT EMAILS
                 self.write({
-                    'work_email': work_email_unique,  # firstname.lastname@techcarrot.ae
-                    'azure_email': azure_email_unique,  # firstname.lastname@techcarrot.onmicrosoft.com
+                    'work_email': work_email_unique,  # john.smith@techcarrot.ae (BUSINESS)
+                    'azure_email': azure_email_unique,  # jsmith@techcarrot.ae (LOGIN)
                     'azure_user_id': azure_user_id
                 })
 
                 _logger.info(f"\n✅ Odoo record updated:")
-                _logger.info(f"   work_email: {work_email_unique} (for business)")
-                _logger.info(f"   azure_email: {azure_email_unique} (for Azure login)")
+                _logger.info(f"   work_email: {work_email_unique} (business - standard format)")
+                _logger.info(f"   azure_email: {azure_email_unique} (login - short format)")
                 _logger.info(f"   azure_user_id: {azure_user_id}")
-                _logger.info(f"\n📝 User can login to Microsoft 365 with: {azure_email_unique}")
+                _logger.info(f"\n📝 User logs into Microsoft 365 with: {azure_email_unique}")
                 _logger.info(f"📝 User receives business emails at: {work_email_unique}")
+                _logger.info(f"✅ BOTH EMAILS ARE DIFFERENT!")
 
             else:
                 error_response = create_response.json()
@@ -342,9 +357,6 @@ class HREmployee(models.Model):
         _logger.info(f"{'=' * 80}")
         _logger.info(f"✅ AZURE EMAIL CREATION COMPLETED")
         _logger.info(f"{'=' * 80}")
-
-    # ... (keep all other methods: _check_and_assign_license, _add_to_dept_dl, etc. - same as before)
-    # I'm keeping them from your original code
 
     def _check_and_assign_license(self):
         """Check if license already assigned, then assign if needed"""
@@ -404,7 +416,7 @@ class HREmployee(models.Model):
             _logger.info(f"🔄 Assigning license to {self.name}...")
 
             enable_payload = {"accountEnabled": True}
-            enable_response = requests.patch(
+            requests.patch(
                 f"https://graph.microsoft.com/v1.0/users/{self.azure_user_id}",
                 headers=headers,
                 json=enable_payload,
@@ -535,10 +547,10 @@ class HREmployee(models.Model):
 
     def action_unassign_license(self):
         """Button to unassign license"""
-        # (Keep your existing implementation)
+        # Keep your existing implementation
         pass
 
     def action_assign_license(self):
         """Button to assign license"""
-        # (Keep your existing implementation)
+        # Keep your existing implementation
         pass
