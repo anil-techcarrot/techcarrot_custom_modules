@@ -10,7 +10,7 @@ class HrEmployeeInherit(models.Model):
     _inherit = 'hr.employee'
 
     emp_code = fields.Char(
-        string='Employee Code',
+        string='Emp Code',
         copy=False,
         index=True,
         readonly=True,
