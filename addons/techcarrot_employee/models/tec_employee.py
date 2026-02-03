@@ -139,6 +139,13 @@ class HrEmployeeInherit(models.Model):
         string='Engagement Location',
 
     )
+
+    payroll_location = fields.Selection([
+        ('dubai_onsite', 'Dubai- Onsite'),
+        ('dubai_offshore', 'Dubai-Offshore'),
+        ('tcip_india', 'TCIP India'),
+    ], string='Payroll')
+
     created_by = fields.Many2one('res.users', string='Created By', readonly=True, copy=False)
     created_date_time = fields.Datetime('Created Date and Time', readonly=True, copy=False)
     last_modified_by = fields.Many2one('res.users', string='Last Modified By', readonly=True, copy=False)
