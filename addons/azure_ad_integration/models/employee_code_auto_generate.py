@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 class HrEmployeeInherit(models.Model):
     _inherit = 'hr.employee'
 
-    employee_code = fields.Char(
+    emp_code = fields.Char(
         string='Employee Code',
         copy=False,
         index=True,
@@ -44,30 +44,25 @@ class HrEmployeeInherit(models.Model):
 
     @api.model
     def create(self, vals):
-        """Sync employee_code to emp_code on create"""
+        """No need for sync - using emp_code directly"""
         res = super(HrEmployeeInherit, self).create(vals)
-        if res.employee_code:
-            res.emp_code = res.employee_code
         return res
 
     def write(self, vals):
-        """Sync employee_code to emp_code on write"""
+        """No need for sync - using emp_code directly"""
         res = super(HrEmployeeInherit, self).write(vals)
-        if 'employee_code' in vals:
-            for record in self:
-                if record.employee_code:
-                    record.sudo().write({'emp_code': record.employee_code})
         return res
 
     def action_open_code_generation_wizard(self):
         """Open wizard to generate employee code"""
         self.ensure_one()
 
-        if self.employee_code:
+        # ✅ CHANGED: employee_code → emp_code
+        if self.emp_code:
             raise UserError(_(
                 'Employee Code already exists: %s\n'
                 'Cannot generate a new code for this employee.'
-            ) % self.employee_code)
+            ) % self.emp_code)
 
         return {
             'name': _('Generate Employee Code'),
@@ -97,10 +92,11 @@ class HrEmployeeInherit(models.Model):
 
     def action_bulk_generate_employee_codes(self):
         """Generate employee codes for all employees without codes"""
+        # ✅ CHANGED: employee_code → emp_code
         employees_without_code = self.search([
             '|',
-            ('employee_code', '=', False),
-            ('employee_code', '=', '')
+            ('emp_code', '=', False),
+            ('emp_code', '=', '')
         ])
 
         if not employees_without_code:
@@ -120,7 +116,8 @@ class HrEmployeeInherit(models.Model):
 
         for employee in employees_without_code:
             new_code = employee._generate_next_employee_code()
-            employee.write({'employee_code': new_code})
+            # ✅ CHANGED: employee_code → emp_code
+            employee.write({'emp_code': new_code})
             generated_count += 1
             _logger.info(f"Bulk Generated: {new_code} for {employee.name}")
 
@@ -142,12 +139,14 @@ class HrEmployeeInherit(models.Model):
         if not prefix:
             prefix = 'EMP'
 
+        # ✅ CHANGED: employee_code → emp_code
         all_employees = self.search([
-            ('employee_code', '!=', False),
-            ('employee_code', '=like', f'{prefix}%')
+            ('emp_code', '!=', False),
+            ('emp_code', '=like', f'{prefix}%')
         ])
 
-        existing_codes = [emp.employee_code for emp in all_employees if emp.employee_code]
+        # ✅ CHANGED: employee_code → emp_code
+        existing_codes = [emp.emp_code for emp in all_employees if emp.emp_code]
 
         max_number = 0
         for code in existing_codes:
@@ -199,16 +198,17 @@ class HrEmployeeInherit(models.Model):
         _logger.warning(f"No prefix match for: {engagement}, {payroll}, {emp_type}")
         return 'EMP'
 
-    @api.constrains('employee_code')
+    @api.constrains('emp_code')  # ✅ CHANGED: employee_code → emp_code
     def _check_employee_code_unique(self):
         """Ensure employee code is unique"""
         for employee in self:
-            if employee.employee_code:
+            # ✅ CHANGED: employee_code → emp_code
+            if employee.emp_code:
                 duplicate = self.search([
-                    ('employee_code', '=', employee.employee_code),
+                    ('emp_code', '=', employee.emp_code),
                     ('id', '!=', employee.id)
                 ], limit=1)
                 if duplicate:
                     raise UserError(_(
                         'Employee Code "%s" already exists for employee: %s'
-                    ) % (employee.employee_code, duplicate.name))
+                    ) % (employee.emp_code, duplicate.name))

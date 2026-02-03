@@ -9,7 +9,7 @@
         <field name="arch" type="xml">
             <xpath expr="//page[@name='hr_settings']" position="inside">
                 <group string="Portal Integration" name="portal_integration">
-                    <field name="employee_code" placeholder="e.g., EMP001"/>
+                    <field name="emp_code" placeholder="e.g., EMP001"/>
                     <field name="portal_sync_date" readonly="1"/>
                 </group>
             </xpath>
@@ -23,7 +23,7 @@
         <field name="inherit_id" ref="hr.view_employee_tree"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
-                <field name="employee_code" optional="show"/>
+                <field name="emp_code" optional="show"/>
             </xpath>
         </field>
     </record>
@@ -35,7 +35,7 @@
         <field name="inherit_id" ref="hr.view_employee_filter"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
-                <field name="employee_code"/>
+                <field name="emp_code"/>
             </xpath>
         </field>
     </record>

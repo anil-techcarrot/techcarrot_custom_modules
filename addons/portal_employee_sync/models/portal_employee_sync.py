@@ -7,7 +7,7 @@ _logger = logging.getLogger(__name__)
 class HrEmployee(models.Model):
     _inherit = 'hr.employee'
 
-    employee_code = fields.Char(
+    emp_code = fields.Char(
         string='Employee Code',
         help='Code from portal',
         copy=False,

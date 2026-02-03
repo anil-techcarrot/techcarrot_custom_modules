@@ -253,7 +253,7 @@ class PortalEmployeeSyncController(http.Controller):
                 'name': self._val(data.get('name')),
                 'work_email': self._val(data.get('email')),
                 'mobile_phone': self._val(data.get('phone')),
-                'employee_code': self._val(data.get('employee_code')),
+                'emp_code': self._val(data.get('employee_code')),
                 'total_it_experience': self._val(data.get('total_it_experience')),
                 'alternate_mobile_number': self._val(data.get('alternate_mobile_number')),
                 'second_alternative_number': self._val(data.get('second_alternative_number')),
@@ -298,10 +298,10 @@ class PortalEmployeeSyncController(http.Controller):
                 vals['second_relation_with_employee'] = second_relation_value
                 _logger.info(f" Added 'second_relation_with_employee' to vals: '{second_relation_value}'")
 
-            employee_code_value = self._val(data.get('employee_code'))
-            if employee_code_value:
-                vals['employee_code'] = employee_code_value
-                _logger.info(f"✓ Using employee_code from API: {employee_code_value}")
+            emp_code_value = self._val(data.get('employee_code'))  # API sends "employee_code"
+            if emp_code_value:
+                vals['emp_code'] = emp_code_value  # But we save to "emp_code"
+                _logger.info(f"✓ Using employee_code from API: {emp_code_value}")
 
             # PRIVATE ADDRESS FIELDS
             if self._val(data.get('private_street')):

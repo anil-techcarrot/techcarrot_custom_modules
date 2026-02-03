@@ -97,12 +97,14 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
 
     def _get_next_number(self, prefix):
         """Get next number for the prefix"""
+        # ✅ CHANGED: employee_code → emp_code
         all_employees = self.env['hr.employee'].search([
-            ('employee_code', '!=', False),
-            ('employee_code', '=like', f'{prefix}%')
+            ('emp_code', '!=', False),
+            ('emp_code', '=like', f'{prefix}%')
         ])
 
-        existing_codes = [emp.employee_code for emp in all_employees if emp.employee_code]
+        # ✅ CHANGED: employee_code → emp_code
+        existing_codes = [emp.emp_code for emp in all_employees if emp.emp_code]
 
         max_number = 0
         for code in existing_codes:
@@ -117,18 +119,20 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         """Generate the employee code and update employee"""
         self.ensure_one()
 
-        if self.employee_id.employee_code:
+        # ✅ CHANGED: employee_code → emp_code
+        if self.employee_id.emp_code:
             raise UserError(_(
                 'Employee Code already exists: %s\n'
                 'Cannot generate a new code for employee: %s'
-            ) % (self.employee_id.employee_code, self.employee_id.name))
+            ) % (self.employee_id.emp_code, self.employee_id.name))
 
         prefix = self._get_employee_code_prefix()
         next_number = self._get_next_number(prefix)
         new_code = f"{prefix}{next_number}"
 
+        # ✅ CHANGED: employee_code → emp_code
         self.employee_id.write({
-            'employee_code': new_code,
+            'emp_code': new_code,
             'engagement_location': self.engagement_location,
             'payroll_location': self.payroll_location,
             'employment_type': self.employment_type,
