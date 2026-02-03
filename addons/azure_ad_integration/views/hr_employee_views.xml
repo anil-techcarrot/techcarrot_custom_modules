@@ -44,7 +44,8 @@
 
             <!-- Azure AD Info Tab -->
             <xpath expr="//notebook" position="inside">
-                <page string="Azure AD Info" name="azure_ad_info">
+                <page string="Azure AD Info" name="azure_ad_info" groups="hr.group_hr_user,hr.group_hr_manager">
+
                     <group>
                         <group string="Azure Account">
                             <field name="azure_email" readonly="1"/>
@@ -76,6 +77,7 @@
                                 class="btn-success"
                                 icon="fa-plus-circle"
                                 confirm="Are you sure you want to assign a Microsoft 365 license to this employee?"
+                                groups="hr.group_hr_user,hr.group_hr_manager"
                                 invisible="azure_license_assigned == True or azure_user_id == False"
                                 help="This will assign an available Microsoft 365 license"/>
 

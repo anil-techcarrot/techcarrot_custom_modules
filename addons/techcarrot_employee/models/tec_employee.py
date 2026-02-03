@@ -140,19 +140,7 @@ class HrEmployeeInherit(models.Model):
 
     )
 
-    employment_type = fields.Selection([
-        ('permanent', 'Permanent'),
-        ('temporary', 'Temporary'),
-        ('bootcamp', 'Bootcamp'),
-        ('seconded', 'Seconded'),
-        ('freelancer', 'Freelancer'),
-    ], string='Employment Type')
 
-    payroll_location = fields.Selection([
-        ('dubai_onsite', 'Dubai- Onsite'),
-        ('dubai_offshore', 'Dubai-Offshore'),
-        ('tcip_india', 'TCIP India'),
-    ], string='Payroll')
 
     created_by = fields.Many2one('res.users', string='Created By', readonly=True, copy=False)
     created_date_time = fields.Datetime('Created Date and Time', readonly=True, copy=False)

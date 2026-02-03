@@ -65,7 +65,7 @@ class HrEmployeeInherit(models.Model):
         """Open wizard to generate employee code"""
         self.ensure_one()
 
-        # ✅ CHANGED: employee_code → emp_code
+
         if self.emp_code:
             raise UserError(_(
                 'Employee Code already exists: %s\n'
@@ -100,7 +100,7 @@ class HrEmployeeInherit(models.Model):
 
     def action_bulk_generate_employee_codes(self):
         """Generate employee codes for all employees without codes"""
-        # ✅ CHANGED: employee_code → emp_code
+
         employees_without_code = self.search([
             '|',
             ('emp_code', '=', False),
@@ -124,7 +124,7 @@ class HrEmployeeInherit(models.Model):
 
         for employee in employees_without_code:
             new_code = employee._generate_next_employee_code()
-            # ✅ CHANGED: employee_code → emp_code
+
             employee.write({'emp_code': new_code})
             generated_count += 1
             _logger.info(f"Bulk Generated: {new_code} for {employee.name}")
@@ -147,13 +147,12 @@ class HrEmployeeInherit(models.Model):
         if not prefix:
             prefix = 'EMP'
 
-        # ✅ CHANGED: employee_code → emp_code
         all_employees = self.search([
             ('emp_code', '!=', False),
             ('emp_code', '=like', f'{prefix}%')
         ])
 
-        # ✅ CHANGED: employee_code → emp_code
+
         existing_codes = [emp.emp_code for emp in all_employees if emp.emp_code]
 
         max_number = 0
@@ -206,11 +205,11 @@ class HrEmployeeInherit(models.Model):
         _logger.warning(f"No prefix match for: {engagement}, {payroll}, {emp_type}")
         return 'EMP'
 
-    @api.constrains('emp_code')  # ✅ CHANGED: employee_code → emp_code
+    @api.constrains('emp_code')
     def _check_employee_code_unique(self):
         """Ensure employee code is unique"""
         for employee in self:
-            # ✅ CHANGED: employee_code → emp_code
+
             if employee.emp_code:
                 duplicate = self.search([
                     ('emp_code', '=', employee.emp_code),
