@@ -1,7 +1,7 @@
 {
     'name': 'Azure AD Email Auto Creation',
     'version': '1.0.1',
-    'depends': ['hr'],
+    'depends': ['hr','techcarrot_employee'],
     'data': [
         'security/ir.model.access.csv',
         'views/hr_department_views.xml',
