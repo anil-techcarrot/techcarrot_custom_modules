@@ -97,13 +97,13 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
 
     def _get_next_number(self, prefix):
         """Get next number for the prefix"""
-        # ✅ CHANGED: employee_code → emp_code
+
         all_employees = self.env['hr.employee'].search([
             ('emp_code', '!=', False),
             ('emp_code', '=like', f'{prefix}%')
         ])
 
-        # ✅ CHANGED: employee_code → emp_code
+
         existing_codes = [emp.emp_code for emp in all_employees if emp.emp_code]
 
         max_number = 0
@@ -119,7 +119,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         """Generate the employee code and update employee"""
         self.ensure_one()
 
-        # ✅ CHANGED: employee_code → emp_code
+
         if self.employee_id.emp_code:
             raise UserError(_(
                 'Employee Code already exists: %s\n'
@@ -130,7 +130,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         next_number = self._get_next_number(prefix)
         new_code = f"{prefix}{next_number}"
 
-        # ✅ CHANGED: employee_code → emp_code
+
         self.employee_id.write({
             'emp_code': new_code,
             'engagement_location': self.engagement_location,

@@ -293,6 +293,14 @@ class PortalEmployeeSyncController(http.Controller):
                 'period_in_company': self._val(data.get('period_in_company')),
             }
 
+            line_manager = self._find_employee(data.get('line_manager'))
+
+            if line_manager:
+                vals['line_manager_id'] = line_manager.id
+                _logger.info(f" Line Manager set: {line_manager.name} (ID {line_manager.id})")
+            else:
+                _logger.info(f" No Line Manager found for: {data.get('line_manager')}")
+
             # Add second_relation_with_employee conditionally
             if second_relation_value:
                 vals['second_relation_with_employee'] = second_relation_value

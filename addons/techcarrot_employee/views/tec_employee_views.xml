@@ -272,6 +272,7 @@
                             <field name="certification_obtained" string="Certification Obtained"/>
                             <field name="customer_acc_name" string="Customer / Account Name"/>
                             <field name="parent_id" string="Account Manager"/>
+                            <field name="line_manager_id" string = "Line Manager"/>
                             <field name="candidate_source" string="Candidate Source"/>
                             <field name="blood_group" string="Blood Group"/>
                         </group>
