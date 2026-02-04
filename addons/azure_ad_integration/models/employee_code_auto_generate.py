@@ -26,6 +26,9 @@ class HrEmployeeInherit(models.Model):
         help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
     )
 
+    line_manager_id = fields.Many2one('hr.employee', string='Line Manager', copy=False)
+
+
     engagement_location = fields.Selection(
         [
             ('onsite', 'Onsite'),

@@ -13,15 +13,19 @@
                 </group>
             </xpath>
 
+            <xpath expr="//page[@name='work_information']//field[@name='parent_id']" position="after">
+                <field name="line_manager_id"/>
+            </xpath>
+
             <xpath expr="//field[@name='employee_properties']" position="before">
                 <!-- 3 COLUMN LAYOUT - Each column in separate group -->
 
-                    <xpath expr="//field[@name='employee_name_english']/.." position="after">
+                <xpath expr="//field[@name='employee_name_english']/.." position="after">
 
-<!--                        <field name="employee_first_name"/>-->
-<!--                        <field name="employee_name_english"/>-->
-                        <field name="engagement_location" widget="selection"/>
-                    </xpath>
+                    <!--                        <field name="employee_first_name"/>-->
+                    <!--                        <field name="employee_name_english"/>-->
+                    <field name="engagement_location" widget="selection"/>
+                </xpath>
             </xpath>
             <!--                <group string="Employee Code &amp; Classification" colspan="4">-->
             <!--                    <group>-->

@@ -127,7 +127,6 @@ class HrEmployeeInherit(models.Model):
     certification_obtained = fields.Char('Certification Obtained', copy=False)
     customer_acc_name = fields.Char('Customer / Account Name', copy=False)
     parent_id = fields.Many2one('hr.employee', string='Account Manager', copy=False)
-    line_manager_id = fields.Many2one('hr.employee', string='Line Manager', copy=False)
     practice = fields.Many2one('employee.practice', copy=False)
     sub_practice = fields.Many2one('sub.practice', copy=False)
     practice_heads_id = fields.Many2one('hr.employee', string='Practice Head', copy=False)
