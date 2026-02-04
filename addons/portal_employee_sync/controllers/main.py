@@ -293,6 +293,8 @@ class PortalEmployeeSyncController(http.Controller):
                 'period_in_company': self._val(data.get('period_in_company')),
             }
 
+
+
             line_manager = self._find_employee(data.get('line_manager'))
 
             if line_manager:
@@ -532,6 +534,23 @@ class PortalEmployeeSyncController(http.Controller):
             except:
                 pass
             return self._json_response({'success': False, 'error': str(e)}, 500)
+
+    def _find_employee(self, name):
+        """Find employee by name (for line manager mapping)"""
+        name = self._val(name)
+        if not name:
+            return None
+
+        employee = request.env['hr.employee'].sudo().search([
+            ('name', '=ilike', name)
+        ], limit=1)
+
+        if employee:
+            _logger.info(f" Found Line Manager: {employee.name} (ID {employee.id})")
+        else:
+            _logger.warning(f" Line Manager not found for name: {name}")
+
+        return employee
 
     def _json_response(self, data, status=200):
         return request.make_response(
