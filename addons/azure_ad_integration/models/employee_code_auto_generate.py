@@ -55,6 +55,19 @@ class HrEmployeeInherit(models.Model):
 
     @api.model
     def create(self, vals):
+        if vals.get('employment_type'):
+            vals['employment_type'] = vals['employment_type'].strip().lower()
+
+        return super(HrEmployeeInherit, self).create(vals)
+
+    def write(self, vals):
+        if vals.get('employment_type'):
+            vals['employment_type'] = vals['employment_type'].strip().lower()
+
+        return super(HrEmployeeInherit, self).write(vals)
+
+    @api.model
+    def create(self, vals):
         """No need for sync - using emp_code directly"""
         res = super(HrEmployeeInherit, self).create(vals)
         return res
