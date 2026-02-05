@@ -19,7 +19,7 @@ class HREmployee(models.Model):
     employee_middle_name = fields.Char("Middle Name")
     employee_last_name = fields.Char("Last Name")
     place_of_birth = fields.Char("Place of Birth")
-    mother_tongue_id = fields.Many2one('res.lang', string="Mother Tongue")
+    mother_tongue_id = fields.Many2one('res.lang', ondelete='set null', string="Mother Tongue")
     language_known_ids = fields.Many2many(
         'res.lang',
         'employee_language_rel',

@@ -160,7 +160,7 @@ class HrEmployeeInherit(models.Model):
     career_break_start_date = fields.Date('Career Break Start Date', copy=False)
     career_break_end_date = fields.Date('Career Break End Date', copy=False)
     names = fields.Many2many('language.master', string='Language Known', copy=False)
-    mother_tongue_id = fields.Many2one('language.master', string='Mother Tongue', copy=False)
+    # mother_tongue_id = fields.Many2one('language.master', string='Mother Tongue', copy=False)
     last_organisation_name = fields.Char('Last Organisation Name', copy=False)
     last_location = fields.Char('Last Location', copy=False)
     last_salary_per_annum_currency = fields.Char('Last Salary Per Annum Currency', copy=False)
