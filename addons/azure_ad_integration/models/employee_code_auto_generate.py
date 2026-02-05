@@ -53,18 +53,6 @@ class HrEmployeeInherit(models.Model):
         ('freelancer', 'Freelancer'),
     ], string='Employment Type')
 
-    @api.model
-    def create(self, vals):
-        if vals.get('employment_type'):
-            vals['employment_type'] = vals['employment_type'].strip().lower()
-
-        return super(HrEmployeeInherit, self).create(vals)
-
-    def write(self, vals):
-        if vals.get('employment_type'):
-            vals['employment_type'] = vals['employment_type'].strip().lower()
-
-        return super(HrEmployeeInherit, self).write(vals)
 
     @api.model
     def create(self, vals):

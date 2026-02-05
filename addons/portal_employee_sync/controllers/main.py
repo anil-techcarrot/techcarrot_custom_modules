@@ -24,7 +24,7 @@ class PortalEmployeeSyncController(http.Controller):
                 if '"Value"' in value or '"value"' in value:
                     parsed = json.loads(value)
                     value = parsed.get('Value') or parsed.get('value')
-                    _logger.info(f" Extracted from SharePoint JSON: {value}")
+                    _logger.info(f"📤 Extracted from SharePoint JSON: {value}")
             except Exception as e:
                 _logger.warning(f"Failed to parse as JSON, using as-is: {e}")
                 pass
@@ -64,7 +64,7 @@ class PortalEmployeeSyncController(http.Controller):
         name = name.strip()
 
         # First: Try exact code match (IN, AE, etc.)
-        country = request.env['res.lang'].sudo().search([
+        country = request.env['res.country'].sudo().search([
             ('code', '=', name.upper())
         ], limit=1)
         if country:
@@ -93,94 +93,77 @@ class PortalEmployeeSyncController(http.Controller):
             domain.append(('country_id', '=', country_id))
         return request.env['res.country.state'].sudo().search(domain, limit=1)
 
-    def _find_language_in_res_lang(self, name):
+    def _find_language_in_language_master(self, name):
         """
-        Search in res.lang table for language
-        Maps common language names to res.lang codes
+        Search in language_master table for language
+        Maps common language names to language_master records
         """
         name = self._val(name)
         if not name:
-            _logger.warning(f" _find_language_in_res_lang called with empty name")
+            _logger.warning(f"⚠️ _find_language_in_language_master called with empty name")
             return None
 
         name = name.strip()
-        _logger.info(f" Searching for language in res.lang: '{name}'")
-
-        # Language name to code mapping (common cases)
-        language_map = {
-            'english': 'en_US',
-            'hindi': 'hi_IN',
-            'telugu': 'te_IN',
-            'tamil': 'ta_IN',
-            'kannada': 'kn_IN',
-            'malayalam': 'ml_IN',
-            'marathi': 'mr_IN',
-            'bengali': 'bn_IN',
-            'gujarati': 'gu_IN',
-            'punjabi': 'pa_IN',
-            'urdu': 'ur_IN',
-            'arabic': 'ar_001',
-            'french': 'fr_FR',
-            'german': 'de_DE',
-            'spanish': 'es_ES',
-            'chinese': 'zh_CN',
-            'japanese': 'ja_JP',
-        }
+        _logger.info(f"🔍 Searching for language in language_master: '{name}'")
 
         try:
-            # First: Try exact code match (e.g., 'en_US')
-            lang = request.env['res.lang'].sudo().search([
-                ('code', '=', name)
-            ], limit=1)
-            if lang:
-                _logger.info(f" Found by code: '{name}' -> ID: {lang.id}, Name: '{lang.name}'")
-                return lang
-
-            # Second: Try mapping (e.g., 'English' -> 'en_US')
-            name_lower = name.lower()
-            if name_lower in language_map:
-                code = language_map[name_lower]
-                lang = request.env['res.lang'].sudo().search([
-                    ('code', '=', code)
-                ], limit=1)
-                if lang:
-                    _logger.info(f" Found by mapping: '{name}' -> '{code}' -> ID: {lang.id}")
-                    return lang
-
-            # Third: Try exact name match
-            lang = request.env['res.lang'].sudo().search([
+            # First: Try exact name match (case insensitive)
+            lang = request.env['language_master'].sudo().search([
                 ('name', '=ilike', name)
             ], limit=1)
             if lang:
-                _logger.info(f" Found by exact name: '{name}' -> ID: {lang.id}")
+                _logger.info(f"✅ Found by exact name: '{name}' -> ID: {lang.id}, Name: '{lang.name}'")
                 return lang
 
-            # Fourth: Try partial name match
-            lang = request.env['res.lang'].sudo().search([
+            # Second: Try partial name match
+            lang = request.env['language_master'].sudo().search([
                 ('name', 'ilike', name)
             ], limit=1)
             if lang:
-                _logger.info(f" Found by partial name: '{name}' -> ID: {lang.id}")
+                _logger.info(f"✅ Found by partial name: '{name}' -> ID: {lang.id}, Name: '{lang.name}'")
                 return lang
 
-            # Fifth: Try ISO code match
-            lang = request.env['res.lang'].sudo().search([
-                ('iso_code', 'ilike', name)
-            ], limit=1)
-            if lang:
-                _logger.info(f" Found by ISO code: '{name}' -> ID: {lang.id}")
-                return lang
+            # Third: Try common variations
+            name_variations = {
+                'english': ['English', 'EN', 'eng'],
+                'hindi': ['Hindi', 'HI', 'hin'],
+                'telugu': ['Telugu', 'TE', 'tel'],
+                'tamil': ['Tamil', 'TA', 'tam'],
+                'kannada': ['Kannada', 'KN', 'kan'],
+                'malayalam': ['Malayalam', 'ML', 'mal'],
+                'marathi': ['Marathi', 'MR', 'mar'],
+                'bengali': ['Bengali', 'BN', 'ben'],
+                'gujarati': ['Gujarati', 'GU', 'guj'],
+                'punjabi': ['Punjabi', 'PA', 'pan'],
+                'urdu': ['Urdu', 'UR', 'urd'],
+                'arabic': ['Arabic', 'AR', 'ara'],
+                'french': ['French', 'FR', 'fra'],
+                'german': ['German', 'DE', 'deu'],
+                'spanish': ['Spanish', 'ES', 'spa'],
+                'chinese': ['Chinese', 'ZH', 'chi'],
+                'japanese': ['Japanese', 'JA', 'jpn'],
+            }
+
+            name_lower = name.lower()
+            if name_lower in language_variations:
+                for variant in language_variations[name_lower]:
+                    lang = request.env['language_master'].sudo().search([
+                        ('name', 'ilike', variant)
+                    ], limit=1)
+                    if lang:
+                        _logger.info(f"✅ Found by variant '{variant}': ID: {lang.id}")
+                        return lang
 
             # Log available languages for debugging
-            _logger.warning(f" Language NOT found: '{name}'")
-            all_langs = request.env['res.lang'].sudo().search([])
-            available = [(l.code, l.name) for l in all_langs[:10]]
-            _logger.info(f"📋 Sample available languages: {available}")
+            _logger.warning(f"⚠️ Language NOT found: '{name}'")
+            all_langs = request.env['language_master'].sudo().search([], limit=15)
+            available = [l.name for l in all_langs]
+            _logger.info(f"📋 Sample available languages in language_master: {available}")
 
             return None
 
         except Exception as e:
-            _logger.error(f" Error searching res.lang: {e}", exc_info=True)
+            _logger.error(f"❌ Error searching language_master: {e}", exc_info=True)
             return None
 
     def _get_or_create_department(self, name):
@@ -223,7 +206,7 @@ class PortalEmployeeSyncController(http.Controller):
                 return self._json_response({'success': False, 'error': 'Invalid API key'}, 401)
 
             data = json.loads(request.httprequest.data or "{}")
-            _logger.info(f" Received: {json.dumps(data, indent=2)}")
+            _logger.info(f"📥 Received: {json.dumps(data, indent=2)}")
 
             if not self._val(data.get('name')):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
@@ -233,20 +216,20 @@ class PortalEmployeeSyncController(http.Controller):
             employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
             # DIAGNOSTIC: Check if field exists
-            _logger.info(" DIAGNOSTIC: Checking if 'second_relation_with_employee' field exists")
+            _logger.info("🔍 DIAGNOSTIC: Checking if 'second_relation_with_employee' field exists")
             try:
                 if 'second_relation_with_employee' in Employee._fields:
-                    _logger.info(" Field 'second_relation_with_employee' EXISTS in hr.employee model")
+                    _logger.info("✅ Field 'second_relation_with_employee' EXISTS in hr.employee model")
                     field_info = Employee._fields['second_relation_with_employee']
-                    _logger.info(f" Field type: {field_info.type}, required: {field_info.required}")
+                    _logger.info(f"   Field type: {field_info.type}, required: {field_info.required}")
                 else:
-                    _logger.error(" Field 'second_relation_with_employee' DOES NOT EXIST in hr.employee model")
+                    _logger.error("❌ Field 'second_relation_with_employee' DOES NOT EXIST in hr.employee model")
             except Exception as e:
-                _logger.error(f" Error checking field: {e}")
+                _logger.error(f"❌ Error checking field: {e}")
 
             # DIAGNOSTIC: Extract and log the value
             second_relation_value = self._val(data.get('second_relation_with_employee'))
-            _logger.info(f" DIAGNOSTIC: Extracted second_relation_with_employee value: '{second_relation_value}'")
+            _logger.info(f"📋 DIAGNOSTIC: Extracted second_relation_with_employee value: '{second_relation_value}'")
 
             # EMPLOYEE VALUES
             vals = {
@@ -293,25 +276,23 @@ class PortalEmployeeSyncController(http.Controller):
                 'period_in_company': self._val(data.get('period_in_company')),
             }
 
-
-
             line_manager = self._find_employee(data.get('line_manager'))
 
             if line_manager:
                 vals['line_manager_id'] = line_manager.id
-                _logger.info(f" Line Manager set: {line_manager.name} (ID {line_manager.id})")
+                _logger.info(f"✅ Line Manager set: {line_manager.name} (ID {line_manager.id})")
             else:
-                _logger.info(f" No Line Manager found for: {data.get('line_manager')}")
+                _logger.info(f"ℹ️ No Line Manager found for: {data.get('line_manager')}")
 
             # Add second_relation_with_employee conditionally
             if second_relation_value:
                 vals['second_relation_with_employee'] = second_relation_value
-                _logger.info(f" Added 'second_relation_with_employee' to vals: '{second_relation_value}'")
+                _logger.info(f"✅ Added 'second_relation_with_employee' to vals: '{second_relation_value}'")
 
             emp_code_value = self._val(data.get('employee_code'))  # API sends "employee_code"
             if emp_code_value:
                 vals['emp_code'] = emp_code_value  # But we save to "emp_code"
-                _logger.info(f"✓ Using employee_code from API: {emp_code_value}")
+                _logger.info(f"✅ Using employee_code from API: {emp_code_value}")
 
             # PRIVATE ADDRESS FIELDS
             if self._val(data.get('private_street')):
@@ -377,14 +358,20 @@ class PortalEmployeeSyncController(http.Controller):
             if private_state:
                 vals['private_state_id'] = private_state.id
 
-            # MOTHER TONGUE (also from res.lang)
-            mother_tongue = self._find_language_in_res_lang(data.get('mother_tongue_id'))
+            # MOTHER TONGUE (from language_master)
+            _logger.info("🌐 Processing Mother Tongue...")
+            mother_tongue = self._find_language_in_language_master(data.get('mother_tongue_id'))
             if mother_tongue:
                 vals['mother_tongue_id'] = mother_tongue.id
+                _logger.info(f"✅ Mother Tongue set: {mother_tongue.name} (ID: {mother_tongue.id})")
+            else:
+                mother_tongue_value = self._val(data.get('mother_tongue_id'))
+                if mother_tongue_value:
+                    _logger.warning(f"⚠️ Mother Tongue '{mother_tongue_value}' not found in language_master")
 
-            # ========== PROCESS LANGUAGES KNOWN (res.lang) ==========
+            # ========== PROCESS LANGUAGES KNOWN (language_master) ==========
             _logger.info("=" * 80)
-            _logger.info(" STARTING LANGUAGE PROCESSING (res.lang)")
+            _logger.info("🌐 STARTING LANGUAGE PROCESSING (language_master)")
             _logger.info("=" * 80)
 
             # Try multiple possible field names from SharePoint
@@ -395,60 +382,60 @@ class PortalEmployeeSyncController(http.Controller):
                     data.get('language_known')
             )
 
-            _logger.info(f" Raw language data from API: {langs_raw_data}")
-            _logger.info(f" Type: {type(langs_raw_data)}")
+            _logger.info(f"📥 Raw language data from API: {langs_raw_data}")
+            _logger.info(f"📋 Type: {type(langs_raw_data)}")
 
             langs_raw = self._val(langs_raw_data)
             language_ids_to_set = []
 
             if langs_raw:
-                _logger.info(f"✓ Cleaned language value: '{langs_raw}'")
+                _logger.info(f"✅ Cleaned language value: '{langs_raw}'")
 
                 # Split by comma and process each language
                 lang_names = [name.strip() for name in langs_raw.split(',') if name.strip()]
-                _logger.info(f" Split into {len(lang_names)} language(s): {lang_names}")
+                _logger.info(f"📋 Split into {len(lang_names)} language(s): {lang_names}")
 
                 for idx, name in enumerate(lang_names, 1):
                     _logger.info(f"\n--- Processing language {idx}/{len(lang_names)}: '{name}' ---")
 
-                    lang_obj = self._find_language_in_res_lang(name)
+                    lang_obj = self._find_language_in_language_master(name)
 
                     if lang_obj:
                         language_ids_to_set.append(lang_obj.id)
                         _logger.info(
-                            f" SUCCESS: Added res.lang ID {lang_obj.id} ('{lang_obj.name}' / {lang_obj.code})")
+                            f"✅ SUCCESS: Added language_master ID {lang_obj.id} ('{lang_obj.name}')")
                     else:
-                        _logger.error(f" FAILED: Language '{name}' not found in res.lang")
+                        _logger.error(f"❌ FAILED: Language '{name}' not found in language_master")
 
                 _logger.info(f"\n{'=' * 80}")
-                _logger.info(f" LANGUAGE PROCESSING SUMMARY:")
+                _logger.info(f"📊 LANGUAGE PROCESSING SUMMARY:")
                 _logger.info(f"   • Input string: '{langs_raw}'")
                 _logger.info(f"   • Languages found: {len(language_ids_to_set)}/{len(lang_names)}")
                 _logger.info(f"   • IDs to save: {language_ids_to_set}")
                 _logger.info(f"{'=' * 80}\n")
             else:
-                _logger.info(f" No languages provided in request")
+                _logger.info(f"ℹ️ No languages provided in request")
 
             # LOG FINAL VALUES
-            _logger.info(f" Final vals (before create/update): {json.dumps(vals, default=str, indent=2)}")
+            _logger.info(f"📋 Final vals (before create/update): {json.dumps(vals, default=str, indent=2)}")
 
             # CREATE OR UPDATE EMPLOYEE
             if employee:
-                _logger.info(f" UPDATING existing employee: {employee.name} (ID: {employee.id})")
+                _logger.info(f"🔄 UPDATING existing employee: {employee.name} (ID: {employee.id})")
                 employee.write(vals)
                 action = "updated"
-                _logger.info(f" Employee UPDATED")
+                _logger.info(f"✅ Employee UPDATED")
             else:
-                _logger.info(f" CREATING new employee")
+                _logger.info(f"➕ CREATING new employee")
                 employee = Employee.with_context(auto_generate_code=False).create(vals)
                 action = "created"
-                _logger.info(f" Employee CREATED: {employee.name} (ID: {employee.id})")
+                _logger.info(f"✅ Employee CREATED: {employee.name} (ID: {employee.id})")
 
             # ========== SET LANGUAGES SEPARATELY (CRITICAL FOR MANY2MANY) ==========
             if language_ids_to_set:
                 try:
                     _logger.info(f"\n{'=' * 80}")
-                    _logger.info(f" SETTING LANGUAGES FOR EMPLOYEE {employee.id}")
+                    _logger.info(f"🌐 SETTING LANGUAGES FOR EMPLOYEE {employee.id}")
                     _logger.info(f"{'=' * 80}")
                     _logger.info(f"   Language IDs to set: {language_ids_to_set}")
 
@@ -456,13 +443,13 @@ class PortalEmployeeSyncController(http.Controller):
                     employee.write({
                         'language_known_ids': [(5, 0, 0)]  # (5, 0, 0) = Clear all
                     })
-                    _logger.info(f" Cleared existing languages")
+                    _logger.info(f"🗑️ Cleared existing languages")
 
                     # Now set the new languages
                     employee.write({
                         'language_known_ids': [(6, 0, language_ids_to_set)]  # (6, 0, [IDs]) = Replace with these IDs
                     })
-                    _logger.info(f" Languages written to database using ORM write")
+                    _logger.info(f"💾 Languages written to database using ORM write")
 
                     # Force refresh from database
                     employee.invalidate_cache(['language_known_ids'])
@@ -471,31 +458,29 @@ class PortalEmployeeSyncController(http.Controller):
                     saved_langs = employee.language_known_ids
                     saved_ids = saved_langs.ids
                     saved_names = saved_langs.mapped('name')
-                    saved_codes = saved_langs.mapped('code')
 
                     _logger.info(f"\n{'=' * 80}")
-                    _logger.info(f"  VERIFICATION RESULTS:")
+                    _logger.info(f"✅ VERIFICATION RESULTS:")
                     _logger.info(f"   • Expected IDs: {language_ids_to_set}")
                     _logger.info(f"   • Saved IDs: {saved_ids}")
                     _logger.info(f"   • Saved Names: {saved_names}")
-                    _logger.info(f"   • Saved Codes: {saved_codes}")
                     _logger.info(f"   • Count: {len(saved_ids)}/{len(language_ids_to_set)}")
 
                     if set(saved_ids) == set(language_ids_to_set):
-                        _logger.info(f" ALL LANGUAGES SAVED SUCCESSFULLY!")
+                        _logger.info(f"🎉 ALL LANGUAGES SAVED SUCCESSFULLY!")
                     else:
                         missing = set(language_ids_to_set) - set(saved_ids)
                         extra = set(saved_ids) - set(language_ids_to_set)
                         if missing:
-                            _logger.error(f" Missing IDs: {missing}")
+                            _logger.error(f"❌ Missing IDs: {missing}")
                         if extra:
-                            _logger.error(f" Extra IDs: {extra}")
+                            _logger.error(f"⚠️ Extra IDs: {extra}")
                     _logger.info(f"{'=' * 80}\n")
 
                 except Exception as e:
-                    _logger.error(f" ERROR SETTING LANGUAGES: {e}", exc_info=True)
+                    _logger.error(f"❌ ERROR SETTING LANGUAGES: {e}", exc_info=True)
             else:
-                _logger.info(f" No languages to set for employee {employee.id}")
+                _logger.info(f"ℹ️ No languages to set for employee {employee.id}")
 
             # Prepare response
             azure_email = employee.work_email or ''
@@ -508,8 +493,8 @@ class PortalEmployeeSyncController(http.Controller):
             if language_ids_to_set:
                 for lang in employee.language_known_ids:
                     saved_language_info.append({
-                        'name': lang.name,
-                        'code': lang.code
+                        'id': lang.id,
+                        'name': lang.name
                     })
 
             response_data = {
@@ -519,16 +504,17 @@ class PortalEmployeeSyncController(http.Controller):
                 'name': employee.name,
                 'email': azure_email,
                 'azure_user_id': azure_id,
+                'mother_tongue': mother_tongue.name if mother_tongue else None,
                 'languages_saved': saved_language_info,
                 'languages_count': len(saved_language_info)
             }
 
-            _logger.info(f" Response: {json.dumps(response_data, indent=2)}")
+            _logger.info(f"📤 Response: {json.dumps(response_data, indent=2)}")
 
             return self._json_response(response_data)
 
         except Exception as e:
-            _logger.error(f" CRITICAL ERROR: {str(e)}", exc_info=True)
+            _logger.error(f"❌ CRITICAL ERROR: {str(e)}", exc_info=True)
             try:
                 request.env.cr.rollback()
             except:
@@ -546,9 +532,9 @@ class PortalEmployeeSyncController(http.Controller):
         ], limit=1)
 
         if employee:
-            _logger.info(f" Found Line Manager: {employee.name} (ID {employee.id})")
+            _logger.info(f"✅ Found Line Manager: {employee.name} (ID {employee.id})")
         else:
-            _logger.warning(f" Line Manager not found for name: {name}")
+            _logger.warning(f"⚠️ Line Manager not found for name: {name}")
 
         return employee
 
