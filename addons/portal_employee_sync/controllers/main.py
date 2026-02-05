@@ -39,6 +39,75 @@ class PortalEmployeeSyncController(http.Controller):
         value = str(value).strip()
         return value if value else None
 
+    def _normalize_engagement_location(self, value):
+        """
+        Normalize engagement_location to match Odoo selection values
+        Accepts: onsite/Onsite/ONSITE, offshore/Offshore/OFFSHORE, nearshore/Nearshore/NEARSHORE/near_shore/near-shore
+        Returns: 'onsite', 'offshore', or 'near_shore'
+        """
+        value = self._val(value)
+        if not value:
+            return None
+
+        # Convert to lowercase and remove separators
+        normalized = value.lower().replace('-', '').replace('_', '').replace(' ', '')
+
+        if normalized == 'onsite':
+            return 'onsite'
+        elif normalized == 'offshore':
+            return 'offshore'
+        elif normalized in ['nearshore', 'near_shore']:
+            return 'near_shore'
+        else:
+            _logger.warning(f"⚠️ Unknown engagement_location: '{value}' -> returning as-is")
+            return value.lower()
+
+    def _normalize_payroll_location(self, value):
+        """
+        Normalize payroll_location to match Odoo selection values
+        Accepts any case and separator variations
+        Returns: 'dubai_onsite', 'dubai_offshore', or 'tcip_india'
+        """
+        value = self._val(value)
+        if not value:
+            return None
+
+        # Convert to lowercase and standardize separators
+        normalized = value.lower().replace('-', '_').replace(' ', '_')
+
+        # Handle variations
+        if 'dubai' in normalized and 'onsite' in normalized:
+            return 'dubai_onsite'
+        elif 'dubai' in normalized and 'offshore' in normalized:
+            return 'dubai_offshore'
+        elif 'tcip' in normalized or 'india' in normalized:
+            return 'tcip_india'
+        else:
+            _logger.warning(f"⚠️ Unknown payroll_location: '{value}' -> returning as-is")
+            return normalized
+
+    def _normalize_employment_type(self, value):
+        """
+        Normalize employment_type to match Odoo selection values
+        Accepts: permanent/Permanent/PERMANENT, temporary/Temporary/TEMPORARY, etc.
+        Returns: 'permanent', 'temporary', 'bootcamp', 'seconded', or 'freelancer'
+        """
+        value = self._val(value)
+        if not value:
+            return None
+
+        # Convert to lowercase
+        normalized = value.lower().strip()
+
+        # Valid employment types
+        valid_types = ['permanent', 'temporary', 'bootcamp', 'seconded', 'freelancer']
+
+        if normalized in valid_types:
+            return normalized
+        else:
+            _logger.warning(f"⚠️ Unknown employment_type: '{value}' -> returning as-is")
+            return normalized
+
     def _parse_date(self, value):
         value = self._val(value)
         if not value:
@@ -248,6 +317,20 @@ class PortalEmployeeSyncController(http.Controller):
             second_relation_value = self._val(data.get('second_relation_with_employee'))
             _logger.info(f" DIAGNOSTIC: Extracted second_relation_with_employee value: '{second_relation_value}'")
 
+            # ========== NORMALIZE THE THREE CRITICAL FIELDS ==========
+            engagement_location_raw = data.get('engagement_location')
+            payroll_location_raw = data.get('payroll_location')
+            employment_type_raw = data.get('employment_type')
+
+            engagement_location_normalized = self._normalize_engagement_location(engagement_location_raw)
+            payroll_location_normalized = self._normalize_payroll_location(payroll_location_raw)
+            employment_type_normalized = self._normalize_employment_type(employment_type_raw)
+
+            _logger.info(f"🔧 FIELD NORMALIZATION:")
+            _logger.info(f"   engagement_location: '{engagement_location_raw}' → '{engagement_location_normalized}'")
+            _logger.info(f"   payroll_location: '{payroll_location_raw}' → '{payroll_location_normalized}'")
+            _logger.info(f"   employment_type: '{employment_type_raw}' → '{employment_type_normalized}'")
+
             # EMPLOYEE VALUES
             vals = {
                 'name': self._val(data.get('name')),
@@ -257,9 +340,9 @@ class PortalEmployeeSyncController(http.Controller):
                 'total_it_experience': self._val(data.get('total_it_experience')),
                 'alternate_mobile_number': self._val(data.get('alternate_mobile_number')),
                 'second_alternative_number': self._val(data.get('second_alternative_number')),
-                'engagement_location': self._val(data.get('engagement_location')),
-                'payroll_location': self._val(data.get('payroll_location')),
-                'employment_type': self._val(data.get('employment_type')),
+                'engagement_location': engagement_location_normalized,  # ✅ NORMALIZED
+                'payroll_location': payroll_location_normalized,  # ✅ NORMALIZED
+                'employment_type': employment_type_normalized,  # ✅ NORMALIZED
                 'last_location': self._val(data.get('last_location')),
                 'department_id': self._get_or_create_department(data.get('department')),
                 'job_id': self._get_or_create_job(data.get('job_title')),
@@ -293,8 +376,6 @@ class PortalEmployeeSyncController(http.Controller):
                 'period_in_company': self._val(data.get('period_in_company')),
             }
 
-
-
             line_manager = self._find_employee(data.get('line_manager'))
 
             if line_manager:
@@ -308,9 +389,9 @@ class PortalEmployeeSyncController(http.Controller):
                 vals['second_relation_with_employee'] = second_relation_value
                 _logger.info(f" Added 'second_relation_with_employee' to vals: '{second_relation_value}'")
 
-            emp_code_value = self._val(data.get('employee_code'))  # API sends "employee_code"
+            emp_code_value = self._val(data.get('employee_code'))
             if emp_code_value:
-                vals['emp_code'] = emp_code_value  # But we save to "emp_code"
+                vals['emp_code'] = emp_code_value
                 _logger.info(f"✓ Using employee_code from API: {emp_code_value}")
 
             # PRIVATE ADDRESS FIELDS
@@ -387,7 +468,6 @@ class PortalEmployeeSyncController(http.Controller):
             _logger.info(" STARTING LANGUAGE PROCESSING (res.lang)")
             _logger.info("=" * 80)
 
-            # Try multiple possible field names from SharePoint
             langs_raw_data = (
                     data.get('language_known_ids') or
                     data.get('names') or
@@ -404,7 +484,6 @@ class PortalEmployeeSyncController(http.Controller):
             if langs_raw:
                 _logger.info(f"✓ Cleaned language value: '{langs_raw}'")
 
-                # Split by comma and process each language
                 lang_names = [name.strip() for name in langs_raw.split(',') if name.strip()]
                 _logger.info(f" Split into {len(lang_names)} language(s): {lang_names}")
 
@@ -452,22 +531,18 @@ class PortalEmployeeSyncController(http.Controller):
                     _logger.info(f"{'=' * 80}")
                     _logger.info(f"   Language IDs to set: {language_ids_to_set}")
 
-                    # Clear existing languages first
                     employee.write({
-                        'language_known_ids': [(5, 0, 0)]  # (5, 0, 0) = Clear all
+                        'language_known_ids': [(5, 0, 0)]
                     })
                     _logger.info(f" Cleared existing languages")
 
-                    # Now set the new languages
                     employee.write({
-                        'language_known_ids': [(6, 0, language_ids_to_set)]  # (6, 0, [IDs]) = Replace with these IDs
+                        'language_known_ids': [(6, 0, language_ids_to_set)]
                     })
                     _logger.info(f" Languages written to database using ORM write")
 
-                    # Force refresh from database
                     employee.invalidate_cache(['language_known_ids'])
 
-                    # Verify what was actually saved
                     saved_langs = employee.language_known_ids
                     saved_ids = saved_langs.ids
                     saved_names = saved_langs.mapped('name')
@@ -503,7 +578,6 @@ class PortalEmployeeSyncController(http.Controller):
             if hasattr(employee, 'azure_user_id'):
                 azure_id = employee.azure_user_id or ''
 
-            # Get saved languages for response
             saved_language_info = []
             if language_ids_to_set:
                 for lang in employee.language_known_ids:
@@ -520,7 +594,12 @@ class PortalEmployeeSyncController(http.Controller):
                 'email': azure_email,
                 'azure_user_id': azure_id,
                 'languages_saved': saved_language_info,
-                'languages_count': len(saved_language_info)
+                'languages_count': len(saved_language_info),
+                'normalized_fields': {
+                    'engagement_location': engagement_location_normalized,
+                    'payroll_location': payroll_location_normalized,
+                    'employment_type': employment_type_normalized
+                }
             }
 
             _logger.info(f" Response: {json.dumps(response_data, indent=2)}")
