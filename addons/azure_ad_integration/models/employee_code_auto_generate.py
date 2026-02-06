@@ -9,23 +9,39 @@ _logger = logging.getLogger(__name__)
 class HrEmployeeInherit(models.Model):
     _inherit = 'hr.employee'
 
-    engagement_location = fields.Char('Engagement Location', copy=False)
+    # ---------------------------------
+    # Employee Code Fields (NEW)
+    # ---------------------------------
 
+    emp_code = fields.Char(
+        string='Emp Code',
+        copy=False,
+        index=True,
+        readonly=True,
+        store=True,
+        help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
+    )
 
+    employee_code = fields.Char(
+        string='Employee Code',
+        copy=False,
+        index=True,
+        readonly=True,
+        store=True,
+        help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
+    )
 
-    @api.model
-    def create(self, vals):
-        """Pass through - no manipulation"""
-        res = super(HrEmployeeInherit, self).create(vals)
-        return res
+    line_manager_id = fields.Many2one(
+        'hr.employee',
+        string='Line Manager',
+        copy=False
+    )
 
-    def write(self, vals):
-        """Pass through - no manipulation"""
-        res = super(HrEmployeeInherit, self).write(vals)
-        return res
+    # ------------------------------------------------
+    # Wizard Action
+    # ------------------------------------------------
 
     def action_open_code_generation_wizard(self):
-        """Open wizard to generate employee code"""
         self.ensure_one()
 
         if self.emp_code:
@@ -42,91 +58,86 @@ class HrEmployeeInherit(models.Model):
             'target': 'new',
             'context': {
                 'default_employee_id': self.id,
+                'default_engagement_location': self.engagement_location,
+                'default_payroll_location': self.payroll_location,
+                'default_employment_type': self.employment_type,
             }
         }
 
+    # ------------------------------------------------
+    # Code Generation Logic
+    # ------------------------------------------------
+
     def _generate_next_employee_code(self):
-        """Generate employee code based on classification fields"""
-        prefix = self._get_employee_code_prefix()
 
-        if not prefix:
-            prefix = 'EMP'
+        prefix = self._get_employee_code_prefix() or 'EMP'
 
-        all_employees = self.search([
+        employees = self.search([
             ('emp_code', '!=', False),
             ('emp_code', '=like', f'{prefix}%')
         ])
 
-        existing_codes = [emp.emp_code for emp in all_employees if emp.emp_code]
-
         max_number = 0
-        for code in existing_codes:
+        for code in employees.mapped('emp_code'):
             match = re.match(rf'^{re.escape(prefix)}(\d+)$', code)
             if match:
-                number = int(match.group(1))
-                max_number = max(max_number, number)
+                max_number = max(max_number, int(match.group(1)))
 
-        next_number = max_number + 1
-        new_code = f"{prefix}{next_number}"
+        new_code = f"{prefix}{max_number + 1}"
 
-        _logger.info(f"Generated code: {new_code} (Prefix: {prefix}, Next: {next_number})")
+        _logger.info("Generated Employee Code: %s", new_code)
 
         return new_code
 
-    def _normalize_for_comparison(self, value):
-        """Normalize string for comparison in code generation"""
-        if not value:
-            return ''
-        return str(value).lower().replace('-', '').replace('_', '').replace(' ', '').strip()
-
     def _get_employee_code_prefix(self):
-        """Determine prefix based on Engagement Location, Payroll, and Employment Type"""
-        engagement_norm = self._normalize_for_comparison(self.engagement_location)
-        payroll_norm = self._normalize_for_comparison(self.payroll_location)
-        emp_type_norm = self._normalize_for_comparison(self.employment_type)
 
-        _logger.info(f"Prefix calc: eng='{engagement_norm}', pay='{payroll_norm}', type='{emp_type_norm}'")
+        engagement = self.engagement_location
+        payroll = self.payroll_location
+        emp_type = self.employment_type
 
-        if emp_type_norm == 'seconded':
+        if emp_type == 'seconded':
             return 'PT'
 
-        if emp_type_norm == 'freelancer':
+        if emp_type == 'freelancer':
             return 'TFL'
 
-        if emp_type_norm == 'bootcamp':
-            if engagement_norm in ['onsite', 'nearshore'] and 'dubaionsite' in payroll_norm:
+        if emp_type == 'bootcamp':
+            if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite':
                 return 'BC'
-            elif engagement_norm == 'offshore' and 'dubaioffshore' in payroll_norm:
+            elif engagement == 'offshore' and payroll == 'dubai_offshore':
                 return 'BCO'
-            elif engagement_norm == 'offshore' and ('tcip' in payroll_norm or 'india' in payroll_norm):
+            elif engagement == 'offshore' and payroll == 'tcip_india':
                 return 'BCI'
 
-        if engagement_norm == 'offshore' and ('tcip' in payroll_norm or 'india' in payroll_norm) and emp_type_norm == 'permanent':
+        if engagement == 'offshore' and payroll == 'tcip_india' and emp_type == 'permanent':
             return 'TCIP'
 
-        if engagement_norm == 'offshore' and 'dubaioffshore' in payroll_norm:
-            if emp_type_norm in ['permanent', 'temporary']:
+        if engagement == 'offshore' and payroll == 'dubai_offshore':
+            if emp_type in ['permanent', 'temporary']:
                 return 'T'
 
-        if engagement_norm in ['onsite', 'nearshore'] and 'dubaionsite' in payroll_norm and emp_type_norm == 'permanent':
-            return 'P'
+        if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite':
+            if emp_type == 'permanent':
+                return 'P'
+            elif emp_type == 'temporary':
+                return 'T'
 
-        if engagement_norm in ['onsite', 'nearshore'] and 'dubaionsite' in payroll_norm and emp_type_norm == 'temporary':
-            return 'T'
-
-        _logger.warning(f"No prefix match for: {engagement_norm}, {payroll_norm}, {emp_type_norm}")
         return 'EMP'
+
+    # ------------------------------------------------
+    # Unique Validation
+    # ------------------------------------------------
 
     @api.constrains('emp_code')
     def _check_employee_code_unique(self):
-        """Ensure employee code is unique"""
-        for employee in self:
-            if employee.emp_code:
+        for emp in self:
+            if emp.emp_code:
                 duplicate = self.search([
-                    ('emp_code', '=', employee.emp_code),
-                    ('id', '!=', employee.id)
+                    ('emp_code', '=', emp.emp_code),
+                    ('id', '!=', emp.id)
                 ], limit=1)
+
                 if duplicate:
                     raise UserError(_(
                         'Employee Code "%s" already exists for employee: %s'
-                    ) % (employee.emp_code, duplicate.name))
+                    ) % (emp.emp_code, duplicate.name))
