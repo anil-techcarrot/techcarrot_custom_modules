@@ -24,6 +24,15 @@ class HrEmployeeInherit(models.Model):
         copy=False
     )
 
+    emp_code = fields.Char(
+        string='Emp Code',
+        copy=False,
+        index=True,
+        readonly=True,
+        store=True,
+        help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
+    )
+
     # ===============================
     # SELECTION FIELDS (UI)
     # ===============================
