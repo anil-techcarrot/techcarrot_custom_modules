@@ -13,7 +13,6 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         required=True,
         readonly=True
     )
-
     employee_name = fields.Char(
         related='employee_id.name',
         string='Employee Name',
@@ -24,16 +23,16 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         [
             ('onsite', 'Onsite'),
             ('offshore', 'Offshore'),
-            ('near_shore', 'Nearshore'),
+            ('near-shore', 'Nearshore'),
         ],
         string='Engagement Location',
         required=True
     )
 
     payroll_location = fields.Selection([
-        ('dubai_onsite', 'Dubai- Onsite'),
-        ('dubai_offshore', 'Dubai-Offshore'),
-        ('tcip_india', 'TCIP India'),
+        ('dubai-onsite', 'Dubai- Onsite'),
+        ('dubai-offshore', 'Dubai-Offshore'),
+        ('tcip-india', 'TCIP India'),
     ], string='Payroll', required=True)
 
     employment_type = fields.Selection([
@@ -50,12 +49,9 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         compute='_compute_preview_code'
     )
 
-    # ---------------------------------------------------
-    # Preview Code
-    # ---------------------------------------------------
-
     @api.depends('engagement_location', 'payroll_location', 'employment_type')
     def _compute_preview_code(self):
+        """Show preview of what the code will be"""
         for wizard in self:
             if wizard.engagement_location and wizard.payroll_location and wizard.employment_type:
                 prefix = wizard._get_employee_code_prefix()
@@ -64,12 +60,8 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
             else:
                 wizard.preview_code = "Select all fields to preview"
 
-    # ---------------------------------------------------
-    # Prefix Logic
-    # ---------------------------------------------------
-
     def _get_employee_code_prefix(self):
-
+        """Determine prefix based on selections"""
         engagement = self.engagement_location
         payroll = self.payroll_location
         emp_type = self.employment_type
@@ -81,38 +73,36 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
             return 'TFL'
 
         if emp_type == 'bootcamp':
-            if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite':
+            if engagement in ['onsite', 'near-shore'] and payroll == 'dubai-onsite':
                 return 'BC'
-            elif engagement == 'offshore' and payroll == 'dubai_offshore':
+            elif engagement == 'offshore' and payroll == 'dubai-offshore':
                 return 'BCO'
-            elif engagement == 'offshore' and payroll == 'tcip_india':
+            elif engagement == 'offshore' and payroll == 'tcip-india':
                 return 'BCI'
 
-        if engagement == 'offshore' and payroll == 'tcip_india' and emp_type == 'permanent':
+        if engagement == 'offshore' and payroll == 'tcip-india' and emp_type == 'permanent':
             return 'TCIP'
 
-        if engagement == 'offshore' and payroll == 'dubai_offshore':
+        if engagement == 'offshore' and payroll == 'dubai-offshore':
             if emp_type in ['permanent', 'temporary']:
                 return 'T'
 
-        if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'permanent':
+        if engagement in ['onsite', 'near-shore'] and payroll == 'dubai-onsite' and emp_type == 'permanent':
             return 'P'
 
-        if engagement in ['onsite', 'near_shore'] and payroll == 'dubai_onsite' and emp_type == 'temporary':
+        if engagement in ['onsite', 'near-shore'] and payroll == 'dubai-onsite' and emp_type == 'temporary':
             return 'T'
 
         return 'EMP'
 
-    # ---------------------------------------------------
-    # Get Next Number
-    # ---------------------------------------------------
-
     def _get_next_number(self, prefix):
+        """Get next number for the prefix"""
 
         all_employees = self.env['hr.employee'].search([
             ('emp_code', '!=', False),
             ('emp_code', '=like', f'{prefix}%')
         ])
+
 
         existing_codes = [emp.emp_code for emp in all_employees if emp.emp_code]
 
@@ -125,12 +115,10 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
 
         return max_number + 1
 
-    # ---------------------------------------------------
-    # Generate Code
-    # ---------------------------------------------------
-
     def action_generate_code(self):
+        """Generate the employee code and update employee"""
         self.ensure_one()
+
 
         if self.employee_id.emp_code:
             raise UserError(_(
@@ -142,31 +130,12 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
         next_number = self._get_next_number(prefix)
         new_code = f"{prefix}{next_number}"
 
-        # ----------------------------------------
-        # Convert selection KEY -> LABEL (important)
-        # ----------------------------------------
-
-        engagement_label = dict(
-            self.fields_get(['engagement_location'])['engagement_location']['selection']
-        ).get(self.engagement_location)
-
-        payroll_label = dict(
-            self.fields_get(['payroll_location'])['payroll_location']['selection']
-        ).get(self.payroll_location)
-
-        employment_label = dict(
-            self.fields_get(['employment_type'])['employment_type']['selection']
-        ).get(self.employment_type)
-
-        # ----------------------------------------
-        # Write into employee (Char fields)
-        # ----------------------------------------
 
         self.employee_id.write({
             'emp_code': new_code,
-            'engagement_location': engagement_label,
-            'payroll_location': payroll_label,
-            'employment_type': employment_label,
+            'engagement_location': self.engagement_location,
+            'payroll_location': self.payroll_location,
+            'employment_type': self.employment_type,
         })
 
         return {
@@ -174,8 +143,7 @@ class EmployeeCodeGenerationWizard(models.TransientModel):
             'tag': 'display_notification',
             'params': {
                 'title': _('Success'),
-                'message': _('Employee Code "%s" generated successfully for %s!') % (
-                    new_code, self.employee_id.name),
+                'message': _('Employee Code "%s" generated successfully for %s!') % (new_code, self.employee_id.name),
                 'type': 'success',
                 'sticky': False,
                 'next': {'type': 'ir.actions.act_window_close'},

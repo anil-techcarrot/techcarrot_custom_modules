@@ -13,7 +13,7 @@ class PortalEmployeeSyncController(http.Controller):
         return api_key == "a7cf0c4f99a71e9f63c60fda3aa32c0ecba87669"
 
     def _val(self, value):
-        """Extract value from string or SharePoint object - RETURN AS-IS"""
+        """Extract value from string or SharePoint object"""
         if not value:
             return None
 
@@ -23,7 +23,9 @@ class PortalEmployeeSyncController(http.Controller):
                 if '"Value"' in value or '"value"' in value:
                     parsed = json.loads(value)
                     value = parsed.get('Value') or parsed.get('value')
+                    _logger.info(f"✓ Extracted from SharePoint JSON: {value}")
             except Exception as e:
+                _logger.warning(f"Failed to parse as JSON, using as-is: {e}")
                 pass
 
         # Handle dictionary
@@ -33,7 +35,6 @@ class PortalEmployeeSyncController(http.Controller):
         if value is None:
             return None
 
-        # ✅ RETURN AS-IS - NO NORMALIZATION
         value = str(value).strip()
         return value if value else None
 
@@ -54,25 +55,28 @@ class PortalEmployeeSyncController(http.Controller):
         return None
 
     def _find_country(self, name):
-        """Find country by name or code"""
+        """Find country by name or code - exact match priority"""
         name = self._val(name)
         if not name:
             return None
 
         name = name.strip()
 
+        # First: Try exact code match (IN, AE, etc.)
         country = request.env['res.country'].sudo().search([
             ('code', '=', name.upper())
         ], limit=1)
         if country:
             return country
 
+        # Second: Try EXACT name match (case insensitive)
         country = request.env['res.country'].sudo().search([
             ('name', '=ilike', name)
         ], limit=1)
         if country:
             return country
 
+        # Third: Try partial match as fallback
         country = request.env['res.country'].sudo().search([
             ('name', 'ilike', name)
         ], limit=1, order='name')
@@ -96,6 +100,7 @@ class PortalEmployeeSyncController(http.Controller):
 
         name = name.strip()
 
+        # Language name to code mapping
         language_map = {
             'english': 'en_US',
             'hindi': 'hi_IN',
@@ -117,12 +122,14 @@ class PortalEmployeeSyncController(http.Controller):
         }
 
         try:
+            # First: Try exact code match
             lang = request.env['res.lang'].sudo().search([
                 ('code', '=', name)
             ], limit=1)
             if lang:
                 return lang
 
+            # Second: Try mapping
             name_lower = name.lower()
             if name_lower in language_map:
                 code = language_map[name_lower]
@@ -132,12 +139,14 @@ class PortalEmployeeSyncController(http.Controller):
                 if lang:
                     return lang
 
+            # Third: Try exact name match
             lang = request.env['res.lang'].sudo().search([
                 ('name', '=ilike', name)
             ], limit=1)
             if lang:
                 return lang
 
+            # Fourth: Try partial name match
             lang = request.env['res.lang'].sudo().search([
                 ('name', 'ilike', name)
             ], limit=1)
@@ -147,7 +156,7 @@ class PortalEmployeeSyncController(http.Controller):
             return None
 
         except Exception as e:
-            _logger.error(f"Error searching res.lang: {e}")
+            _logger.error(f"❌ Error searching res.lang: {e}", exc_info=True)
             return None
 
     def _get_or_create_department(self, name):
@@ -175,10 +184,12 @@ class PortalEmployeeSyncController(http.Controller):
                 rel = Relationship.create({'name': name})
             return rel.id
         except:
+            _logger.warning(f"Relationship model not found, skipping")
             return False
 
     @http.route('/odoo/api/employees', type='http', auth='public', methods=['POST'], csrf=False, cors='*')
     def create_employee(self, **kwargs):
+        # Set admin user context
         admin_user = request.env.ref('base.user_admin')
         request.update_env(user=admin_user.id)
 
@@ -188,24 +199,26 @@ class PortalEmployeeSyncController(http.Controller):
                 return self._json_response({'success': False, 'error': 'Invalid API key'}, 401)
 
             data = json.loads(request.httprequest.data or "{}")
-            _logger.info(f"📥 API Request: {json.dumps(data, indent=2)}")
+            _logger.info(f"📥 Received: {json.dumps(data, indent=2)}")
 
             if not self._val(data.get('name')):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
 
-            Employee = request.env['hr.employee'].sudo()
+            Employee = request.env['hr.employee']
             employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
-            # ✅ STORE VALUES AS-IS FROM POWERAPP
-            engagement_location_value = self._val(data.get('engagement_location'))
-            payroll_location_value = self._val(data.get('payroll_location'))
-            employment_type_value = self._val(data.get('employment_type'))
+            # ========== EXTRACT FIELDS - PASS AS-IS TO MODEL ==========
+            # Model's create/write will auto-normalize these
+            engagement_location_raw = self._val(data.get('engagement_location'))
+            payroll_location_raw = self._val(data.get('payroll_location'))
+            employment_type_raw = self._val(data.get('employment_type'))
 
-            _logger.info(f"✅ Storing values AS-IS:")
-            _logger.info(f"   engagement_location: '{engagement_location_value}'")
-            _logger.info(f"   payroll_location: '{payroll_location_value}'")
-            _logger.info(f"   employment_type: '{employment_type_value}'")
+            _logger.info(f"📝 Fields from SharePoint:")
+            _logger.info(f"   engagement_location: '{engagement_location_raw}'")
+            _logger.info(f"   payroll_location: '{payroll_location_raw}'")
+            _logger.info(f"   employment_type: '{employment_type_raw}'")
 
+            # EMPLOYEE VALUES
             vals = {
                 'name': self._val(data.get('name')),
                 'work_email': self._val(data.get('email')),
@@ -214,9 +227,6 @@ class PortalEmployeeSyncController(http.Controller):
                 'total_it_experience': self._val(data.get('total_it_experience')),
                 'alternate_mobile_number': self._val(data.get('alternate_mobile_number')),
                 'second_alternative_number': self._val(data.get('second_alternative_number')),
-                'engagement_location': engagement_location_value,  # ✅ AS-IS
-                'payroll_location': payroll_location_value,        # ✅ AS-IS
-                'employment_type': employment_type_value,          # ✅ AS-IS
                 'last_location': self._val(data.get('last_location')),
                 'department_id': self._get_or_create_department(data.get('department')),
                 'job_id': self._get_or_create_job(data.get('job_title')),
@@ -250,17 +260,25 @@ class PortalEmployeeSyncController(http.Controller):
                 'period_in_company': self._val(data.get('period_in_company')),
             }
 
+            # Add the three critical fields - model will normalize them
+            if engagement_location_raw:
+                vals['engagement_location'] = engagement_location_raw
+            if payroll_location_raw:
+                vals['payroll_location'] = payroll_location_raw
+            if employment_type_raw:
+                vals['employment_type'] = employment_type_raw
+
             # Line Manager
             line_manager = self._find_employee(data.get('line_manager'))
             if line_manager:
                 vals['line_manager_id'] = line_manager.id
 
-            # Second relation
+            # Second relation with employee
             second_relation_value = self._val(data.get('second_relation_with_employee'))
             if second_relation_value:
                 vals['second_relation_with_employee'] = second_relation_value
 
-            # Private address
+            # PRIVATE ADDRESS
             if self._val(data.get('private_street')):
                 vals['private_street'] = self._val(data.get('private_street'))
             if self._val(data.get('private_city')):
@@ -270,22 +288,23 @@ class PortalEmployeeSyncController(http.Controller):
             if self._val(data.get('private_phone')):
                 vals['private_phone'] = self._val(data.get('private_phone'))
 
-            # Relationship
+            # RELATIONSHIP
             relationship_id = self._get_or_create_relationship(data.get('relationship_with_emp_id'))
             if relationship_id:
                 vals['relationship_with_emp_id'] = relationship_id
 
-            # Gender & Marital
+            # GENDER & MARITAL
             if self._val(data.get('sex')):
                 sex_value = self._val(data.get('sex')).lower()
                 if sex_value in ['male', 'female', 'other']:
                     vals['sex'] = sex_value
+
             if self._val(data.get('marital')):
                 marital_value = self._val(data.get('marital')).lower()
                 if marital_value in ['single', 'married', 'cohabitant', 'widower', 'divorced']:
                     vals['marital'] = marital_value
 
-            # Dates
+            # DATES
             vals.update({
                 'birthday': self._parse_date(data.get('birthday')),
                 'issue_date': self._parse_date(data.get('issue_date')),
@@ -296,7 +315,7 @@ class PortalEmployeeSyncController(http.Controller):
                 'expiry_date': self._parse_date(data.get('expiry_date')),
             })
 
-            # Salary
+            # SALARY
             try:
                 salary = self._val(data.get('last_salary_per_annum_amt'))
                 if salary:
@@ -304,7 +323,7 @@ class PortalEmployeeSyncController(http.Controller):
             except:
                 pass
 
-            # Countries & States
+            # COUNTRIES & STATES
             country = self._find_country(data.get('country_id'))
             if country:
                 vals['country_id'] = country.id
@@ -324,12 +343,12 @@ class PortalEmployeeSyncController(http.Controller):
             if private_state:
                 vals['private_state_id'] = private_state.id
 
-            # Mother Tongue
+            # MOTHER TONGUE
             mother_tongue = self._find_language_in_res_lang(data.get('mother_tongue_id'))
             if mother_tongue:
                 vals['mother_tongue_id'] = mother_tongue.id
 
-            # Languages
+            # ========== PROCESS LANGUAGES KNOWN ==========
             langs_raw_data = (
                     data.get('language_known_ids') or
                     data.get('names') or
@@ -342,50 +361,50 @@ class PortalEmployeeSyncController(http.Controller):
 
             if langs_raw:
                 lang_names = [name.strip() for name in langs_raw.split(',') if name.strip()]
+                _logger.info(f"📝 Processing {len(lang_names)} language(s): {lang_names}")
+
                 for name in lang_names:
                     lang_obj = self._find_language_in_res_lang(name)
                     if lang_obj:
                         language_ids_to_set.append(lang_obj.id)
+                        _logger.info(f"✓ Added: {lang_obj.name} (ID: {lang_obj.id})")
 
-            # CREATE OR UPDATE
+            # CREATE OR UPDATE EMPLOYEE
+            # Model's create/write methods will auto-normalize the selection fields
             if employee:
-                _logger.info(f"🔄 UPDATING: {employee.name}")
+                _logger.info(f"🔄 UPDATING: {employee.name} (ID: {employee.id})")
                 employee.write(vals)
                 action = "updated"
             else:
-                _logger.info(f"✨ CREATING: {self._val(data.get('name'))}")
+                _logger.info(f"➕ CREATING new employee")
                 employee = Employee.with_context(auto_generate_code=False).create(vals)
                 action = "created"
+
+            _logger.info(f"✓ After save - normalized values:")
+            _logger.info(f"   engagement_location: '{employee.engagement_location}'")
+            _logger.info(f"   payroll_location: '{employee.payroll_location}'")
+            _logger.info(f"   employment_type: '{employee.employment_type}'")
 
             # SET LANGUAGES
             if language_ids_to_set:
                 try:
-                    employee.write({'language_known_ids': [(5, 0, 0)]})
                     employee.write({'language_known_ids': [(6, 0, language_ids_to_set)]})
                     employee.invalidate_cache(['language_known_ids'])
+                    _logger.info(f"✓ Languages saved: {employee.language_known_ids.mapped('name')}")
                 except Exception as e:
-                    _logger.error(f"Error setting languages: {e}")
+                    _logger.error(f"❌ Error setting languages: {e}", exc_info=True)
 
-            # Response
-            saved_language_info = []
-            for lang in employee.language_known_ids:
-                saved_language_info.append({
-                    'name': lang.name,
-                    'code': lang.code
-                })
-
+            # RESPONSE
             response_data = {
                 'success': True,
                 'action': action,
                 'employee_id': employee.id,
                 'name': employee.name,
                 'email': employee.work_email or '',
-                'languages_saved': saved_language_info,
-                'languages_count': len(saved_language_info),
-                'stored_values': {
-                    'engagement_location': engagement_location_value,
-                    'payroll_location': payroll_location_value,
-                    'employment_type': employment_type_value
+                'normalized_fields': {
+                    'engagement_location': employee.engagement_location,
+                    'payroll_location': employee.payroll_location,
+                    'employment_type': employee.employment_type
                 }
             }
 
@@ -393,7 +412,7 @@ class PortalEmployeeSyncController(http.Controller):
             return self._json_response(response_data)
 
         except Exception as e:
-            _logger.error(f"❌ ERROR: {str(e)}", exc_info=True)
+            _logger.error(f"❌ CRITICAL ERROR: {str(e)}", exc_info=True)
             try:
                 request.env.cr.rollback()
             except:
@@ -405,9 +424,7 @@ class PortalEmployeeSyncController(http.Controller):
         name = self._val(name)
         if not name:
             return None
-        return request.env['hr.employee'].sudo().search([
-            ('name', '=ilike', name)
-        ], limit=1)
+        return request.env['hr.employee'].sudo().search([('name', '=ilike', name)], limit=1)
 
     def _json_response(self, data, status=200):
         return request.make_response(
