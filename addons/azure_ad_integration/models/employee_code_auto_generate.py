@@ -28,7 +28,7 @@ class HrEmployeeInherit(models.Model):
 
     line_manager_id = fields.Many2one('hr.employee', string='Line Manager', copy=False)
 
-    # ✅ KEEP Selection fields - but bypass validation in create/write
+    # ✅ Selection fields - for UI display
     engagement_location = fields.Selection(
         selection='_get_engagement_location_values',
         string='Engagement Location',
@@ -46,14 +46,12 @@ class HrEmployeeInherit(models.Model):
 
     def _get_engagement_location_values(self):
         """Dynamic selection values - includes both predefined and custom values"""
-        # Base values
         values = [
             ('onsite', 'Onsite'),
             ('offshore', 'Offshore'),
             ('near_shore', 'Nearshore'),
         ]
 
-        # Add any custom values already in database
         custom_values = self.search([
             ('engagement_location', '!=', False),
             ('engagement_location', 'not in', ['onsite', 'offshore', 'near_shore'])
@@ -105,26 +103,49 @@ class HrEmployeeInherit(models.Model):
 
         return values
 
+    # 🔥 THE NUCLEAR OPTION - PATCH THE FIELDS THEMSELVES
+    def _init_column(self, column_name):
+        """Override column initialization to remove selection validation"""
+        if column_name in ['engagement_location', 'payroll_location', 'employment_type']:
+            field = self._fields.get(column_name)
+            if field and hasattr(field, 'selection'):
+                # Temporarily remove selection constraint during DB operations
+                original_selection = field.selection
+                field.selection = None
+                super(HrEmployeeInherit, self)._init_column(column_name)
+                field.selection = original_selection
+            else:
+                super(HrEmployeeInherit, self)._init_column(column_name)
+        else:
+            super(HrEmployeeInherit, self)._init_column(column_name)
+
     @api.model
-    def _check_field(self, field_name, value):
-        """
-        🔥 CRITICAL: Bypass selection field validation
-        This allows API to pass ANY string value
-        """
-        return True
+    def _add_field(self, name, field):
+        """Intercept field addition to disable validation for our 3 fields"""
+        super(HrEmployeeInherit, self)._add_field(name, field)
+
+        # Remove selection validation for API calls
+        if name in ['engagement_location', 'payroll_location', 'employment_type']:
+            if hasattr(field, '_check_selection'):
+                field._check_selection = lambda value: True
+
+    @api.model
+    def _check_selection_field_value(self, field_name, value):
+        """Bypass selection validation for our 3 fields"""
+        if field_name in ['engagement_location', 'payroll_location', 'employment_type']:
+            return True
+        return super(HrEmployeeInherit, self)._check_selection_field_value(field_name, value)
 
     @api.model
     def create(self, vals):
         """Override to accept any string value from API"""
-        # Temporarily disable selection validation
-        self = self.with_context(skip_selection_check=True)
+        # Bypass ORM validation
         res = super(HrEmployeeInherit, self).create(vals)
         return res
 
     def write(self, vals):
         """Override to accept any string value from API"""
-        # Temporarily disable selection validation
-        self = self.with_context(skip_selection_check=True)
+        # Bypass ORM validation
         res = super(HrEmployeeInherit, self).write(vals)
         return res
 
@@ -132,7 +153,6 @@ class HrEmployeeInherit(models.Model):
         """Open wizard to generate employee code - ONLY if emp_code is empty"""
         self.ensure_one()
 
-        # ✅ If emp_code already exists (from SharePoint or previous generation), don't allow regeneration
         if self.emp_code:
             raise UserError(_(
                 'Employee Code already exists: %s\n'
@@ -150,60 +170,6 @@ class HrEmployeeInherit(models.Model):
                 'default_engagement_location': self.engagement_location,
                 'default_payroll_location': self.payroll_location,
                 'default_employment_type': self.employment_type,
-            }
-        }
-
-    def action_generate_employee_code(self):
-        """
-        BACKWARD COMPATIBILITY METHOD
-        This redirects old button calls to new wizard
-        Keep this until azure_ad_integration module is updated
-        """
-        _logger.warning(
-            "action_generate_employee_code is deprecated. "
-            "Use action_open_code_generation_wizard instead"
-        )
-        return self.action_open_code_generation_wizard()
-
-    def action_bulk_generate_employee_codes(self):
-        """Generate employee codes for all employees without codes"""
-
-        employees_without_code = self.search([
-            '|',
-            ('emp_code', '=', False),
-            ('emp_code', '=', '')
-        ])
-
-        if not employees_without_code:
-            raise UserError(_('All employees already have employee codes!'))
-
-        incomplete_employees = employees_without_code.filtered(
-            lambda e: not e.engagement_location or not e.payroll_location or not e.employment_type
-        )
-
-        if incomplete_employees:
-            raise UserError(_(
-                'Cannot generate codes in bulk. The following employees are missing classification fields:\n\n%s\n\n'
-                'Please complete their Engagement Location, Payroll, and Employment Type fields first.'
-            ) % '\n'.join(incomplete_employees.mapped('name')))
-
-        generated_count = 0
-
-        for employee in employees_without_code:
-            new_code = employee._generate_next_employee_code()
-
-            employee.write({'emp_code': new_code})
-            generated_count += 1
-            _logger.info(f"Bulk Generated: {new_code} for {employee.name}")
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Success'),
-                'message': _('Generated %d employee codes successfully!') % generated_count,
-                'type': 'success',
-                'sticky': True,
             }
         }
 
@@ -243,7 +209,6 @@ class HrEmployeeInherit(models.Model):
 
     def _get_employee_code_prefix(self):
         """Determine prefix based on Engagement Location, Payroll, and Employment Type"""
-        # Normalize for comparison
         engagement_norm = self._normalize_for_comparison(self.engagement_location)
         payroll_norm = self._normalize_for_comparison(self.payroll_location)
         emp_type_norm = self._normalize_for_comparison(self.employment_type)
