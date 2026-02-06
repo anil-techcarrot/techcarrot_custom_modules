@@ -30,6 +30,76 @@ class PortalEmployeeSyncController(http.Controller):
         value = str(value).strip()
         return value if value else None
 
+    def _normalize_engagement_location(self, value):
+        """
+        Normalize engagement_location to valid Odoo selection value.
+        Accepts: onsite, ONSITE, offshore, OFFSHORE, nearshore, near-shore, etc.
+        Returns: 'onsite', 'offshore', or 'near-shore'
+        """
+        if not value:
+            return False
+
+        raw = str(value).lower().strip()
+        clean = raw.replace('-', '').replace('_', '').replace(' ', '')
+
+        if clean == 'onsite':
+            _logger.info(f"✓ Normalized engagement_location: '{value}' → 'onsite'")
+            return 'onsite'
+        elif clean == 'offshore':
+            _logger.info(f"✓ Normalized engagement_location: '{value}' → 'offshore'")
+            return 'offshore'
+        elif clean in ['nearshore', 'nearshore']:
+            _logger.info(f"✓ Normalized engagement_location: '{value}' → 'near-shore'")
+            return 'near-shore'
+        else:
+            _logger.warning(f"⚠️ Unknown engagement_location: '{value}' - will set to False")
+            return False
+
+    def _normalize_payroll_location(self, value):
+        """
+        Normalize payroll_location to valid Odoo selection value.
+        Accepts: dubai-onsite, Dubai_Onsite, DUBAI ONSITE, tcip india, TCIP-INDIA, etc.
+        Returns: 'dubai-onsite', 'dubai-offshore', or 'tcip-india'
+        """
+        if not value:
+            return False
+
+        raw = str(value).lower().strip()
+        clean = raw.replace('_', '-').replace(' ', '-')
+
+        if 'dubai' in clean and 'onsite' in clean:
+            _logger.info(f"✓ Normalized payroll_location: '{value}' → 'dubai-onsite'")
+            return 'dubai-onsite'
+        elif 'dubai' in clean and 'offshore' in clean:
+            _logger.info(f"✓ Normalized payroll_location: '{value}' → 'dubai-offshore'")
+            return 'dubai-offshore'
+        elif 'tcip' in clean or 'india' in clean:
+            _logger.info(f"✓ Normalized payroll_location: '{value}' → 'tcip-india'")
+            return 'tcip-india'
+        else:
+            _logger.warning(f"⚠️ Unknown payroll_location: '{value}' - will set to False")
+            return False
+
+    def _normalize_employment_type(self, value):
+        """
+        Normalize employment_type to valid Odoo selection value.
+        Accepts: PERMANENT, PERMANENt, Permanent, temporary, BOOTCAMP, etc.
+        Returns: 'permanent', 'temporary', 'bootcamp', 'seconded', or 'freelancer'
+        """
+        if not value:
+            return False
+
+        raw = str(value).lower().strip()
+
+        valid_types = ['permanent', 'temporary', 'bootcamp', 'seconded', 'freelancer']
+
+        if raw in valid_types:
+            _logger.info(f"✓ Normalized employment_type: '{value}' → '{raw}'")
+            return raw
+        else:
+            _logger.warning(f"⚠️ Unknown employment_type: '{value}' - will set to False")
+            return False
+
     def _parse_date(self, value):
         value = self._val(value)
         if not value:
@@ -136,16 +206,21 @@ class PortalEmployeeSyncController(http.Controller):
             Employee = request.env['hr.employee']
             employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
-            # Extract fields from SharePoint
+            # ========== NORMALIZE FIELDS IN CONTROLLER ==========
             engagement_location_raw = self._val(data.get('engagement_location'))
             payroll_location_raw = self._val(data.get('payroll_location'))
             employment_type_raw = self._val(data.get('employment_type'))
             emp_code_from_sharepoint = self._val(data.get('emp_code'))
 
-            _logger.info(f"📝 SharePoint Data:")
-            _logger.info(f"   engagement_location: '{engagement_location_raw}'")
-            _logger.info(f"   payroll_location: '{payroll_location_raw}'")
-            _logger.info(f"   employment_type: '{employment_type_raw}'")
+            # NORMALIZE TO VALID ODOO VALUES
+            engagement_location_normalized = self._normalize_engagement_location(engagement_location_raw)
+            payroll_location_normalized = self._normalize_payroll_location(payroll_location_raw)
+            employment_type_normalized = self._normalize_employment_type(employment_type_raw)
+
+            _logger.info(f"📝 NORMALIZATION RESULTS:")
+            _logger.info(f"   engagement_location: '{engagement_location_raw}' → '{engagement_location_normalized}'")
+            _logger.info(f"   payroll_location: '{payroll_location_raw}' → '{payroll_location_normalized}'")
+            _logger.info(f"   employment_type: '{employment_type_raw}' → '{employment_type_normalized}'")
             _logger.info(f"   emp_code: '{emp_code_from_sharepoint}'")
 
             vals = {
@@ -191,15 +266,14 @@ class PortalEmployeeSyncController(http.Controller):
             # CRITICAL: Set emp_code from SharePoint
             if emp_code_from_sharepoint:
                 vals['emp_code'] = emp_code_from_sharepoint
-                _logger.info(f"✓ emp_code from SharePoint: '{emp_code_from_sharepoint}'")
 
-            # Add classification fields (model will normalize)
-            if engagement_location_raw:
-                vals['engagement_location'] = engagement_location_raw
-            if payroll_location_raw:
-                vals['payroll_location'] = payroll_location_raw
-            if employment_type_raw:
-                vals['employment_type'] = employment_type_raw
+            # Add NORMALIZED classification fields
+            if engagement_location_normalized:
+                vals['engagement_location'] = engagement_location_normalized
+            if payroll_location_normalized:
+                vals['payroll_location'] = payroll_location_normalized
+            if employment_type_normalized:
+                vals['employment_type'] = employment_type_normalized
 
             # Line Manager
             line_manager = self._find_employee(data.get('line_manager'))
@@ -263,7 +337,8 @@ class PortalEmployeeSyncController(http.Controller):
             if issue_country:
                 vals['issue_countries_id'] = issue_country.id
 
-            private_state = self._find_state(data.get('private_state_id'), private_country.id if private_country else None)
+            private_state = self._find_state(data.get('private_state_id'),
+                                             private_country.id if private_country else None)
             if private_state:
                 vals['private_state_id'] = private_state.id
 
