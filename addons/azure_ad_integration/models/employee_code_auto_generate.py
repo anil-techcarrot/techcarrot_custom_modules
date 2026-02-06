@@ -31,6 +31,8 @@ class HrEmployeeInherit(models.Model):
         help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
     )
 
+    engagement_location = fields.Char(string='Engagement Location')
+
     line_manager_id = fields.Many2one(
         'hr.employee',
         string='Line Manager',
