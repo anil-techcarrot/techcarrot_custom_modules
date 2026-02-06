@@ -17,6 +17,7 @@ class HrEmployeeInherit(models.Model):
         store=True,
         help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
     )
+
     employee_code = fields.Char(
         string='Employee Code',
         copy=False,
@@ -28,7 +29,7 @@ class HrEmployeeInherit(models.Model):
 
     line_manager_id = fields.Many2one('hr.employee', string='Line Manager', copy=False)
 
-    # SELECTION FIELDS - visible in Odoo UI as dropdowns
+    # SELECTION FIELDS - Shown as dropdowns in Odoo UI
     engagement_location = fields.Selection(
         [
             ('onsite', 'Onsite'),
@@ -36,13 +37,16 @@ class HrEmployeeInherit(models.Model):
             ('near-shore', 'Nearshore'),
         ],
         string='Engagement Location',
+        ondelete={'onsite': 'set null', 'offshore': 'set null', 'near-shore': 'set null'}
     )
 
     payroll_location = fields.Selection([
         ('dubai-onsite', 'Dubai- Onsite'),
         ('dubai-offshore', 'Dubai-Offshore'),
         ('tcip-india', 'TCIP India'),
-    ], string='Payroll')
+    ], string='Payroll',
+        ondelete={'dubai-onsite': 'set null', 'dubai-offshore': 'set null', 'tcip-india': 'set null'}
+    )
 
     employment_type = fields.Selection([
         ('permanent', 'Permanent'),
@@ -50,7 +54,10 @@ class HrEmployeeInherit(models.Model):
         ('bootcamp', 'Bootcamp'),
         ('seconded', 'Seconded'),
         ('freelancer', 'Freelancer'),
-    ], string='Employment Type')
+    ], string='Employment Type',
+        ondelete={'permanent': 'set null', 'temporary': 'set null', 'bootcamp': 'set null',
+                  'seconded': 'set null', 'freelancer': 'set null'}
+    )
 
     @api.model
     def create(self, vals):
@@ -67,13 +74,18 @@ class HrEmployeeInherit(models.Model):
 
     def _normalize_sharepoint_fields(self, vals):
         """
-        Normalize SharePoint string values to match Odoo selection values
-        Accepts ANY string format from SharePoint and converts to valid selection value
+        Normalize SharePoint string values to match Odoo selection values.
+        Accepts ANY string format (UPPERCASE, lowercase, underscores, hyphens, spaces)
+
+        Examples:
+        - "OFFSHORE" → "offshore"
+        - "Dubai_Onsite" → "dubai-onsite"
+        - "Tcip INDIA" → "tcip-india"
+        - "PERMANENt" → "permanent"
         """
         # Normalize engagement_location
         if 'engagement_location' in vals and vals['engagement_location']:
             raw = str(vals['engagement_location']).lower().strip()
-            # Remove all separators
             clean = raw.replace('-', '').replace('_', '').replace(' ', '')
 
             if clean == 'onsite':
@@ -89,7 +101,6 @@ class HrEmployeeInherit(models.Model):
         # Normalize payroll_location
         if 'payroll_location' in vals and vals['payroll_location']:
             raw = str(vals['payroll_location']).lower().strip()
-            # Standardize separators
             clean = raw.replace('_', '-').replace(' ', '-')
 
             if 'dubai' in clean and 'onsite' in clean:
@@ -141,20 +152,12 @@ class HrEmployeeInherit(models.Model):
         }
 
     def action_generate_employee_code(self):
-        """
-        BACKWARD COMPATIBILITY METHOD
-        This redirects old button calls to new wizard
-        Keep this until azure_ad_integration module is updated
-        """
-        _logger.warning(
-            "action_generate_employee_code is deprecated. "
-            "Use action_open_code_generation_wizard instead"
-        )
+        """BACKWARD COMPATIBILITY - redirects to wizard"""
+        _logger.warning("action_generate_employee_code is deprecated.")
         return self.action_open_code_generation_wizard()
 
     def action_bulk_generate_employee_codes(self):
         """Generate employee codes for all employees without codes"""
-
         employees_without_code = self.search([
             '|',
             ('emp_code', '=', False),
@@ -170,25 +173,21 @@ class HrEmployeeInherit(models.Model):
 
         if incomplete_employees:
             raise UserError(_(
-                'Cannot generate codes in bulk. The following employees are missing classification fields:\n\n%s\n\n'
-                'Please complete their Engagement Location, Payroll, and Employment Type fields first.'
+                'Cannot generate codes in bulk. Missing classification fields:\n\n%s'
             ) % '\n'.join(incomplete_employees.mapped('name')))
 
         generated_count = 0
-
         for employee in employees_without_code:
             new_code = employee._generate_next_employee_code()
-
             employee.write({'emp_code': new_code})
             generated_count += 1
-            _logger.info(f"Bulk Generated: {new_code} for {employee.name}")
 
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': _('Success'),
-                'message': _('Generated %d employee codes successfully!') % generated_count,
+                'message': _('Generated %d employee codes!') % generated_count,
                 'type': 'success',
                 'sticky': True,
             }
@@ -197,7 +196,6 @@ class HrEmployeeInherit(models.Model):
     def _generate_next_employee_code(self):
         """Generate employee code based on classification fields"""
         prefix = self._get_employee_code_prefix()
-
         if not prefix:
             prefix = 'EMP'
 
@@ -207,7 +205,6 @@ class HrEmployeeInherit(models.Model):
         ])
 
         existing_codes = [emp.emp_code for emp in all_employees if emp.emp_code]
-
         max_number = 0
         for code in existing_codes:
             match = re.match(rf'^{re.escape(prefix)}(\d+)$', code)
@@ -216,24 +213,18 @@ class HrEmployeeInherit(models.Model):
                 max_number = max(max_number, number)
 
         next_number = max_number + 1
-        new_code = f"{prefix}{next_number}"
-
-        _logger.info(f"Generated code: {new_code} (Prefix: {prefix}, Next: {next_number})")
-
-        return new_code
+        return f"{prefix}{next_number}"
 
     def _get_employee_code_prefix(self):
-        """Determine prefix based on Engagement Location, Payroll, and Employment Type"""
+        """Determine prefix based on classification"""
         engagement = self.engagement_location
         payroll = self.payroll_location
         emp_type = self.employment_type
 
         if emp_type == 'seconded':
             return 'PT'
-
         if emp_type == 'freelancer':
             return 'TFL'
-
         if emp_type == 'bootcamp':
             if engagement in ['onsite', 'near-shore'] and payroll == 'dubai-onsite':
                 return 'BC'
@@ -241,21 +232,16 @@ class HrEmployeeInherit(models.Model):
                 return 'BCO'
             elif engagement == 'offshore' and payroll == 'tcip-india':
                 return 'BCI'
-
         if engagement == 'offshore' and payroll == 'tcip-india' and emp_type == 'permanent':
             return 'TCIP'
-
         if engagement == 'offshore' and payroll == 'dubai-offshore':
             if emp_type in ['permanent', 'temporary']:
                 return 'T'
-
         if engagement in ['onsite', 'near-shore'] and payroll == 'dubai-onsite' and emp_type == 'permanent':
             return 'P'
-
         if engagement in ['onsite', 'near-shore'] and payroll == 'dubai-onsite' and emp_type == 'temporary':
             return 'T'
 
-        _logger.warning(f"No prefix match for: {engagement}, {payroll}, {emp_type}")
         return 'EMP'
 
     @api.constrains('emp_code')

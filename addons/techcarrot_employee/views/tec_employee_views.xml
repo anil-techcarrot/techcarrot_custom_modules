@@ -13,27 +13,21 @@
                     <group string="" colspan="2">
                         <field name="employee_first_name"/>
                         <field name="employee_name_english"/>
-                        <field name="engagement_location"
-                               widget="selection"
-                               options="{'manual': [('Onsite', 'Onsite'), ('Offshore', 'Offshore'), ('Nearshore', 'Nearshore')]}"/>
+                        <field name="engagement_location" widget="selection"/>
                     </group>
 
                     <!-- COLUMN 2 -->
                     <group string="" colspan="2">
                         <field name="employee_middle_name"/>
                         <field name="employee_name_arabic"/>
-                        <field name="payroll_location"
-                               widget="selection"
-                               options="{'manual': [('Dubai-Onsite', 'Dubai-Onsite'), ('Dubai-Offshore', 'Dubai-Offshore'), ('India', 'India')]}"/>
+                        <field name="payroll_location"/>
                     </group>
 
                     <!-- COLUMN 3 -->
                     <group string="" colspan="2">
                         <field name="employee_last_name"/>
                         <field name="nationality_at_birth_id" options="{'no_create': True, 'no_open': True}"/>
-                        <field name="employment_type"
-                               widget="selection"
-                               options="{'manual': [('Permanent', 'Permanent'), ('Contract', 'Contract'), ('Freelancer', 'Freelancer'), ('Bootcamp', 'Bootcamp'), ('Seconded', 'Seconded')]}"/>
+                        <field name="employment_type"/>
                     </group>
                 </group>
 
