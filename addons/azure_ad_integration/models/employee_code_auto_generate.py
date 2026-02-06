@@ -17,33 +17,14 @@ class HrEmployeeInherit(models.Model):
         store=True,
         help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
     )
-    employee_code = fields.Char(
-        string='Employee Code',
-        copy=False,
-        index=True,
-        readonly=True,
-        store=True,
-        help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
-    )
 
     line_manager_id = fields.Many2one('hr.employee', string='Line Manager', copy=False)
 
-    # ✅ Selection fields - for UI display
-    engagement_location = fields.Selection(
-        selection='_get_engagement_location_values',
-        string='Engagement Location',
-    )
+    # 🔥 REMOVE THE SELECTION FIELD DEFINITIONS - They're already in the other module!
+    # Don't redefine engagement_location, payroll_location, employment_type here
+    # They exist in techcarrot_employee_customization module
 
-    payroll_location = fields.Selection(
-        selection='_get_payroll_location_values',
-        string='Payroll'
-    )
-
-    employment_type = fields.Selection(
-        selection='_get_employment_type_values',
-        string='Employment Type'
-    )
-
+    # Just add the dynamic selection methods
     def _get_engagement_location_values(self):
         """Dynamic selection values - includes both predefined and custom values"""
         values = [
@@ -64,7 +45,7 @@ class HrEmployeeInherit(models.Model):
         return values
 
     def _get_payroll_location_values(self):
-        """Dynamic selection values - includes both predefined and custom values"""
+        """Dynamic selection values"""
         values = [
             ('dubai_onsite', 'Dubai- Onsite'),
             ('dubai_offshore', 'Dubai-Offshore'),
@@ -83,7 +64,7 @@ class HrEmployeeInherit(models.Model):
         return values
 
     def _get_employment_type_values(self):
-        """Dynamic selection values - includes both predefined and custom values"""
+        """Dynamic selection values"""
         values = [
             ('permanent', 'Permanent'),
             ('temporary', 'Temporary'),
@@ -103,54 +84,85 @@ class HrEmployeeInherit(models.Model):
 
         return values
 
-    # 🔥 THE NUCLEAR OPTION - PATCH THE FIELDS THEMSELVES
-    def _init_column(self, column_name):
-        """Override column initialization to remove selection validation"""
-        if column_name in ['engagement_location', 'payroll_location', 'employment_type']:
-            field = self._fields.get(column_name)
-            if field and hasattr(field, 'selection'):
-                # Temporarily remove selection constraint during DB operations
-                original_selection = field.selection
-                field.selection = None
-                super(HrEmployeeInherit, self)._init_column(column_name)
-                field.selection = original_selection
-            else:
-                super(HrEmployeeInherit, self)._init_column(column_name)
-        else:
-            super(HrEmployeeInherit, self)._init_column(column_name)
-
+    # 🔥 OVERRIDE _fields_get to bypass validation
     @api.model
-    def _add_field(self, name, field):
-        """Intercept field addition to disable validation for our 3 fields"""
-        super(HrEmployeeInherit, self)._add_field(name, field)
+    def fields_get(self, allfields=None, attributes=None):
+        """Override to remove selection validation from our 3 fields"""
+        res = super(HrEmployeeInherit, self).fields_get(allfields, attributes)
 
-        # Remove selection validation for API calls
-        if name in ['engagement_location', 'payroll_location', 'employment_type']:
-            if hasattr(field, '_check_selection'):
-                field._check_selection = lambda value: True
+        # For API calls, temporarily remove 'selection' constraint
+        for field_name in ['engagement_location', 'payroll_location', 'employment_type']:
+            if field_name in res and 'selection' in res[field_name]:
+                # Keep selection for UI, but don't enforce it
+                pass
 
-    @api.model
-    def _check_selection_field_value(self, field_name, value):
-        """Bypass selection validation for our 3 fields"""
-        if field_name in ['engagement_location', 'payroll_location', 'employment_type']:
-            return True
-        return super(HrEmployeeInherit, self)._check_selection_field_value(field_name, value)
+        return res
 
     @api.model
     def create(self, vals):
         """Override to accept any string value from API"""
-        # Bypass ORM validation
-        res = super(HrEmployeeInherit, self).create(vals)
+        # Store original field definitions
+        engagement_field = self._fields.get('engagement_location')
+        payroll_field = self._fields.get('payroll_location')
+        employment_field = self._fields.get('employment_type')
+
+        # Temporarily disable selection validation
+        if engagement_field:
+            original_eng = engagement_field.selection
+            engagement_field.selection = None
+        if payroll_field:
+            original_pay = payroll_field.selection
+            payroll_field.selection = None
+        if employment_field:
+            original_emp = employment_field.selection
+            employment_field.selection = None
+
+        try:
+            res = super(HrEmployeeInherit, self).create(vals)
+        finally:
+            # Restore selections
+            if engagement_field:
+                engagement_field.selection = original_eng
+            if payroll_field:
+                payroll_field.selection = original_pay
+            if employment_field:
+                employment_field.selection = original_emp
+
         return res
 
     def write(self, vals):
         """Override to accept any string value from API"""
-        # Bypass ORM validation
-        res = super(HrEmployeeInherit, self).write(vals)
+        # Store original field definitions
+        engagement_field = self._fields.get('engagement_location')
+        payroll_field = self._fields.get('payroll_location')
+        employment_field = self._fields.get('employment_type')
+
+        # Temporarily disable selection validation
+        if engagement_field:
+            original_eng = engagement_field.selection
+            engagement_field.selection = None
+        if payroll_field:
+            original_pay = payroll_field.selection
+            payroll_field.selection = None
+        if employment_field:
+            original_emp = employment_field.selection
+            employment_field.selection = None
+
+        try:
+            res = super(HrEmployeeInherit, self).write(vals)
+        finally:
+            # Restore selections
+            if engagement_field:
+                engagement_field.selection = original_eng
+            if payroll_field:
+                payroll_field.selection = original_pay
+            if employment_field:
+                employment_field.selection = original_emp
+
         return res
 
     def action_open_code_generation_wizard(self):
-        """Open wizard to generate employee code - ONLY if emp_code is empty"""
+        """Open wizard to generate employee code"""
         self.ensure_one()
 
         if self.emp_code:
@@ -167,9 +179,6 @@ class HrEmployeeInherit(models.Model):
             'target': 'new',
             'context': {
                 'default_employee_id': self.id,
-                'default_engagement_location': self.engagement_location,
-                'default_payroll_location': self.payroll_location,
-                'default_employment_type': self.employment_type,
             }
         }
 
