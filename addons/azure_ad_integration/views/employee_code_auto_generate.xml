@@ -17,7 +17,7 @@
                 <field name="line_manager_id"/>
             </xpath>
 
-            <xpath expr="//field[@name='employee_properties']" position="before">
+<!--            <xpath expr="//field[@name='employee_properties']" position="before">-->
                 <!-- 3 COLUMN LAYOUT - Each column in separate group -->
 
                 <xpath expr="//field[@name='employee_name_english']/.." position="after">
@@ -28,7 +28,7 @@
                            widget="selection"
                            options="{'manual': [('Onsite', 'Onsite'), ('Offshore', 'Offshore'), ('Nearshore', 'Nearshore')]}"/>
                 </xpath>
-            </xpath>
+<!--            </xpath>-->
             <!--                <group string="Employee Code &amp; Classification" colspan="4">-->
             <!--                    <group>-->
             <!--                        -->
