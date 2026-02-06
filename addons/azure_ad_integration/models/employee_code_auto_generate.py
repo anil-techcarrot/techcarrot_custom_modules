@@ -28,7 +28,7 @@ class HrEmployeeInherit(models.Model):
 
     line_manager_id = fields.Many2one('hr.employee', string='Line Manager', copy=False)
 
-    # ✅ HYBRID: Selection for UI, but accepts any string from API
+    # ✅ KEEP Selection fields - but bypass validation in create/write
     engagement_location = fields.Selection(
         selection='_get_engagement_location_values',
         string='Engagement Location',
@@ -106,23 +106,27 @@ class HrEmployeeInherit(models.Model):
         return values
 
     @api.model
+    def _check_field(self, field_name, value):
+        """
+        🔥 CRITICAL: Bypass selection field validation
+        This allows API to pass ANY string value
+        """
+        return True
+
+    @api.model
     def create(self, vals):
         """Override to accept any string value from API"""
-        # API calls will have these as strings - allow them
+        # Temporarily disable selection validation
+        self = self.with_context(skip_selection_check=True)
         res = super(HrEmployeeInherit, self).create(vals)
         return res
 
     def write(self, vals):
         """Override to accept any string value from API"""
+        # Temporarily disable selection validation
+        self = self.with_context(skip_selection_check=True)
         res = super(HrEmployeeInherit, self).write(vals)
         return res
-
-    @api.model
-    def _name_search(self, name='', args=None, operator='ilike', limit=100, name_get_uid=None):
-        """Allow selection fields to accept any string"""
-        return super(HrEmployeeInherit, self)._name_search(
-            name=name, args=args, operator=operator, limit=limit, name_get_uid=name_get_uid
-        )
 
     def action_open_code_generation_wizard(self):
         """Open wizard to generate employee code - ONLY if emp_code is empty"""
