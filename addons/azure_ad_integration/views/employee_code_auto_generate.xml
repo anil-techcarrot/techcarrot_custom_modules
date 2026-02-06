@@ -24,7 +24,9 @@
 
                     <!--                        <field name="employee_first_name"/>-->
                     <!--                        <field name="employee_name_english"/>-->
-                    <field name="engagement_location" widget="selection"/>
+                    <field name="engagement_location"
+                           widget="selection"
+                           options="{'manual': [('Onsite', 'Onsite'), ('Offshore', 'Offshore'), ('Nearshore', 'Nearshore')]}"/>
                 </xpath>
             </xpath>
             <!--                <group string="Employee Code &amp; Classification" colspan="4">-->

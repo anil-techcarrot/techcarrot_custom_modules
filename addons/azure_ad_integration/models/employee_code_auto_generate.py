@@ -9,156 +9,19 @@ _logger = logging.getLogger(__name__)
 class HrEmployeeInherit(models.Model):
     _inherit = 'hr.employee'
 
-    emp_code = fields.Char(
-        string='Emp Code',
-        copy=False,
-        index=True,
-        readonly=True,
-        store=True,
-        help="Unique employee code (e.g., P0001, TCIP0012, BC0005)"
-    )
+    engagement_location = fields.Char('Engagement Location', copy=False)
 
-    line_manager_id = fields.Many2one('hr.employee', string='Line Manager', copy=False)
 
-    # 🔥 REMOVE THE SELECTION FIELD DEFINITIONS - They're already in the other module!
-    # Don't redefine engagement_location, payroll_location, employment_type here
-    # They exist in techcarrot_employee_customization module
-
-    # Just add the dynamic selection methods
-    def _get_engagement_location_values(self):
-        """Dynamic selection values - includes both predefined and custom values"""
-        values = [
-            ('onsite', 'Onsite'),
-            ('offshore', 'Offshore'),
-            ('near_shore', 'Nearshore'),
-        ]
-
-        custom_values = self.search([
-            ('engagement_location', '!=', False),
-            ('engagement_location', 'not in', ['onsite', 'offshore', 'near_shore'])
-        ]).mapped('engagement_location')
-
-        for val in set(custom_values):
-            if val:
-                values.append((val, val.title()))
-
-        return values
-
-    def _get_payroll_location_values(self):
-        """Dynamic selection values"""
-        values = [
-            ('dubai_onsite', 'Dubai- Onsite'),
-            ('dubai_offshore', 'Dubai-Offshore'),
-            ('tcip_india', 'TCIP India'),
-        ]
-
-        custom_values = self.search([
-            ('payroll_location', '!=', False),
-            ('payroll_location', 'not in', ['dubai_onsite', 'dubai_offshore', 'tcip_india'])
-        ]).mapped('payroll_location')
-
-        for val in set(custom_values):
-            if val:
-                values.append((val, val.title()))
-
-        return values
-
-    def _get_employment_type_values(self):
-        """Dynamic selection values"""
-        values = [
-            ('permanent', 'Permanent'),
-            ('temporary', 'Temporary'),
-            ('bootcamp', 'Bootcamp'),
-            ('seconded', 'Seconded'),
-            ('freelancer', 'Freelancer'),
-        ]
-
-        custom_values = self.search([
-            ('employment_type', '!=', False),
-            ('employment_type', 'not in', ['permanent', 'temporary', 'bootcamp', 'seconded', 'freelancer'])
-        ]).mapped('employment_type')
-
-        for val in set(custom_values):
-            if val:
-                values.append((val, val.title()))
-
-        return values
-
-    # 🔥 OVERRIDE _fields_get to bypass validation
-    @api.model
-    def fields_get(self, allfields=None, attributes=None):
-        """Override to remove selection validation from our 3 fields"""
-        res = super(HrEmployeeInherit, self).fields_get(allfields, attributes)
-
-        # For API calls, temporarily remove 'selection' constraint
-        for field_name in ['engagement_location', 'payroll_location', 'employment_type']:
-            if field_name in res and 'selection' in res[field_name]:
-                # Keep selection for UI, but don't enforce it
-                pass
-
-        return res
 
     @api.model
     def create(self, vals):
-        """Override to accept any string value from API"""
-        # Store original field definitions
-        engagement_field = self._fields.get('engagement_location')
-        payroll_field = self._fields.get('payroll_location')
-        employment_field = self._fields.get('employment_type')
-
-        # Temporarily disable selection validation
-        if engagement_field:
-            original_eng = engagement_field.selection
-            engagement_field.selection = None
-        if payroll_field:
-            original_pay = payroll_field.selection
-            payroll_field.selection = None
-        if employment_field:
-            original_emp = employment_field.selection
-            employment_field.selection = None
-
-        try:
-            res = super(HrEmployeeInherit, self).create(vals)
-        finally:
-            # Restore selections
-            if engagement_field:
-                engagement_field.selection = original_eng
-            if payroll_field:
-                payroll_field.selection = original_pay
-            if employment_field:
-                employment_field.selection = original_emp
-
+        """Pass through - no manipulation"""
+        res = super(HrEmployeeInherit, self).create(vals)
         return res
 
     def write(self, vals):
-        """Override to accept any string value from API"""
-        # Store original field definitions
-        engagement_field = self._fields.get('engagement_location')
-        payroll_field = self._fields.get('payroll_location')
-        employment_field = self._fields.get('employment_type')
-
-        # Temporarily disable selection validation
-        if engagement_field:
-            original_eng = engagement_field.selection
-            engagement_field.selection = None
-        if payroll_field:
-            original_pay = payroll_field.selection
-            payroll_field.selection = None
-        if employment_field:
-            original_emp = employment_field.selection
-            employment_field.selection = None
-
-        try:
-            res = super(HrEmployeeInherit, self).write(vals)
-        finally:
-            # Restore selections
-            if engagement_field:
-                engagement_field.selection = original_eng
-            if payroll_field:
-                payroll_field.selection = original_pay
-            if employment_field:
-                employment_field.selection = original_emp
-
+        """Pass through - no manipulation"""
+        res = super(HrEmployeeInherit, self).write(vals)
         return res
 
     def action_open_code_generation_wizard(self):
@@ -238,20 +101,17 @@ class HrEmployeeInherit(models.Model):
             elif engagement_norm == 'offshore' and ('tcip' in payroll_norm or 'india' in payroll_norm):
                 return 'BCI'
 
-        if engagement_norm == 'offshore' and (
-                'tcip' in payroll_norm or 'india' in payroll_norm) and emp_type_norm == 'permanent':
+        if engagement_norm == 'offshore' and ('tcip' in payroll_norm or 'india' in payroll_norm) and emp_type_norm == 'permanent':
             return 'TCIP'
 
         if engagement_norm == 'offshore' and 'dubaioffshore' in payroll_norm:
             if emp_type_norm in ['permanent', 'temporary']:
                 return 'T'
 
-        if engagement_norm in ['onsite',
-                               'nearshore'] and 'dubaionsite' in payroll_norm and emp_type_norm == 'permanent':
+        if engagement_norm in ['onsite', 'nearshore'] and 'dubaionsite' in payroll_norm and emp_type_norm == 'permanent':
             return 'P'
 
-        if engagement_norm in ['onsite',
-                               'nearshore'] and 'dubaionsite' in payroll_norm and emp_type_norm == 'temporary':
+        if engagement_norm in ['onsite', 'nearshore'] and 'dubaionsite' in payroll_norm and emp_type_norm == 'temporary':
             return 'T'
 
         _logger.warning(f"No prefix match for: {engagement_norm}, {payroll_norm}, {emp_type_norm}")
