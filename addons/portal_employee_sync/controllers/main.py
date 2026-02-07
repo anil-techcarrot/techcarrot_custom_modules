@@ -33,11 +33,12 @@ class PortalEmployeeSyncController(http.Controller):
     def _normalize_engagement_location(self, value):
         """
         Normalize engagement_location to valid Odoo selection value.
-        Accepts: onsite, ONSITE, offshore, OFFSHORE, nearshore, near-shore, etc.
-        Returns: 'onsite', 'offshore', or 'near-shore'
+        ACCEPTS: onsite, ONSITE, offshore, OFFSHORE, nearshore, near-shore, near_shore, etc.
+        RETURNS: 'onsite', 'offshore', 'near-shore', or None (if empty)
+        RAISES: ValueError if unrecognized value
         """
         if not value:
-            return False
+            return None  # Empty is OK - field is optional
 
         raw = str(value).lower().strip()
         clean = raw.replace('-', '').replace('_', '').replace(' ', '')
@@ -52,17 +53,23 @@ class PortalEmployeeSyncController(http.Controller):
             _logger.info(f"✓ Normalized engagement_location: '{value}' → 'near-shore'")
             return 'near-shore'
         else:
-            _logger.warning(f" Unknown engagement_location: '{value}' - will set to False")
-            return False
+            # REJECT unknown values - prevents data quality issues
+            error_msg = (
+                f"Invalid engagement_location: '{value}'. "
+                f"Must be one of: onsite, offshore, nearshore (case-insensitive, spaces/hyphens OK)"
+            )
+            _logger.error(f"❌ {error_msg}")
+            raise ValueError(error_msg)
 
     def _normalize_payroll_location(self, value):
         """
         Normalize payroll_location to valid Odoo selection value.
-        Accepts: dubai-onsite, Dubai_Onsite, DUBAI ONSITE, tcip india, TCIP-INDIA, etc.
-        Returns: 'dubai-onsite', 'dubai-offshore', or 'tcip-india'
+        ACCEPTS: dubai-onsite, Dubai_Onsite, DUBAI ONSITE, tcip india, TCIP-INDIA, etc.
+        RETURNS: 'dubai-onsite', 'dubai-offshore', 'tcip-india', or None (if empty)
+        RAISES: ValueError if unrecognized value
         """
         if not value:
-            return False
+            return None  # Empty is OK - field is optional
 
         raw = str(value).lower().strip()
         clean = raw.replace('_', '-').replace(' ', '-')
@@ -77,28 +84,49 @@ class PortalEmployeeSyncController(http.Controller):
             _logger.info(f"✓ Normalized payroll_location: '{value}' → 'tcip-india'")
             return 'tcip-india'
         else:
-            _logger.warning(f" Unknown payroll_location: '{value}' - will set to False")
-            return False
+            # REJECT unknown values
+            error_msg = (
+                f"Invalid payroll_location: '{value}'. "
+                f"Must be one of: dubai-onsite, dubai-offshore, tcip-india (case-insensitive, spaces/hyphens OK)"
+            )
+            _logger.error(f"❌ {error_msg}")
+            raise ValueError(error_msg)
 
     def _normalize_employment_type(self, value):
         """
         Normalize employment_type to valid Odoo selection value.
-        Accepts: PERMANENT, PERMANENt, Permanent, temporary, BOOTCAMP, etc.
-        Returns: 'permanent', 'temporary', 'bootcamp', 'seconded', or 'freelancer'
+        ACCEPTS: PERMANENT, PERMANENt, Permanent, temporary, BOOTCAMP, etc.
+        RETURNS: 'permanent', 'temporary', 'bootcamp', 'seconded', 'freelancer', or None (if empty)
+        RAISES: ValueError if unrecognized value
         """
         if not value:
-            return False
+            return None  # Empty is OK - field is optional
 
         raw = str(value).lower().strip()
 
-        valid_types = ['permanent', 'temporary', 'bootcamp', 'seconded', 'freelancer']
+        valid_types = {
+            'permanent': 'permanent',
+            'temporary': 'temporary',
+            'bootcamp': 'bootcamp',
+            'seconded': 'seconded',
+            'freelancer': 'freelancer',
+            # Add common variations if needed:
+            'temp': 'temporary',
+            'perm': 'permanent',
+        }
 
         if raw in valid_types:
-            _logger.info(f"✓ Normalized employment_type: '{value}' → '{raw}'")
-            return raw
+            normalized = valid_types[raw]
+            _logger.info(f"✓ Normalized employment_type: '{value}' → '{normalized}'")
+            return normalized
         else:
-            _logger.warning(f" Unknown employment_type: '{value}' - will set to False")
-            return False
+            # REJECT unknown values
+            error_msg = (
+                f"Invalid employment_type: '{value}'. "
+                f"Must be one of: permanent, temporary, bootcamp, seconded, freelancer (case-insensitive)"
+            )
+            _logger.error(f"❌ {error_msg}")
+            raise ValueError(error_msg)
 
     def _parse_date(self, value):
         value = self._val(value)
@@ -198,7 +226,7 @@ class PortalEmployeeSyncController(http.Controller):
                 return self._json_response({'success': False, 'error': 'Invalid API key'}, 401)
 
             data = json.loads(request.httprequest.data or "{}")
-            _logger.info(f" API Request: {json.dumps(data, indent=2)}")
+            _logger.info(f"📥 API Request: {json.dumps(data, indent=2)}")
 
             if not self._val(data.get('name')):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
@@ -206,18 +234,32 @@ class PortalEmployeeSyncController(http.Controller):
             Employee = request.env['hr.employee']
             employee = Employee.search([('name', '=', self._val(data.get('name')))], limit=1)
 
-            # ========== NORMALIZE FIELDS IN CONTROLLER ==========
+            # ========== NORMALIZE AND VALIDATE FIELDS ==========
             engagement_location_raw = self._val(data.get('engagement_location'))
             payroll_location_raw = self._val(data.get('payroll_location'))
             employment_type_raw = self._val(data.get('employment_type'))
             emp_code_from_sharepoint = self._val(data.get('emp_code'))
 
-            # NORMALIZE TO VALID ODOO VALUES
-            engagement_location_normalized = self._normalize_engagement_location(engagement_location_raw)
-            payroll_location_normalized = self._normalize_payroll_location(payroll_location_raw)
-            employment_type_normalized = self._normalize_employment_type(employment_type_raw)
+            try:
+                # These will raise ValueError if invalid
+                engagement_location_normalized = self._normalize_engagement_location(engagement_location_raw)
+                payroll_location_normalized = self._normalize_payroll_location(payroll_location_raw)
+                employment_type_normalized = self._normalize_employment_type(employment_type_raw)
+            except ValueError as e:
+                # Return clear error to SharePoint
+                error_response = {
+                    'success': False,
+                    'error': str(e),
+                    'invalid_data': {
+                        'engagement_location': engagement_location_raw,
+                        'payroll_location': payroll_location_raw,
+                        'employment_type': employment_type_raw
+                    }
+                }
+                _logger.error(f"❌ Validation failed: {json.dumps(error_response, indent=2)}")
+                return self._json_response(error_response, 400)
 
-            _logger.info(f"  NORMALIZATION RESULTS:")
+            _logger.info(f"✓ NORMALIZATION SUCCESS:")
             _logger.info(f"   engagement_location: '{engagement_location_raw}' → '{engagement_location_normalized}'")
             _logger.info(f"   payroll_location: '{payroll_location_raw}' → '{payroll_location_normalized}'")
             _logger.info(f"   employment_type: '{employment_type_raw}' → '{employment_type_normalized}'")
@@ -263,11 +305,11 @@ class PortalEmployeeSyncController(http.Controller):
                 'period_in_company': self._val(data.get('period_in_company')),
             }
 
-            # CRITICAL: Set emp_code from SharePoint
+            # Set emp_code from SharePoint
             if emp_code_from_sharepoint:
                 vals['emp_code'] = emp_code_from_sharepoint
 
-            # Add NORMALIZED classification fields
+            # Add VALIDATED classification fields
             if engagement_location_normalized:
                 vals['engagement_location'] = engagement_location_normalized
             if payroll_location_normalized:
@@ -365,11 +407,11 @@ class PortalEmployeeSyncController(http.Controller):
 
             # CREATE or UPDATE
             if employee:
-                _logger.info(f" UPDATING: {employee.name} (ID: {employee.id})")
+                _logger.info(f"🔄 UPDATING: {employee.name} (ID: {employee.id})")
                 employee.write(vals)
                 action = "updated"
             else:
-                _logger.info(f" CREATING new employee")
+                _logger.info(f"➕ CREATING new employee")
                 employee = Employee.with_context(auto_generate_code=False).create(vals)
                 action = "created"
 
@@ -385,7 +427,7 @@ class PortalEmployeeSyncController(http.Controller):
                     employee.write({'language_known_ids': [(6, 0, language_ids_to_set)]})
                     employee.invalidate_cache(['language_known_ids'])
                 except Exception as e:
-                    _logger.error(f" Language error: {e}")
+                    _logger.error(f"❌ Language error: {e}")
 
             response_data = {
                 'success': True,
@@ -401,11 +443,11 @@ class PortalEmployeeSyncController(http.Controller):
                 }
             }
 
-            _logger.info(f" SUCCESS: {json.dumps(response_data, indent=2)}")
+            _logger.info(f"✅ SUCCESS: {json.dumps(response_data, indent=2)}")
             return self._json_response(response_data)
 
         except Exception as e:
-            _logger.error(f" ERROR: {str(e)}", exc_info=True)
+            _logger.error(f"❌ ERROR: {str(e)}", exc_info=True)
             try:
                 request.env.cr.rollback()
             except:
