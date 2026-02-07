@@ -23,7 +23,7 @@
             <xpath expr="//field[@name='employee_properties']" position="before">
                 <group string="Employee Classification" colspan="4" col="4">
                     <group colspan="2">
-                        <field name="engagement_location" widget="selection"/>
+<!--                        <field name="engagement_location" widget="selection"/>-->
                         <field name="payroll_location" widget="selection"/>
                     </group>
                     <group colspan="2">

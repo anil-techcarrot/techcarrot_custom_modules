@@ -52,7 +52,7 @@ class PortalEmployeeSyncController(http.Controller):
             _logger.info(f"✓ Normalized engagement_location: '{value}' → 'near-shore'")
             return 'near-shore'
         else:
-            _logger.warning(f"⚠️ Unknown engagement_location: '{value}' - will set to False")
+            _logger.warning(f" Unknown engagement_location: '{value}' - will set to False")
             return False
 
     def _normalize_payroll_location(self, value):
@@ -77,7 +77,7 @@ class PortalEmployeeSyncController(http.Controller):
             _logger.info(f"✓ Normalized payroll_location: '{value}' → 'tcip-india'")
             return 'tcip-india'
         else:
-            _logger.warning(f"⚠️ Unknown payroll_location: '{value}' - will set to False")
+            _logger.warning(f" Unknown payroll_location: '{value}' - will set to False")
             return False
 
     def _normalize_employment_type(self, value):
@@ -97,7 +97,7 @@ class PortalEmployeeSyncController(http.Controller):
             _logger.info(f"✓ Normalized employment_type: '{value}' → '{raw}'")
             return raw
         else:
-            _logger.warning(f"⚠️ Unknown employment_type: '{value}' - will set to False")
+            _logger.warning(f" Unknown employment_type: '{value}' - will set to False")
             return False
 
     def _parse_date(self, value):
@@ -198,7 +198,7 @@ class PortalEmployeeSyncController(http.Controller):
                 return self._json_response({'success': False, 'error': 'Invalid API key'}, 401)
 
             data = json.loads(request.httprequest.data or "{}")
-            _logger.info(f"📥 API Request: {json.dumps(data, indent=2)}")
+            _logger.info(f" API Request: {json.dumps(data, indent=2)}")
 
             if not self._val(data.get('name')):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
@@ -217,7 +217,7 @@ class PortalEmployeeSyncController(http.Controller):
             payroll_location_normalized = self._normalize_payroll_location(payroll_location_raw)
             employment_type_normalized = self._normalize_employment_type(employment_type_raw)
 
-            _logger.info(f"📝 NORMALIZATION RESULTS:")
+            _logger.info(f"  NORMALIZATION RESULTS:")
             _logger.info(f"   engagement_location: '{engagement_location_raw}' → '{engagement_location_normalized}'")
             _logger.info(f"   payroll_location: '{payroll_location_raw}' → '{payroll_location_normalized}'")
             _logger.info(f"   employment_type: '{employment_type_raw}' → '{employment_type_normalized}'")
@@ -365,11 +365,11 @@ class PortalEmployeeSyncController(http.Controller):
 
             # CREATE or UPDATE
             if employee:
-                _logger.info(f"🔄 UPDATING: {employee.name} (ID: {employee.id})")
+                _logger.info(f" UPDATING: {employee.name} (ID: {employee.id})")
                 employee.write(vals)
                 action = "updated"
             else:
-                _logger.info(f"➕ CREATING new employee")
+                _logger.info(f" CREATING new employee")
                 employee = Employee.with_context(auto_generate_code=False).create(vals)
                 action = "created"
 
@@ -385,7 +385,7 @@ class PortalEmployeeSyncController(http.Controller):
                     employee.write({'language_known_ids': [(6, 0, language_ids_to_set)]})
                     employee.invalidate_cache(['language_known_ids'])
                 except Exception as e:
-                    _logger.error(f"❌ Language error: {e}")
+                    _logger.error(f" Language error: {e}")
 
             response_data = {
                 'success': True,
@@ -401,11 +401,11 @@ class PortalEmployeeSyncController(http.Controller):
                 }
             }
 
-            _logger.info(f"✅ SUCCESS: {json.dumps(response_data, indent=2)}")
+            _logger.info(f" SUCCESS: {json.dumps(response_data, indent=2)}")
             return self._json_response(response_data)
 
         except Exception as e:
-            _logger.error(f"❌ ERROR: {str(e)}", exc_info=True)
+            _logger.error(f" ERROR: {str(e)}", exc_info=True)
             try:
                 request.env.cr.rollback()
             except:

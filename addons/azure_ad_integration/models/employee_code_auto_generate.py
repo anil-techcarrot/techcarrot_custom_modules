@@ -95,7 +95,7 @@ class HrEmployeeInherit(models.Model):
             elif clean in ['nearshore', 'nearshore']:
                 vals['engagement_location'] = 'near-shore'
             else:
-                _logger.warning(f"⚠️ Unknown engagement_location: '{vals['engagement_location']}' - setting to False")
+                _logger.warning(f" Unknown engagement_location: '{vals['engagement_location']}' - setting to False")
                 vals['engagement_location'] = False
 
         # Normalize payroll_location
@@ -110,7 +110,7 @@ class HrEmployeeInherit(models.Model):
             elif 'tcip' in clean or 'india' in clean:
                 vals['payroll_location'] = 'tcip-india'
             else:
-                _logger.warning(f"⚠️ Unknown payroll_location: '{vals['payroll_location']}' - setting to False")
+                _logger.warning(f" Unknown payroll_location: '{vals['payroll_location']}' - setting to False")
                 vals['payroll_location'] = False
 
         # Normalize employment_type
@@ -122,7 +122,7 @@ class HrEmployeeInherit(models.Model):
             if raw in valid_types:
                 vals['employment_type'] = raw
             else:
-                _logger.warning(f"⚠️ Unknown employment_type: '{vals['employment_type']}' - setting to False")
+                _logger.warning(f" Unknown employment_type: '{vals['employment_type']}' - setting to False")
                 vals['employment_type'] = False
 
         return vals
