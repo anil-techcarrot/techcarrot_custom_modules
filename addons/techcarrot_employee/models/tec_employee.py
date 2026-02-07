@@ -134,12 +134,11 @@ class HrEmployeeInherit(models.Model):
         [
             ('onsite', 'Onsite'),
             ('offshore', 'Offshore'),
-            ('near_shore', 'Nearshore'),
+            ('near-shore', 'Nearshore'),
         ],
         string='Engagement Location',
-
+        ondelete={'onsite': 'set null', 'offshore': 'set null', 'near-shore': 'set null'}
     )
-
 
 
     created_by = fields.Many2one('res.users', string='Created By', readonly=True, copy=False)

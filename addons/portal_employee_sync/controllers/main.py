@@ -58,7 +58,7 @@ class PortalEmployeeSyncController(http.Controller):
                 f"Invalid engagement_location: '{value}'. "
                 f"Must be one of: onsite, offshore, nearshore (case-insensitive, spaces/hyphens OK)"
             )
-            _logger.error(f"❌ {error_msg}")
+            _logger.error(f" {error_msg}")
             raise ValueError(error_msg)
 
     def _normalize_payroll_location(self, value):
@@ -89,7 +89,7 @@ class PortalEmployeeSyncController(http.Controller):
                 f"Invalid payroll_location: '{value}'. "
                 f"Must be one of: dubai-onsite, dubai-offshore, tcip-india (case-insensitive, spaces/hyphens OK)"
             )
-            _logger.error(f"❌ {error_msg}")
+            _logger.error(f" {error_msg}")
             raise ValueError(error_msg)
 
     def _normalize_employment_type(self, value):
@@ -117,7 +117,7 @@ class PortalEmployeeSyncController(http.Controller):
 
         if raw in valid_types:
             normalized = valid_types[raw]
-            _logger.info(f"✓ Normalized employment_type: '{value}' → '{normalized}'")
+            _logger.info(f" Normalized employment_type: '{value}' → '{normalized}'")
             return normalized
         else:
             # REJECT unknown values
@@ -125,7 +125,7 @@ class PortalEmployeeSyncController(http.Controller):
                 f"Invalid employment_type: '{value}'. "
                 f"Must be one of: permanent, temporary, bootcamp, seconded, freelancer (case-insensitive)"
             )
-            _logger.error(f"❌ {error_msg}")
+            _logger.error(f" {error_msg}")
             raise ValueError(error_msg)
 
     def _parse_date(self, value):
@@ -226,7 +226,7 @@ class PortalEmployeeSyncController(http.Controller):
                 return self._json_response({'success': False, 'error': 'Invalid API key'}, 401)
 
             data = json.loads(request.httprequest.data or "{}")
-            _logger.info(f"📥 API Request: {json.dumps(data, indent=2)}")
+            _logger.info(f" API Request: {json.dumps(data, indent=2)}")
 
             if not self._val(data.get('name')):
                 return self._json_response({'success': False, 'error': 'Name is required'}, 400)
@@ -256,7 +256,7 @@ class PortalEmployeeSyncController(http.Controller):
                         'employment_type': employment_type_raw
                     }
                 }
-                _logger.error(f"❌ Validation failed: {json.dumps(error_response, indent=2)}")
+                _logger.error(f" Validation failed: {json.dumps(error_response, indent=2)}")
                 return self._json_response(error_response, 400)
 
             _logger.info(f"✓ NORMALIZATION SUCCESS:")
@@ -407,11 +407,11 @@ class PortalEmployeeSyncController(http.Controller):
 
             # CREATE or UPDATE
             if employee:
-                _logger.info(f"🔄 UPDATING: {employee.name} (ID: {employee.id})")
+                _logger.info(f" UPDATING: {employee.name} (ID: {employee.id})")
                 employee.write(vals)
                 action = "updated"
             else:
-                _logger.info(f"➕ CREATING new employee")
+                _logger.info(f" CREATING new employee")
                 employee = Employee.with_context(auto_generate_code=False).create(vals)
                 action = "created"
 
@@ -427,7 +427,7 @@ class PortalEmployeeSyncController(http.Controller):
                     employee.write({'language_known_ids': [(6, 0, language_ids_to_set)]})
                     employee.invalidate_cache(['language_known_ids'])
                 except Exception as e:
-                    _logger.error(f"❌ Language error: {e}")
+                    _logger.error(f" Language error: {e}")
 
             response_data = {
                 'success': True,
@@ -443,11 +443,11 @@ class PortalEmployeeSyncController(http.Controller):
                 }
             }
 
-            _logger.info(f"✅ SUCCESS: {json.dumps(response_data, indent=2)}")
+            _logger.info(f" SUCCESS: {json.dumps(response_data, indent=2)}")
             return self._json_response(response_data)
 
         except Exception as e:
-            _logger.error(f"❌ ERROR: {str(e)}", exc_info=True)
+            _logger.error(f" ERROR: {str(e)}", exc_info=True)
             try:
                 request.env.cr.rollback()
             except:

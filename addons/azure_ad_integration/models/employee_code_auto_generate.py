@@ -28,17 +28,16 @@ class HrEmployeeInherit(models.Model):
     )
 
     line_manager_id = fields.Many2one('hr.employee', string='Line Manager', copy=False)
-
     # SELECTION FIELDS - Shown as dropdowns in Odoo UI
-    engagement_location = fields.Selection(
-        [
-            ('onsite', 'Onsite'),
-            ('offshore', 'Offshore'),
-            ('near-shore', 'Nearshore'),
-        ],
-        string='Engagement Location',
-        ondelete={'onsite': 'set null', 'offshore': 'set null', 'near-shore': 'set null'}
-    )
+    # engagement_location = fields.Selection(
+    #     [
+    #         ('onsite', 'Onsite'),
+    #         ('offshore', 'Offshore'),
+    #         ('near-shore', 'Nearshore'),
+    #     ],
+    #     string='Engagement Location',
+    #     ondelete={'onsite': 'set null', 'offshore': 'set null', 'near-shore': 'set null'}
+    # )
 
     payroll_location = fields.Selection([
         ('dubai-onsite', 'Dubai- Onsite'),
