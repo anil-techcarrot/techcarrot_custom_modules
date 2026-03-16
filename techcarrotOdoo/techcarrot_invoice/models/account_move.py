@@ -10,23 +10,7 @@ class AccountMove(models.Model):
     cust_inv_date = fields.Date('Customer INV Date')
     project_id = fields.Many2one('project.project', string='Project')
 
-    purchase_id = fields.Many2one(
-        'purchase.order',
-        string='Purchase Order',
-        compute='_compute_purchase_id',
-        store=True,
-    )
 
-    @api.depends('invoice_origin')
-    def _compute_purchase_id(self):
-        for move in self:
-            if move.invoice_origin:
-                purchase = self.env['purchase.order'].search(
-                    [('name', '=', move.invoice_origin)], limit=1
-                )
-                move.purchase_id = purchase.id if purchase else False
-            else:
-                move.purchase_id = False
 
 
     @api.onchange('project_id')
