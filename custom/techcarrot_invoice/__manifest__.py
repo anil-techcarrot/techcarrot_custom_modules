@@ -16,6 +16,7 @@
         'reports/invoice_report_india.xml',
         'reports/payments_template.xml',
         'reports/invoice_ir_actions.xml',
+        'reports/invoice_inherit.xml',
         'views/res_bank_view.xml',
         # 'views/sale_order_view.xml',
         'views/account_move_view.xml',

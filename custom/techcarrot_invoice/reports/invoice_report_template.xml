@@ -236,7 +236,7 @@
                         <div class="page mb-4">
                             <t t-if="o.company_id.currency_id != o.currency_id">
                                 <t t-set="invoice_currency_rate" t-value="1/o.invoice_currency_rate"/>
-                                <strong><span>Tax Summary</span>( 1<span t-field="o.currency_id.name"></span>=<span t-esc="invoice_currency_rate"></span> USD)</strong>
+                                <strong><span>Tax Summary</span>( 1<span t-field="o.currency_id.name"></span>=<span t-esc="invoice_currency_rate"></span> AED)</strong>
                             </t>
                             <t t-else="">
                                 <h3>Tax Summary</h3>
