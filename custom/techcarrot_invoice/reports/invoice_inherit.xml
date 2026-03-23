@@ -2,82 +2,67 @@
 <odoo>
     <data>
 
-        <!--
-            INHERIT: techcarrot_invoice.report_techcarrot_invoices_document
-            PURPOSE: Fix Total row (out_invoice) to show all 3 amounts in same row
-
-            CURRENT (wrong):
-                Total        AED 30,030.00
-
-            REQUIRED (matching PDF PS-2025-1764 layout):
-                             Taxable Amount    VAT          Total Amount
-                             28,600.00         1,430.00     30,030.00
-                Total        AED 28,600.00     AED 1,430.00 AED 30,030.00
-
-            The line items table has 6 columns:
-            Item & Description | Qty | Rate | Taxable Amount | VAT | Total Amount
-            The Total row must align under those last 3 columns.
-        -->
-
         <template id="report_techcarrot_invoices_document_total_inherit"
                   inherit_id="techcarrot_invoice.report_techcarrot_invoices_document">
 
             <!-- ══════════════════════════════════════════════════════
-                 CHANGE: Replace the entire right-elements float div
-                 with a full-width table row that aligns under the
-                 6-column invoice_line_table above it.
+                 CHANGE 1: Remove the two <br/> tags after the table
+                 that create the visual gap
+            ═══════════════════════════════════════════════════════ -->
+            <xpath expr="//table[@name='invoice_line_table']/following-sibling::br[1]" position="replace">
+            </xpath>
 
-                 Column mapping (6 cols):
-                   col1 (35%): Item & Description  → spacer
-                   col2 (10%): Qty                 → spacer
-                   col3 (12%): Rate                → "Total" label
-                   col4 (15%): Taxable Amount      → AED + amount_untaxed
-                   col5 (13%): VAT                 → AED + amount_tax
-                   col6 (15%): Total Amount        → AED + amount_total
+            <xpath expr="//table[@name='invoice_line_table']/following-sibling::br[1]" position="replace">
+            </xpath>
+
+            <!-- ══════════════════════════════════════════════════════
+                 CHANGE 2: Inject Total row as LAST ROW inside the
+                 same invoice_line_table — this removes all gap between
+                 line items and the Total row completely.
+
+                 6 columns match the table header:
+                   col1 (35%) Item & Description → spacer
+                   col2 (10%) Qty               → spacer
+                   col3 (12%) Rate              → "Total" label
+                   col4 (15%) Taxable Amount    → currency + untaxed
+                   col5 (13%) VAT               → currency + tax
+                   col6 (15%) Total Amount      → currency + total
+            ═══════════════════════════════════════════════════════ -->
+            <xpath expr="//table[@name='invoice_line_table']//tbody/tr[last()]" position="after">
+                <t t-set="amount_untaxed_fmt" t-value="'{:,.2f}'.format(o.amount_untaxed)"/>
+                <t t-set="amount_tax_fmt"     t-value="'{:,.2f}'.format(o.amount_tax)"/>
+                <t t-set="amount_total_fmt"   t-value="'{:,.2f}'.format(o.amount_total)"/>
+                <tr style="border-top:1px solid #000;border-bottom:1px solid #000;border-left:none;border-right:none;">
+                    <td colspan="2" style="border:none;"></td>
+                    <td class="text-end" style="border:none;">
+                        <b>Total</b>
+                    </td>
+                    <td class="text-end" style="border:none;">
+                        <b><span t-esc="o.currency_id.name"/>&#160;<span t-esc="amount_untaxed_fmt"/></b>
+                    </td>
+                    <td class="text-end" style="border:none;">
+                        <b><span t-esc="o.currency_id.name"/>&#160;<span t-esc="amount_tax_fmt"/></b>
+                    </td>
+                    <td class="text-end" style="border:none;">
+                        <b><span t-esc="o.currency_id.name"/>&#160;<span t-esc="amount_total_fmt"/></b>
+                    </td>
+                </tr>
+            </xpath>
+
+            <!-- ══════════════════════════════════════════════════════
+                 CHANGE 3: Replace the old right-elements div
+                 (which had the separate floating table causing the gap)
+                 with ONLY the Total In Words line — amounts are now
+                 already shown in the table row above.
             ═══════════════════════════════════════════════════════ -->
             <xpath expr="//div[@id='right-elements']" position="replace">
-
-                <t t-if="o.tax_totals">
-                    <t t-set="amount_untaxed_fmt" t-value="'{:,.2f}'.format(o.amount_untaxed)"/>
-                    <t t-set="amount_tax_fmt"     t-value="'{:,.2f}'.format(o.amount_tax)"/>
-                    <t t-set="amount_total_fmt"   t-value="'{:,.2f}'.format(o.amount_total)"/>
-
-                    <table width="100%" style="border:none;" class="table table-borderless mt-0">
-                        <tbody>
-                            <!-- ── Total row ── -->
-                            <tr style="border-top:1px solid #000;border-bottom:0.5px solid #000;border-left:none;border-right:none;">
-                                <!-- col1+col2: spacer -->
-                                <td width="45%" style="border:none;"></td>
-                                <!-- col3: "Total" label -->
-                                <td width="12%" class="text-end" style="border:none;">
-                                    <b>Total</b>
-                                </td>
-                                <!-- col4: Taxable Amount -->
-                                <td width="15%" class="text-end" style="border:none;">
-                                    <b><span t-esc="o.currency_id.name"/>&#160;<span t-esc="amount_untaxed_fmt"/></b>
-                                </td>
-                                <!-- col5: VAT -->
-                                <td width="13%" class="text-end" style="border:none;">
-                                    <b><span t-esc="o.currency_id.name"/>&#160;<span t-esc="amount_tax_fmt"/></b>
-                                </td>
-                                <!-- col6: Grand Total -->
-                                <td width="15%" class="text-end" style="border:none;">
-                                    <b><span t-esc="o.currency_id.name"/>&#160;<span t-esc="amount_total_fmt"/></b>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <!-- Total In Words (keep below total row, right-aligned) -->
-                    <div class="text-end mt-1 mb-3">
-                        <p class="text-muted lh-sm" style="font-size:11px;">
-                            Total In Words:<b>
-                                <span t-field="o.currency_id.name"/>&#160;<span t-field="o.amount_total_words"/>
-                            </b>
-                        </p>
-                    </div>
-                </t>
-
+                <div class="text-end mt-2 mb-3">
+                    <p class="text-muted lh-sm" style="font-size:11px;">
+                        Total In Words:<b>
+                            <span t-field="o.currency_id.name"/>&#160;<span t-field="o.amount_total_words"/>
+                        </b>
+                    </p>
+                </div>
             </xpath>
 
         </template>
