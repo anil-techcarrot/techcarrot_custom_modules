@@ -333,7 +333,7 @@
           // Calculate and update profile completion
           function updateProfileCompletion() {
             const fields = [
-              'work_email', 'work_phone', 'birthday', 'gender', 'marital',
+              'work_email', 'work_phone', 'birthday', 'sex', 'marital',
               'private_email', 'private_phone', 'private_street', 'private_city',
               'x_experience', 'x_skills', 'x_certifications', 
               'x_bank_name', 'x_bank_account'

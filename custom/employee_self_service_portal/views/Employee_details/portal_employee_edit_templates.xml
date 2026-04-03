@@ -39,11 +39,11 @@
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label>Gender</label>
-                                <select name="gender" class="form-control">
-                                    <option value="" t-if="not employee.gender">Select</option>
-                                    <option value="male" t-att-selected="employee.gender == 'male'">Male</option>
-                                    <option value="female" t-att-selected="employee.gender == 'female'">Female</option>
-                                    <option value="other" t-att-selected="employee.gender == 'other'">Other</option>
+                                <select name="sex" class="form-control">
+                                    <option value="" t-if="not employee.sex">Select</option>
+                                    <option value="male" t-att-selected="employee.sex == 'male'">Male</option>
+                                    <option value="female" t-att-selected="employee.sex == 'female'">Female</option>
+                                    <option value="other" t-att-selected="employee.sex == 'other'">Other</option>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-2">

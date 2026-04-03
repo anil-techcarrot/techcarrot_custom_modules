@@ -77,11 +77,11 @@
                   <label class="form-label fw-bold">
                     <i class="fa fa-venus-mars text-muted me-1"></i>Gender
                   </label>
-                  <select name="gender" class="form-select" disabled="">
+                  <select name="sex" class="form-select" disabled="">
                     <option value="">Select Gender</option>
-                    <option value="male" t-att-selected="'selected' if employee.gender == 'male' else None">Male</option>
-                    <option value="female" t-att-selected="'selected' if employee.gender == 'female' else None">Female</option>
-                    <option value="other" t-att-selected="'selected' if employee.gender == 'other' else None">Other</option>
+                    <option value="male" t-att-selected="'selected' if employee.sex == 'male' else None">Male</option>
+                    <option value="female" t-att-selected="'selected' if employee.sex == 'female' else None">Female</option>
+                    <option value="other" t-att-selected="'selected' if employee.sex == 'other' else None">Other</option>
                   </select>
                   <div class="invalid-feedback"></div>
                 </div>

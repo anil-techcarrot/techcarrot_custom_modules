@@ -885,7 +885,7 @@ class PortalEmployee(http.Controller):
             vals['work_email'] = post.get('work_email')
             vals['work_phone'] = post.get('work_phone')
             vals['birthday'] = post.get('birthday')
-            vals['gender'] = post.get('gender')
+            vals['sex'] = post.get('sex')
             vals['marital'] = post.get('marital')
             # Experience & Skills
             vals['x_experience'] = post.get('x_experience')
@@ -1424,8 +1424,8 @@ class PortalEmployee(http.Controller):
                     vals['work_phone'] = post.get('work_phone')
                 if post.get('birthday'):
                     vals['birthday'] = post.get('birthday')
-                if post.get('gender'):
-                    vals['gender'] = post.get('gender')
+                if post.get('sex'):
+                    vals['sex'] = post.get('sex')
                 if post.get('marital'):
                     vals['marital'] = post.get('marital')
 
