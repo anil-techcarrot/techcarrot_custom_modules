@@ -1906,6 +1906,10 @@
                     <div class="card shadow-sm">
                         <div class="card-body text-center">
                             <div id="formActions" style="display: none;">
+
+                                <!-- ★ CHANGE 1: saveErrorBox added here — shows tab names with errors above Save button -->
+                                <div id="saveErrorBox" class="alert alert-danger text-start mb-3" style="display:none;"></div>
+
                                 <div class="alert alert-warning text-start mb-3"
                                      style="border-left: 4px solid #ffc107; border-radius: 6px;">
                                     <div class="form-check d-flex align-items-start gap-2">
@@ -2274,81 +2278,25 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
 
     updateTabErrorBadges();
 
-    /* ── Step 4: Show floating popup if errors found ── */
+    /* ── Step 4: CHANGE 2 — Show one-line error above Save Changes button with tab names ── */
     if (tabsWithErrors.length > 0) {
-        const tabBadges = tabsWithErrors.map(t =>
-            `<span style="background:#dc3545;color:white;padding:3px 12px;
-             border-radius:12px;font-size:12px;font-weight:bold;margin:2px 4px;display:inline-block;">
-             ⚠ ${tabNames[t] || t}</span>`
-        ).join('');
-
-        const existingAlert = document.getElementById('globalValidationAlert');
-        if (existingAlert) existingAlert.remove();
-
-        const globalAlert = document.createElement('div');
-        globalAlert.id = 'globalValidationAlert';
-        globalAlert.innerHTML = `
-            <div style="display:flex;align-items:flex-start;gap:12px;">
-                <span style="font-size:26px;line-height:1;">⚠️</span>
-                <div style="flex:1;">
-                    <strong style="display:block;margin-bottom:6px;font-size:15px;color:#b71c1c;">
-                        Please fix errors before saving
-                    </strong>
-                    <div style="font-size:13px;margin-bottom:6px;color:#333;">
-                        Required fields are missing in:
-                    </div>
-                    <div style="margin-bottom:6px;">${tabBadges}</div>
-                    <div style="font-size:12px;color:#666;">
-                        👆 Click the highlighted tab above to see and fill the missing fields.
-                    </div>
-                </div>
-                <button onclick="document.getElementById('globalValidationAlert').remove()"
-                    style="background:none;border:none;font-size:24px;cursor:pointer;
-                           color:#999;line-height:1;padding:0;margin-top:-4px;">×</button>
-            </div>
-        `;
-        Object.assign(globalAlert.style, {
-            position:     'fixed',
-            top:          '80px',
-            left:         '50%',
-            transform:    'translateX(-50%)',
-            zIndex:       '99999',
-            minWidth:     '380px',
-            maxWidth:     '680px',
-            background:   '#fff3f3',
-            border:       '2px solid #dc3545',
-            borderRadius: '12px',
-            padding:      '16px 20px',
-            boxShadow:    '0 8px 32px rgba(220,53,69,0.25)',
-            fontFamily:   'Arial, sans-serif',
-        });
-        document.body.appendChild(globalAlert);
-
-        /* Auto-remove after 10 seconds */
-        setTimeout(() => {
-            const a = document.getElementById('globalValidationAlert');
-            if (a) a.remove();
-        }, 10000);
-
-        /* Switch to first tab with errors */
-        switchProfileTab(tabsWithErrors[0]);
-        setTimeout(() => {
-            const firstError = document.querySelector(
-                `.profile-tab-section[data-tab-group="${tabsWithErrors[0]}"] .is-invalid`
-            );
-            if (firstError) {
-                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                firstError.focus();
-            }
-        }, 200);
+        const tabLabels = tabsWithErrors.map(t =>
+            `<strong style="color:#721c24;">${tabNames[t] || t}</strong>`
+        ).join(', ');
+        const box = document.getElementById('saveErrorBox');
+        if (box) {
+            box.style.display = 'block';
+            box.innerHTML = `<i class="fa fa-exclamation-triangle me-2"></i>Please fix errors in the following tab(s) before saving: ${tabLabels}`;
+        }
+        updateTabErrorBadges();
         return;
     }
 
-    /* ── Step 5: Remove alert if all good ── */
-    const existingAlert = document.getElementById('globalValidationAlert');
-    if (existingAlert) existingAlert.remove();
+    /* ── Hide error box if no errors ── */
+    const box = document.getElementById('saveErrorBox');
+    if (box) box.style.display = 'none';
 
-    /* ── Step 6: Submit ── */
+    /* ── Step 5: Submit ── */
     const toReenable = [];
     document.querySelectorAll(
         '#personalDetailsForm select[disabled], #personalDetailsForm input[type="checkbox"][disabled]'
