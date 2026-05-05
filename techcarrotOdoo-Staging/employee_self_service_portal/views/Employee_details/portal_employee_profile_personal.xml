@@ -1907,7 +1907,10 @@
                         <div class="card-body text-center">
 
                             <!-- ★ FIX 1: saveErrorBox moved OUTSIDE formActions so it always renders when shown -->
-                            <div id="saveErrorBox" class="alert alert-danger text-start mb-3" style="display:none;"></div>
+                            <div id="saveErrorBox"
+                                 class="alert alert-danger"
+                                 style="display:none; margin-bottom:15px;">
+                            </div>
 
                             <div id="formActions" style="display: none;">
                                 <div class="alert alert-warning text-start mb-3"
@@ -2254,12 +2257,45 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
     const tabsWithErrors = [];
 
     /* ❌ REMOVE THIS (important)
-    allTabs.forEach(tabKey => clearValidationStates(tabKey));
+<!--    allTabs.forEach(tabKey => clearValidationStates(tabKey));-->
     */
 
+
+
     /* ✅ STEP 1: VALIDATE ALL FIELDS WITHOUT CLEARING */
-    allTabs.forEach(tabKey => {
-        document.querySelectorAll(
+<!--    allTabs.forEach(tabKey => {-->
+<!--        document.querySelectorAll(-->
+
+
+allTabs.forEach(tabKey => {
+    document.querySelectorAll(
+        `.profile-tab-section[data-tab-group="${tabKey}"] input[data-validation],
+         .profile-tab-section[data-tab-group="${tabKey}"] select[data-validation]`
+    ).forEach(input => {
+
+        const val = input.value ? input.value.trim() : '';
+
+        let isInvalid = false;
+
+        if (input.hasAttribute('required') && !val) {
+            isInvalid = true;
+        }
+
+        if (isInvalid) {
+            input.classList.add('is-invalid');
+
+            if (!tabsWithErrors.includes(tabKey)) {
+                tabsWithErrors.push(tabKey);
+            }
+        }
+    });
+});
+
+
+
+
+
+
             `.profile-tab-section[data-tab-group="${tabKey}"] input[data-validation],
              .profile-tab-section[data-tab-group="${tabKey}"] select[data-validation]`
         ).forEach(input => {
@@ -2280,6 +2316,8 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
 
     /* ✅ STEP 2: SHOW ERROR ABOVE SAVE BUTTON */
     if (tabsWithErrors.length > 0) {
+
+    switchProfileTab(tabsWithErrors[0]);
 
         const tabLabels = tabsWithErrors.map(t =>
             `<strong style="color:#721c24;">${tabNames[t]}</strong>`
