@@ -2028,6 +2028,7 @@ function enableEditMode() {
 
 function disableEditMode() {
     isEditMode = false;
+    localStorage.removeItem('profileEditActive');
     document.querySelectorAll('.edit-mode-toggle').forEach(t => t.checked = false);
     document.querySelectorAll('#personalDetailsForm input, #personalDetailsForm select').forEach(input => {
         if (input.type === 'hidden') return;
@@ -2310,6 +2311,7 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
         if (data.success) {
             disableEditMode();
             localStorage.removeItem('profileDraft');
+             localStorage.removeItem('profileEditActive');
             if (data.no_change) {
                 showTabMessage(activeProfileTab, 'No changes were detected. Your profile data is already up to date.', 'info');
             } else {
@@ -2335,15 +2337,33 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() { switchProfileTab(this.getAttribute('data-tab-target')); });
     });
     switchProfileTab(activeProfileTab);
+
+    /* ── Auto-save draft when navigating to other pages ── */
+    window.addEventListener('beforeunload', function() {
+        if (isEditMode) {
+            const formData = new FormData(document.getElementById('personalDetailsForm'));
+            const draftData = {};
+            for (let [key, value] of formData.entries()) draftData[key] = value;
+            localStorage.setItem('profileDraft', JSON.stringify(draftData));
+        }
+    });
+
+    /* ── Restore draft + edit mode if user was editing before navigating away ── */
     const draftData = localStorage.getItem('profileDraft');
+    const wasEditing = localStorage.getItem('profileEditActive') === '1';
     if (draftData) {
         try {
             const draft = JSON.parse(draftData);
+            if (wasEditing) {
+                enableEditMode(); /* re-enable edit mode first so fields are writable */
+            }
             Object.entries(draft).forEach(([key, value]) => {
                 const input = document.querySelector(`[name="${key}"]`);
                 if (input && input.type !== 'hidden') input.value = value;
             });
-            showTabMessage(activeProfileTab, 'Draft data loaded.', 'info');
+            if (wasEditing) {
+                showTabMessage(activeProfileTab, 'Your unsaved changes have been restored. Please review and click Save Changes.', 'info');
+            }
         } catch (ex) { console.error('Error loading draft:', ex); }
     }
 });
