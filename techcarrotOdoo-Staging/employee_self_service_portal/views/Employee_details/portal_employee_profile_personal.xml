@@ -2242,16 +2242,6 @@ function showTabMessage(tabKey, text, type) {
 document.getElementById('personalDetailsForm').addEventListener('submit', function(e) {
     e.preventDefault();
 
-    /* ── Step 1: Disclaimer check ── */
-    const disc = document.getElementById('personalDisclaimer');
-    if (disc && !disc.checked) {
-        showTabMessage(activeProfileTab, 'Please read and accept the Employee Disclaimer before saving.', 'error');
-        disc.closest('.alert').style.animation = 'shake 0.35s ease';
-        setTimeout(() => disc.closest('.alert').style.animation = '', 400);
-        return;
-    }
-
-    /* ── Step 2: Clear ALL tabs first ── */
     const allTabs = ['basic', 'professional', 'family', 'education', 'documents'];
     const tabNames = {
         'basic': 'Basic Info',
@@ -2260,18 +2250,25 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
         'education': 'Education',
         'documents': 'Documents',
     };
+
     const tabsWithErrors = [];
 
+    /* ❌ REMOVE THIS (important)
     allTabs.forEach(tabKey => clearValidationStates(tabKey));
+    */
 
-    /* ── Step 3: Validate ALL tabs with synthetic submit event ── */
+    /* ✅ STEP 1: VALIDATE ALL FIELDS WITHOUT CLEARING */
     allTabs.forEach(tabKey => {
         document.querySelectorAll(
             `.profile-tab-section[data-tab-group="${tabKey}"] input[data-validation],
              .profile-tab-section[data-tab-group="${tabKey}"] select[data-validation]`
         ).forEach(input => {
+
             const syntheticEvent = { target: input, type: 'submit' };
-            if (!validateField(syntheticEvent)) {
+
+            const valid = validateField(syntheticEvent);
+
+            if (!valid) {
                 if (!tabsWithErrors.includes(tabKey)) {
                     tabsWithErrors.push(tabKey);
                 }
@@ -2281,35 +2278,50 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
 
     updateTabErrorBadges();
 
-    /* ── Step 4: FIX 2 — show error box above Save button and scroll to it ── */
+    /* ✅ STEP 2: SHOW ERROR ABOVE SAVE BUTTON */
     if (tabsWithErrors.length > 0) {
+
         const tabLabels = tabsWithErrors.map(t =>
-            `<strong style="color:#721c24;">${tabNames[t] || t}</strong>`
+            `<strong style="color:#721c24;">${tabNames[t]}</strong>`
         ).join(', ');
+
         const box = document.getElementById('saveErrorBox');
+
         if (box) {
             box.style.display = 'block';
-            box.innerHTML = `<i class="fa fa-exclamation-triangle me-2"></i>Please fix errors in the following tab(s) before saving: ${tabLabels}`;
-            /* ★ FIX 2: scroll the error box into view so user cannot miss it ★ */
-            setTimeout(() => box.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+            box.innerHTML = `
+                <i class="fa fa-exclamation-triangle me-2"></i>
+                Please fix errors in the following tab(s) before saving: ${tabLabels}
+            `;
+
+            /* 🔥 scroll to error */
+            setTimeout(() => {
+                box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
         }
-        updateTabErrorBadges();
-        return;
+
+        return; // ⛔ STOP SUBMIT
     }
 
-    /* ── Hide error box if no errors ── */
+    /* ✅ STEP 3: HIDE ERROR BOX */
     const box = document.getElementById('saveErrorBox');
     if (box) box.style.display = 'none';
 
-    /* ── Step 5: Submit ── */
+    /* ✅ STEP 4: SUBMIT FORM */
     const toReenable = [];
+
     document.querySelectorAll(
         '#personalDetailsForm select[disabled], #personalDetailsForm input[type="checkbox"][disabled]'
     ).forEach(el => {
-        if (!el.hasAttribute('data-always-readonly')) { el.removeAttribute('disabled'); toReenable.push(el); }
+        if (!el.hasAttribute('data-always-readonly')) {
+            el.removeAttribute('disabled');
+            toReenable.push(el);
+        }
     });
+
     const formData = new FormData(this);
     const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
     toReenable.forEach(el => el.setAttribute('disabled', 'disabled'));
 
     fetch('/my/employee/personal', {
@@ -2322,6 +2334,7 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
         if (data.success) {
             disableEditMode();
             localStorage.removeItem('profileDraft');
+
             if (data.no_change) {
                 showTabMessage(
                     activeProfileTab,
@@ -2332,9 +2345,8 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
                 const ref = data.reference || '';
                 showTabMessage(
                     activeProfileTab,
-                    ' Your changes have been submitted to HR for review and approval.' +
-                    (ref ? ' Reference: <strong>' + ref + '</strong>' : '') +
-                    ' You will receive an email once HR approves or rejects your request.',
+                    'Your changes have been submitted to HR for review.' +
+                    (ref ? ' Reference: <strong>' + ref + '</strong>' : ''),
                     'success'
                 );
             }
@@ -2347,6 +2359,120 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
         showTabMessage(activeProfileTab, 'Network error. Please try again.', 'error');
     });
 });
+
+
+
+
+
+
+<!--document.getElementById('personalDetailsForm').addEventListener('submit', function(e) {-->
+<!--    e.preventDefault();-->
+
+<!--    /* ── Step 1: Disclaimer check ── */-->
+<!--    const disc = document.getElementById('personalDisclaimer');-->
+<!--    if (disc && !disc.checked) {-->
+<!--        showTabMessage(activeProfileTab, 'Please read and accept the Employee Disclaimer before saving.', 'error');-->
+<!--        disc.closest('.alert').style.animation = 'shake 0.35s ease';-->
+<!--        setTimeout(() => disc.closest('.alert').style.animation = '', 400);-->
+<!--        return;-->
+<!--    }-->
+
+<!--    /* ── Step 2: Clear ALL tabs first ── */-->
+<!--    const allTabs = ['basic', 'professional', 'family', 'education', 'documents'];-->
+<!--    const tabNames = {-->
+<!--        'basic': 'Basic Info',-->
+<!--        'professional': 'Professional',-->
+<!--        'family': 'Family',-->
+<!--        'education': 'Education',-->
+<!--        'documents': 'Documents',-->
+<!--    };-->
+<!--    const tabsWithErrors = [];-->
+
+<!--    allTabs.forEach(tabKey => clearValidationStates(tabKey));-->
+
+<!--    /* ── Step 3: Validate ALL tabs with synthetic submit event ── */-->
+<!--    allTabs.forEach(tabKey => {-->
+<!--        document.querySelectorAll(-->
+<!--            `.profile-tab-section[data-tab-group="${tabKey}"] input[data-validation],-->
+<!--             .profile-tab-section[data-tab-group="${tabKey}"] select[data-validation]`-->
+<!--        ).forEach(input => {-->
+<!--            const syntheticEvent = { target: input, type: 'submit' };-->
+<!--            if (!validateField(syntheticEvent)) {-->
+<!--                if (!tabsWithErrors.includes(tabKey)) {-->
+<!--                    tabsWithErrors.push(tabKey);-->
+<!--                }-->
+<!--            }-->
+<!--        });-->
+<!--    });-->
+
+<!--    updateTabErrorBadges();-->
+
+<!--    /* ── Step 4: FIX 2 — show error box above Save button and scroll to it ── */-->
+<!--    if (tabsWithErrors.length > 0) {-->
+<!--        const tabLabels = tabsWithErrors.map(t =>-->
+<!--            `<strong style="color:#721c24;">${tabNames[t] || t}</strong>`-->
+<!--        ).join(', ');-->
+<!--        const box = document.getElementById('saveErrorBox');-->
+<!--        if (box) {-->
+<!--            box.style.display = 'block';-->
+<!--            box.innerHTML = `<i class="fa fa-exclamation-triangle me-2"></i>Please fix errors in the following tab(s) before saving: ${tabLabels}`;-->
+<!--            /* ★ FIX 2: scroll the error box into view so user cannot miss it ★ */-->
+<!--            setTimeout(() => box.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);-->
+<!--        }-->
+<!--        updateTabErrorBadges();-->
+<!--        return;-->
+<!--    }-->
+
+<!--    /* ── Hide error box if no errors ── */-->
+<!--    const box = document.getElementById('saveErrorBox');-->
+<!--    if (box) box.style.display = 'none';-->
+
+<!--    /* ── Step 5: Submit ── */-->
+<!--    const toReenable = [];-->
+<!--    document.querySelectorAll(-->
+<!--        '#personalDetailsForm select[disabled], #personalDetailsForm input[type="checkbox"][disabled]'-->
+<!--    ).forEach(el => {-->
+<!--        if (!el.hasAttribute('data-always-readonly')) { el.removeAttribute('disabled'); toReenable.push(el); }-->
+<!--    });-->
+<!--    const formData = new FormData(this);-->
+<!--    const csrfToken = document.querySelector('input[name="csrf_token"]').value;-->
+<!--    toReenable.forEach(el => el.setAttribute('disabled', 'disabled'));-->
+
+<!--    fetch('/my/employee/personal', {-->
+<!--        method: 'POST',-->
+<!--        body: formData,-->
+<!--        headers: { 'X-CSRFToken': csrfToken }-->
+<!--    })-->
+<!--    .then(response => response.json())-->
+<!--    .then(data => {-->
+<!--        if (data.success) {-->
+<!--            disableEditMode();-->
+<!--            localStorage.removeItem('profileDraft');-->
+<!--            if (data.no_change) {-->
+<!--                showTabMessage(-->
+<!--                    activeProfileTab,-->
+<!--                    'No changes were detected. Your profile data is already up to date.',-->
+<!--                    'info'-->
+<!--                );-->
+<!--            } else {-->
+<!--                const ref = data.reference || '';-->
+<!--                showTabMessage(-->
+<!--                    activeProfileTab,-->
+<!--                    ' Your changes have been submitted to HR for review and approval.' +-->
+<!--                    (ref ? ' Reference: <strong>' + ref + '</strong>' : '') +-->
+<!--                    ' You will receive an email once HR approves or rejects your request.',-->
+<!--                    'success'-->
+<!--                );-->
+<!--            }-->
+<!--        } else {-->
+<!--            showTabMessage(activeProfileTab, 'Error: ' + (data.error || 'Unknown error'), 'error');-->
+<!--        }-->
+<!--    })-->
+<!--    .catch(error => {-->
+<!--        console.error('Error:', error);-->
+<!--        showTabMessage(activeProfileTab, 'Network error. Please try again.', 'error');-->
+<!--    });-->
+<!--});-->
 
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('#personalDetailsForm .profile-tab-button').forEach(button => {
