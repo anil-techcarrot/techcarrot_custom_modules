@@ -1254,11 +1254,11 @@
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">
                                         <i class="fa fa-phone text-muted me-1"></i>Emergency Contact Phone
-                                        <span class="text-danger">*</span>
+
                                     </label>
                                     <input type="tel" name="emergency_phone" class="form-control"
                                            t-att-value="portal_overlay.get('emergency_phone') or employee.emergency_phone or ''"
-                                           readonly="readonly" required="required"
+                                           readonly="readonly"
                                            data-validation="phone"/>
                                     <div class="invalid-feedback"></div>
                                     <small class="text-muted">Digits only, optional leading + for country code</small>
