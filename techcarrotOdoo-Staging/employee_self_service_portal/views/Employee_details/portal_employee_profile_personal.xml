@@ -2012,6 +2012,7 @@ function enableEditMode() {
         input.style.removeProperty('pointer-events');
         input.style.removeProperty('background-color');
     });
+    localStorage.setItem('profileEditActive', '1'); // ← THIS WAS THE MISSING LINE
     document.getElementById('formActions').style.display = 'block';
     document.getElementById('viewActions').style.display = 'none';
     const disc = document.getElementById('personalDisclaimer');
@@ -2089,7 +2090,6 @@ function saveAsDraft() {
 function showSaveError(html) {
     let box = document.getElementById('saveErrorBox');
     if (!box) {
-        /* Create it just before the Save Changes button if it doesn't exist */
         box = document.createElement('div');
         box.id = 'saveErrorBox';
         box.className = 'alert alert-danger';
@@ -2311,7 +2311,7 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
         if (data.success) {
             disableEditMode();
             localStorage.removeItem('profileDraft');
-             localStorage.removeItem('profileEditActive');
+            localStorage.removeItem('profileEditActive');
             if (data.no_change) {
                 showTabMessage(activeProfileTab, 'No changes were detected. Your profile data is already up to date.', 'info');
             } else {
