@@ -2257,45 +2257,12 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
     const tabsWithErrors = [];
 
     /* ❌ REMOVE THIS (important)
-<!--    allTabs.forEach(tabKey => clearValidationStates(tabKey));-->
+    allTabs.forEach(tabKey => clearValidationStates(tabKey));
     */
 
-
-
     /* ✅ STEP 1: VALIDATE ALL FIELDS WITHOUT CLEARING */
-<!--    allTabs.forEach(tabKey => {-->
-<!--        document.querySelectorAll(-->
-
-
-allTabs.forEach(tabKey => {
-    document.querySelectorAll(
-        `.profile-tab-section[data-tab-group="${tabKey}"] input[data-validation],
-         .profile-tab-section[data-tab-group="${tabKey}"] select[data-validation]`
-    ).forEach(input => {
-
-        const val = input.value ? input.value.trim() : '';
-
-        let isInvalid = false;
-
-        if (input.hasAttribute('required') && !val) {
-            isInvalid = true;
-        }
-
-        if (isInvalid) {
-            input.classList.add('is-invalid');
-
-            if (!tabsWithErrors.includes(tabKey)) {
-                tabsWithErrors.push(tabKey);
-            }
-        }
-    });
-});
-
-
-
-
-
-
+    allTabs.forEach(tabKey => {
+        document.querySelectorAll(
             `.profile-tab-section[data-tab-group="${tabKey}"] input[data-validation],
              .profile-tab-section[data-tab-group="${tabKey}"] select[data-validation]`
         ).forEach(input => {
@@ -2316,8 +2283,6 @@ allTabs.forEach(tabKey => {
 
     /* ✅ STEP 2: SHOW ERROR ABOVE SAVE BUTTON */
     if (tabsWithErrors.length > 0) {
-
-    switchProfileTab(tabsWithErrors[0]);
 
         const tabLabels = tabsWithErrors.map(t =>
             `<strong style="color:#721c24;">${tabNames[t]}</strong>`
