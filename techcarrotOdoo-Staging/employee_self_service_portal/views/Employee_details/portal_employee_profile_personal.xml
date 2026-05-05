@@ -1905,11 +1905,11 @@
                     <!-- ===== FORM ACTIONS ===== -->
                     <div class="card shadow-sm">
                         <div class="card-body text-center">
+
+                            <!-- ★ FIX 1: saveErrorBox moved OUTSIDE formActions so it always renders when shown -->
+                            <div id="saveErrorBox" class="alert alert-danger text-start mb-3" style="display:none;"></div>
+
                             <div id="formActions" style="display: none;">
-
-                                <!-- ★ CHANGE 1: saveErrorBox added here — shows tab names with errors above Save button -->
-                                <div id="saveErrorBox" class="alert alert-danger text-start mb-3" style="display:none;"></div>
-
                                 <div class="alert alert-warning text-start mb-3"
                                      style="border-left: 4px solid #ffc107; border-radius: 6px;">
                                     <div class="form-check d-flex align-items-start gap-2">
@@ -2052,6 +2052,9 @@ function disableEditMode() {
     if (disc) disc.checked = false;
     const btn = document.getElementById('personalSaveBtn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    /* ── FIX: also hide saveErrorBox when edit mode is cancelled ── */
+    const box = document.getElementById('saveErrorBox');
+    if (box) box.style.display = 'none';
 }
 
 function toggleSaveBtn(checkboxId, btnId) {
@@ -2278,7 +2281,7 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
 
     updateTabErrorBadges();
 
-    /* ── Step 4: CHANGE 2 — Show one-line error above Save Changes button with tab names ── */
+    /* ── Step 4: FIX 2 — show error box above Save button and scroll to it ── */
     if (tabsWithErrors.length > 0) {
         const tabLabels = tabsWithErrors.map(t =>
             `<strong style="color:#721c24;">${tabNames[t] || t}</strong>`
@@ -2287,6 +2290,8 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
         if (box) {
             box.style.display = 'block';
             box.innerHTML = `<i class="fa fa-exclamation-triangle me-2"></i>Please fix errors in the following tab(s) before saving: ${tabLabels}`;
+            /* ★ FIX 2: scroll the error box into view so user cannot miss it ★ */
+            setTimeout(() => box.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
         }
         updateTabErrorBadges();
         return;
