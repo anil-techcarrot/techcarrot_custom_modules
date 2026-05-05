@@ -1903,16 +1903,16 @@
                     </div>
 
                     <!-- ★ saveErrorBox OUTSIDE formActions so it shows even when formActions is hidden ★ -->
-                    <div id="saveErrorBox"
-                         class="alert alert-danger"
-                         style="display:none; margin-bottom:12px; border-left:4px solid #dc3545;">
-                    </div>
 
-                    <div id="formActions" style="display: none;">
 
                     <!-- ===== FORM ACTIONS ===== -->
                     <div class="card shadow-sm">
                         <div class="card-body text-center">
+
+                            <div id="saveErrorBox"
+                                 class="alert alert-danger"
+                                 style="display:none; margin-bottom:12px; border-left:4px solid #dc3545;">
+                            </div>
 
 
                             <!-- ★ saveErrorBox OUTSIDE formActions so it shows even when formActions is hidden ★ -->
