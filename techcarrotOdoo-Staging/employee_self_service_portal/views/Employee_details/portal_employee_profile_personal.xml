@@ -1974,7 +1974,9 @@ function autosaveDraftNow() {
             draftData[input.name] = input.value;
         });
         localStorage.setItem('profileDraft', JSON.stringify(draftData));
-        localStorage.setItem('profileEditActive', '1');
+        /* NOTE: we do NOT set profileEditActive here anymore.
+           It is only set once — right when the user explicitly
+           navigates away while in edit mode (beforeunload).        */
     } catch(e) { console.error('autosave error', e); }
 }
 
@@ -2018,7 +2020,9 @@ function enableEditMode() {
         input.style.removeProperty('pointer-events');
         input.style.removeProperty('background-color');
     });
-    localStorage.setItem('profileEditActive', '1');
+    /* NOTE: Do NOT set profileEditActive here.
+       It is only written in beforeunload so it only
+       survives a real navigation — not a page refresh. */
     document.getElementById('formActions').style.display = 'block';
     document.getElementById('viewActions').style.display = 'none';
     const disc = document.getElementById('personalDisclaimer');
@@ -2039,6 +2043,7 @@ function enableEditMode() {
 
 function disableEditMode() {
     isEditMode = false;
+    /* Clear BOTH keys — user explicitly cancelled or saved */
     localStorage.removeItem('profileEditActive');
     localStorage.removeItem('profileDraft');
     document.querySelectorAll('.edit-mode-toggle').forEach(t => t.checked = false);
@@ -2096,7 +2101,6 @@ function saveAsDraft() {
     showTabMessage(activeProfileTab, 'Profile saved as draft.', 'info');
 }
 
-/* ── Show/hide the error box above Save Changes ── */
 function showSaveError(html) {
     let box = document.getElementById('saveErrorBox');
     if (!box) {
@@ -2264,14 +2268,12 @@ function showTabMessage(tabKey, text, type) {
 document.getElementById('personalDetailsForm').addEventListener('submit', function(e) {
     e.preventDefault();
 
-    /* ── Step 1: Disclaimer ── */
     const disc = document.getElementById('personalDisclaimer');
     if (disc && !disc.checked) {
         showSaveError('<i class="fa fa-exclamation-triangle me-2"></i>Please read and accept the Employee Disclaimer before saving.');
         return;
     }
 
-    /* ── Step 2: Validate ALL tabs ── */
     const allTabs = ['basic', 'professional', 'family', 'education', 'documents'];
     const tabNames = {
         'basic': 'Basic Info', 'professional': 'Professional',
@@ -2292,7 +2294,6 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
 
     updateTabErrorBadges();
 
-    /* ── Step 3: Show error above Save button ── */
     if (tabsWithErrors.length > 0) {
         const tabLabels = tabsWithErrors
             .map(t => `<strong style="color:#721c24;">${tabNames[t] || t}</strong>`)
@@ -2306,7 +2307,6 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
 
     hideSaveError();
 
-    /* ── Step 4: Submit ── */
     const toReenable = [];
     document.querySelectorAll('#personalDetailsForm select[disabled], #personalDetailsForm input[type="checkbox"][disabled]').forEach(el => {
         if (!el.hasAttribute('data-always-readonly')) { el.removeAttribute('disabled'); toReenable.push(el); }
@@ -2348,35 +2348,54 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     switchProfileTab(activeProfileTab);
 
-    /* ── Save draft on beforeunload (navigating away to another top tab) ── */
-    window.addEventListener('beforeunload', function() {
-        autosaveDraftNow();
-    });
+    /* ══════════════════════════════════════════════════════════════
+       KEY DESIGN:
+       - profileEditActive is ONLY written in beforeunload
+         (real navigation away) — never inside enableEditMode()
+       - On page load we ALWAYS force toggles OFF first
+       - Then we check if user was mid-edit when they navigated away
+       ══════════════════════════════════════════════════════════════ */
 
-    /* ════════════════════════════════════════════════════════════════
-       FIX 1: Read draft/editActive BEFORE clearing anything
-       FIX 2: ONLY restore if there is a real unsaved draft (wasEditing=true)
-               — this prevents edit mode turning ON on a fresh page visit
-               or after a successful save (both of which clear localStorage)
-       ════════════════════════════════════════════════════════════════ */
+    /* STEP 1 — Always force edit mode OFF on every page load, no exceptions */
+    document.querySelectorAll('.edit-mode-toggle').forEach(t => t.checked = false);
+    document.getElementById('formActions').style.display = 'none';
+    document.getElementById('viewActions').style.display = 'block';
+    isEditMode = false;
+
+    /* STEP 2 — Read flags BEFORE touching localStorage */
     const draftRaw   = localStorage.getItem('profileDraft');
     const wasEditing = localStorage.getItem('profileEditActive') === '1';
 
-    /* CRITICAL: immediately clear the flag so that if the user just
-       refreshes without navigating away, we don't keep re-entering
-       edit mode.  The flag is re-set inside enableEditMode() only when
-       the user explicitly edits something.                            */
+    /* STEP 3 — Immediately wipe the flag so refresh never re-triggers edit mode */
     localStorage.removeItem('profileEditActive');
 
+    /* STEP 4 — Save on real navigation (top tab links, browser back, etc.) */
+    window.addEventListener('beforeunload', function() {
+        if (isEditMode) {
+            /* Save current field values */
+            const draftData = {};
+            document.querySelectorAll('#personalDetailsForm input, #personalDetailsForm select').forEach(function(input) {
+                if (input.type === 'hidden' || input.type === 'file') return;
+                if (!input.name) return;
+                draftData[input.name] = input.value;
+            });
+            try {
+                localStorage.setItem('profileDraft', JSON.stringify(draftData));
+                /* Only set the flag here — this is the ONLY place */
+                localStorage.setItem('profileEditActive', '1');
+            } catch(e) {}
+        }
+    });
+
+    /* STEP 5 — Restore draft if user navigated away while editing */
     if (draftRaw && wasEditing) {
-        /* User navigated away while editing — restore their work */
         try {
             const draft = JSON.parse(draftRaw);
 
-            /* Step 1: unlock fields first */
+            /* Unlock fields */
             enableEditMode();
 
-            /* Step 2: overwrite field values with saved draft */
+            /* Restore saved values */
             Object.entries(draft).forEach(function([key, value]) {
                 const input = document.querySelector('[name="' + key + '"]');
                 if (input && input.type !== 'hidden' && input.type !== 'file') {
@@ -2384,21 +2403,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            /* Step 3: re-save draft so profileEditActive flag is live again
-               (enableEditMode sets it, then we removed it above — put it back) */
-            localStorage.setItem('profileEditActive', '1');
-
             showTabMessage(activeProfileTab,
                 'Your unsaved changes have been restored. Please review and click Save Changes.',
                 'info');
-        } catch (ex) { console.error('Error loading draft:', ex); }
-
-    } else {
-        /* Fresh visit OR after successful save — make absolutely sure
-           toggles are OFF and form/view actions are in the right state  */
-        document.querySelectorAll('.edit-mode-toggle').forEach(t => t.checked = false);
-        document.getElementById('formActions').style.display = 'none';
-        document.getElementById('viewActions').style.display = 'block';
+        } catch (ex) {
+            console.error('Error loading draft:', ex);
+            localStorage.removeItem('profileDraft');
+        }
     }
 });
                     ]]>
