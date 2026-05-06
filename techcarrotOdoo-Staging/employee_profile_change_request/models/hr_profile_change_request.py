@@ -78,34 +78,80 @@ class HrProfileChangeRequest(models.Model):
     _order = 'create_date desc'
     _rec_name = 'name'
 
-    name = fields.Char(string='Reference', required=True, copy=False, readonly=True, default='New')
-    employee_id = fields.Many2one(comodel_name='hr.employee', string='Employee', required=True, ondelete='cascade', tracking=True)
-    department_id = fields.Many2one(comodel_name='hr.department', related='employee_id.department_id', string='Department', store=True, readonly=True)
-    work_location_id = fields.Many2one(related='employee_id.work_location_id', string='Work Location', store=True, readonly=True)
+    # ═══════════════════════════════════════════════════════════════
+    # KEY FIX 1 — Disable Odoo's automatic per-company filtering.
+    # Without this line Odoo adds:
+    #   WHERE company_id = <current_company_id>
+    # to every search query, so records from other companies are
+    # invisible even to admins.
+    # ═══════════════════════════════════════════════════════════════
+    _check_company_auto = False
+
+    name = fields.Char(
+        string='Reference', required=True, copy=False,
+        readonly=True, default='New',
+    )
+    employee_id = fields.Many2one(
+        comodel_name='hr.employee', string='Employee',
+        required=True, ondelete='cascade', tracking=True,
+        check_company=False,   # allow employees from ANY company
+    )
+    department_id = fields.Many2one(
+        comodel_name='hr.department',
+        related='employee_id.department_id',
+        string='Department', store=True, readonly=True,
+    )
+    work_location_id = fields.Many2one(
+        related='employee_id.work_location_id',
+        string='Work Location', store=True, readonly=True,
+    )
     state = fields.Selection(
-        selection=[('draft', 'Draft'), ('pending', 'Pending HR Review'), ('approved', 'Approved'), ('rejected', 'Rejected')],
+        selection=[
+            ('draft',    'Draft'),
+            ('pending',  'Pending HR Review'),
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected'),
+        ],
         string='Status', default='draft', tracking=True, index=True,
     )
+    # company_id is kept for display only — not used in any access rule
+    company_id = fields.Many2one(
+        'res.company', string='Company',
+        default=lambda self: self.env.company,
+    )
     submitted_data = fields.Text(string='Submitted Data (JSON)', readonly=True)
-    changed_fields_display = fields.Html(string='Submitted Changes', compute='_compute_changed_fields_display', sanitize=False)
-    submission_date = fields.Datetime(string='Submitted On', default=fields.Datetime.now, readonly=True)
-    review_date = fields.Datetime(string='Reviewed On', readonly=True)
-    reviewed_by = fields.Many2one(comodel_name='res.users', string='Reviewed By', readonly=True)
+    changed_fields_display = fields.Html(
+        string='Submitted Changes',
+        compute='_compute_changed_fields_display',
+        sanitize=False,
+    )
+    submission_date = fields.Datetime(
+        string='Submitted On', default=fields.Datetime.now, readonly=True,
+    )
+    review_date      = fields.Datetime(string='Reviewed On', readonly=True)
+    reviewed_by      = fields.Many2one(comodel_name='res.users', string='Reviewed By', readonly=True)
     rejection_reason = fields.Text(string='Rejection Reason', tracking=True)
-    trail_ids = fields.One2many(comodel_name='hr.profile.change.request.trail', inverse_name='request_id', string='Audit Trail', readonly=True)
+    trail_ids        = fields.One2many(
+        comodel_name='hr.profile.change.request.trail',
+        inverse_name='request_id', string='Audit Trail', readonly=True,
+    )
 
+    # ── Sequence ──────────────────────────────────────────────────
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             name_val = vals.get('name', '')
             if not name_val or not name_val.startswith('PCR/'):
-                seq = self.env['ir.sequence'].sudo().next_by_code('hr.profile.change.request')
+                seq = self.env['ir.sequence'].sudo().next_by_code(
+                    'hr.profile.change.request'
+                )
                 if seq:
                     vals['name'] = seq
                 else:
                     _logger.error('Sequence hr.profile.change.request not found!')
         return super().create(vals_list)
 
+    # ── Diff table ────────────────────────────────────────────────
     @api.depends('submitted_data', 'employee_id')
     def _compute_changed_fields_display(self):
         for rec in self:
@@ -125,13 +171,35 @@ class HrProfileChangeRequest(models.Model):
                     except Exception:
                         current = '—'
                     new_val_str = str(new_val) if new_val else '—'
-                    is_changed = new_val_str != current
-                    row_style = 'background:#fffde7;' if is_changed else ''
-                    changed_badge = ('<span style="background:#ff9800;color:white;padding:2px 6px;border-radius:3px;font-size:11px;">CHANGED</span>' if is_changed else '')
-                    rows += f'<tr style="{row_style}"><td style="padding:8px 12px;border:1px solid #ddd;"><strong>{label}</strong></td><td style="padding:8px 12px;border:1px solid #ddd;color:#888;">{current or "—"}</td><td style="padding:8px 12px;border:1px solid #ddd;color:#2e7d32;font-weight:600;">{new_val_str}</td><td style="padding:8px 12px;border:1px solid #ddd;text-align:center;">{changed_badge}</td></tr>'
-                rec.changed_fields_display = f'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;font-family:Arial,sans-serif;"><thead><tr style="background:#4e73df;color:white;"><th style="padding:10px 12px;text-align:left;border:1px solid #3a5ec9;">Field</th><th style="padding:10px 12px;text-align:left;border:1px solid #3a5ec9;">Current Value</th><th style="padding:10px 12px;text-align:left;border:1px solid #3a5ec9;">Submitted Value</th><th style="padding:10px 12px;text-align:center;border:1px solid #3a5ec9;">Status</th></tr></thead><tbody>{rows}</tbody></table></div><p style="font-size:11px;color:#999;margin-top:8px;">⚠ Highlighted rows indicate values that differ from current record.</p>'
+                    is_changed  = new_val_str != current
+                    row_style   = 'background:#fffde7;' if is_changed else ''
+                    badge = (
+                        '<span style="background:#ff9800;color:white;padding:2px 6px;'
+                        'border-radius:3px;font-size:11px;">CHANGED</span>'
+                        if is_changed else ''
+                    )
+                    rows += (
+                        f'<tr style="{row_style}">'
+                        f'<td style="padding:8px 12px;border:1px solid #ddd;"><strong>{label}</strong></td>'
+                        f'<td style="padding:8px 12px;border:1px solid #ddd;color:#888;">{current or "—"}</td>'
+                        f'<td style="padding:8px 12px;border:1px solid #ddd;color:#2e7d32;font-weight:600;">{new_val_str}</td>'
+                        f'<td style="padding:8px 12px;border:1px solid #ddd;text-align:center;">{badge}</td>'
+                        f'</tr>'
+                    )
+                rec.changed_fields_display = (
+                    '<div style="overflow-x:auto;">'
+                    '<table style="width:100%;border-collapse:collapse;font-size:13px;font-family:Arial,sans-serif;">'
+                    '<thead><tr style="background:#4e73df;color:white;">'
+                    '<th style="padding:10px 12px;text-align:left;border:1px solid #3a5ec9;">Field</th>'
+                    '<th style="padding:10px 12px;text-align:left;border:1px solid #3a5ec9;">Current Value</th>'
+                    '<th style="padding:10px 12px;text-align:left;border:1px solid #3a5ec9;">Submitted Value</th>'
+                    '<th style="padding:10px 12px;text-align:center;border:1px solid #3a5ec9;">Status</th>'
+                    f'</tr></thead><tbody>{rows}</tbody></table></div>'
+                    '<p style="font-size:11px;color:#999;margin-top:8px;">'
+                    '⚠ Highlighted rows indicate values that differ from current record.</p>'
+                )
             except Exception as e:
-                rec.changed_fields_display = f'<p class="text-danger">Error reading submitted data: {e}</p>'
+                rec.changed_fields_display = f'<p class="text-danger">Error: {e}</p>'
 
     # ── Submit ────────────────────────────────────────────────────
     def action_submit(self):
@@ -141,7 +209,7 @@ class HrProfileChangeRequest(models.Model):
             'last_portal_submission': self.submitted_data,
             'last_submission_state':  'pending',
         })
-        self._add_trail(action='submitted', note=f'Request submitted by {self.employee_id.name}')
+        self._add_trail(action='submitted', note=f'Submitted by {self.employee_id.name}')
         self._send_mail_to_hr()
         return True
 
@@ -153,37 +221,33 @@ class HrProfileChangeRequest(models.Model):
         try:
             data = json.loads(self.submitted_data or '{}')
         except Exception:
-            raise UserError(_('Submitted data is corrupted. Cannot apply changes.'))
+            raise UserError(_('Submitted data is corrupted.'))
 
         skip_fields = {'csrf_token', 'submit'}
-        write_vals = {k: v for k, v in data.items() if k not in skip_fields and v is not None and v != ''}
+        write_vals  = {k: v for k, v in data.items()
+                       if k not in skip_fields and v is not None and v != ''}
 
         for f in {'children'}:
             if f in write_vals:
-                try:
-                    write_vals[f] = int(write_vals[f])
-                except (ValueError, TypeError):
-                    write_vals.pop(f, None)
+                try:    write_vals[f] = int(write_vals[f])
+                except: write_vals.pop(f, None)
         for f in {'last_salary_per_annum_amt'}:
             if f in write_vals:
-                try:
-                    write_vals[f] = float(write_vals[f])
-                except (ValueError, TypeError):
-                    write_vals.pop(f, None)
+                try:    write_vals[f] = float(write_vals[f])
+                except: write_vals.pop(f, None)
 
         self.employee_id.sudo().write(write_vals)
-        _logger.info('Profile change request %s approved. Wrote %d fields to employee %s.', self.name, len(write_vals), self.employee_id.name)
+        _logger.info('PCR %s approved — %d fields written to %s.',
+                     self.name, len(write_vals), self.employee_id.name)
 
-        self.write({'state': 'approved', 'reviewed_by': self.env.user.id, 'review_date': fields.Datetime.now()})
-        self._add_trail(action='approved', note=f'Approved by {self.env.user.name}. {len(write_vals)} field(s) written.')
+        self.write({'state': 'approved', 'reviewed_by': self.env.user.id,
+                    'review_date': fields.Datetime.now()})
+        self._add_trail(action='approved',
+                        note=f'Approved by {self.env.user.name}. {len(write_vals)} field(s) written.')
         self._send_mail_to_employee('approved')
-
-        # ── Clear overlay + write APPROVED notification ─────────────
-        # Do NOT set last_submission_state to False here —
-        # instead use 'approved' so the portal banner shows correctly.
         self.employee_id.sudo().write({
             'last_portal_submission': False,
-            'last_submission_state':  'approved',          # ← KEY CHANGE
+            'last_submission_state':  'approved',
         })
         return True
 
@@ -204,10 +268,10 @@ class HrProfileChangeRequest(models.Model):
         self.ensure_one()
         if self.state != 'rejected':
             raise UserError(_('Only rejected requests can be re-opened.'))
-        self.write({'state': 'pending', 'rejection_reason': False, 'reviewed_by': False, 'review_date': False})
-        # Clear notification so portal doesn't show stale rejected banner
+        self.write({'state': 'pending', 'rejection_reason': False,
+                    'reviewed_by': False, 'review_date': False})
         self.employee_id.sudo().write({
-            'last_submission_state': False,
+            'last_submission_state':  False,
             'last_portal_submission': False,
         })
         self._add_trail(action='reopened', note=f'Re-opened by {self.env.user.name}')
@@ -215,46 +279,158 @@ class HrProfileChangeRequest(models.Model):
 
     def _add_trail(self, action, note, reason=None):
         self.env['hr.profile.change.request.trail'].sudo().create({
-            'request_id': self.id, 'action': action, 'note': note,
-            'reason': reason or '', 'user_id': self.env.user.id,
+            'request_id':  self.id, 'action': action,
+            'note':        note,    'reason': reason or '',
+            'user_id':     self.env.user.id,
             'action_date': fields.Datetime.now(),
         })
 
+    # ═══════════════════════════════════════════════════════════════
+    # KEY FIX 2 — Send mail to ALL HR Reviewers, ALL companies.
+    #
+    # The critical line is:  hr_group.sudo().users
+    # Without sudo(), Odoo only returns users from the current
+    # company, so HR users from India/Dubai/etc. are skipped.
+    # ═══════════════════════════════════════════════════════════════
     def _send_mail_to_hr(self):
         try:
-            hr_person = self.employee_id.hr_manager_id
-            hr_email = hr_person.work_email if hr_person else None
-            if not hr_email:
-                _logger.warning('No HR manager assigned for employee %s.', self.employee_id.name)
+            hr_group = self.env.ref(
+                'employee_profile_change_request.group_profile_change_hr_reviewer',
+                raise_if_not_found=False,
+            )
+            if not hr_group:
+                _logger.warning(
+                    'HR Reviewer group not found. '
+                    'Make sure the module is installed correctly.'
+                )
                 return
+
+            # sudo() → gets ALL users regardless of which company
+            # the current session is logged into
+            hr_users = hr_group.sudo().users
+
+            if not hr_users:
+                _logger.warning(
+                    'No users assigned to HR Reviewer group. '
+                    'Go to Settings → Users → assign '
+                    '"Profile Change Approval / HR Reviewer".'
+                )
+                return
+
+            hr_emails = [
+                u.work_email or u.email
+                for u in hr_users
+                if (u.work_email or u.email)
+            ]
+            if not hr_emails:
+                _logger.warning(
+                    'HR Reviewers found (%s) but none have email addresses.',
+                    ', '.join(hr_users.mapped('name')),
+                )
+                return
+
+            email_to = ', '.join(hr_emails)
+            hr_names = ', '.join(hr_users.mapped('name'))
+
+            _logger.info(
+                'PCR %s: sending notification to HR Reviewers [%s]',
+                self.name, email_to,
+            )
+
             mail = self.env['mail.mail'].sudo().create({
-                'subject': f'New Profile Change Request: {self.name} — {self.employee_id.name}',
-                'email_to': hr_email,
-                'email_from': self.employee_id.company_id.email or 'notifications@techcarrot-fz-llc1.odoo.com',
+                'subject': (
+                    f'New Profile Change Request: '
+                    f'{self.name} — {self.employee_id.name}'
+                ),
+                'email_to':   email_to,
+                'email_from': (
+                    self.employee_id.company_id.email
+                    or 'notifications@techcarrot-fz-llc1.odoo.com'
+                ),
                 'auto_delete': False,
                 'body_html': f'''
-                    <div style="font-family:Arial,sans-serif;max-width:600px;">
-                        <div style="background:#4e73df;padding:20px;">
-                            <h2 style="color:white;margin:0;">📋 New Profile Change Request</h2>
-                        </div>
-                        <div style="padding:20px;background:#f9f9f9;">
-                            <p>Dear {hr_person.name},</p>
-                            <p><b>{self.employee_id.name}</b> has submitted a profile update request that requires your review.</p>
-                            <table style="width:100%;border-collapse:collapse;">
-                                <tr style="background:#eef2ff;"><td style="padding:8px;border:1px solid #ddd;font-weight:bold;width:35%;">Reference</td><td style="padding:8px;border:1px solid #ddd;">{self.name}</td></tr>
-                                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Employee</td><td style="padding:8px;border:1px solid #ddd;">{self.employee_id.name}</td></tr>
-                                <tr style="background:#eef2ff;"><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Department</td><td style="padding:8px;border:1px solid #ddd;">{self.department_id.name or '—'}</td></tr>
-                                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Submitted On</td><td style="padding:8px;border:1px solid #ddd;">{self.submission_date}</td></tr>
-                            </table>
-                            <p>Please login to Odoo → Profile Change Requests to review and approve or reject.</p>
-                        </div>
-                    </div>''',
+                <div style="font-family:Arial,sans-serif;max-width:620px;
+                            margin:auto;border:1px solid #ddd;
+                            border-radius:8px;overflow:hidden;">
+                    <div style="background:#4e73df;padding:24px 28px;">
+                        <h2 style="color:white;margin:0;font-size:20px;">
+                            📋 New Profile Change Request
+                        </h2>
+                        <p style="color:#c8d8ff;margin:6px 0 0;font-size:13px;">
+                            Action required — please review and approve or reject
+                        </p>
+                    </div>
+                    <div style="padding:24px;background:#f9f9f9;">
+                        <p>Dear HR Team,</p>
+                        <p>
+                            <b>{self.employee_id.name}</b> has submitted a profile
+                            update request that requires your review.
+                        </p>
+                        <table style="width:100%;border-collapse:collapse;
+                                      margin:16px 0;background:white;">
+                            <tr style="background:#eef2ff;">
+                                <td style="padding:10px 14px;border:1px solid #ddd;
+                                           font-weight:bold;width:38%;">Reference</td>
+                                <td style="padding:10px 14px;border:1px solid #ddd;">
+                                    {self.name}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 14px;border:1px solid #ddd;
+                                           font-weight:bold;">Employee</td>
+                                <td style="padding:10px 14px;border:1px solid #ddd;">
+                                    {self.employee_id.name}
+                                </td>
+                            </tr>
+                            <tr style="background:#eef2ff;">
+                                <td style="padding:10px 14px;border:1px solid #ddd;
+                                           font-weight:bold;">Company</td>
+                                <td style="padding:10px 14px;border:1px solid #ddd;">
+                                    {self.company_id.name if self.company_id else '—'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 14px;border:1px solid #ddd;
+                                           font-weight:bold;">Department</td>
+                                <td style="padding:10px 14px;border:1px solid #ddd;">
+                                    {self.department_id.name or '—'}
+                                </td>
+                            </tr>
+                            <tr style="background:#eef2ff;">
+                                <td style="padding:10px 14px;border:1px solid #ddd;
+                                           font-weight:bold;">Work Location</td>
+                                <td style="padding:10px 14px;border:1px solid #ddd;">
+                                    {self.work_location_id.name if self.work_location_id else '—'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 14px;border:1px solid #ddd;
+                                           font-weight:bold;">Submitted On</td>
+                                <td style="padding:10px 14px;border:1px solid #ddd;">
+                                    {self.submission_date}
+                                </td>
+                            </tr>
+                        </table>
+                        <p>
+                            Please login to Odoo →
+                            <b>Profile Change Requests → Pending Review</b>
+                            to approve or reject.
+                        </p>
+                        <p style="color:#999;font-size:11px;margin-top:12px;">
+                            This notification was sent to: {hr_names}
+                        </p>
+                    </div>
+                </div>
+                ''',
             })
             mail.sudo().send()
-            _logger.info('HR notification sent to %s for request %s', hr_email, self.name)
+            _logger.info(
+                'PCR %s: HR notification sent to %s', self.name, email_to,
+            )
         except Exception as e:
             _logger.warning('Failed to send HR notification: %s', e)
 
+    # ── Mail to Employee ──────────────────────────────────────────
     def _send_mail_to_employee(self, status):
         try:
             emp_email = self.employee_id.work_email or self.employee_id.private_email
@@ -262,21 +438,31 @@ class HrProfileChangeRequest(models.Model):
                 return
             if status == 'approved':
                 subject = f'Profile Update Approved - {self.name}'
-                body = f'<p>Dear <b>{self.employee_id.name}</b>,</p><p>Your request <b>{self.name}</b> has been <b style="color:green">APPROVED</b>. Your profile has been updated successfully.</p>'
+                body = (
+                    f'<p>Dear <b>{self.employee_id.name}</b>,</p>'
+                    f'<p>Your request <b>{self.name}</b> has been '
+                    f'<b style="color:green">APPROVED</b>. '
+                    f'Your profile has been updated successfully.</p>'
+                )
             else:
                 subject = f'Profile Update Rejected - {self.name}'
-                body = f'<p>Dear <b>{self.employee_id.name}</b>,</p><p>Your request <b>{self.name}</b> has been <b style="color:red">REJECTED</b>.</p><p>Reason: {self.rejection_reason or "No reason provided"}</p>'
+                body = (
+                    f'<p>Dear <b>{self.employee_id.name}</b>,</p>'
+                    f'<p>Your request <b>{self.name}</b> has been '
+                    f'<b style="color:red">REJECTED</b>.</p>'
+                    f'<p>Reason: {self.rejection_reason or "No reason provided"}</p>'
+                )
             mail = self.env['mail.mail'].sudo().create({
-                'subject': subject, 'email_to': emp_email,
-                'email_from': 'notifications@techcarrot-fz-llc1.odoo.com',
-                'auto_delete': False, 'body_html': body,
+                'subject':     subject,
+                'email_to':    emp_email,
+                'email_from':  'notifications@techcarrot-fz-llc1.odoo.com',
+                'auto_delete': False,
+                'body_html':   body,
             })
             mail.sudo().send()
             _logger.info('Employee notification sent to %s', emp_email)
         except Exception as e:
             _logger.warning('Failed to send employee notification: %s', e)
-
-
 
 # # -*- coding: utf-8 -*-
 # import json

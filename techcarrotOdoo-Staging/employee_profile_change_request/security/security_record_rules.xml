@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!--
+        ════════════════════════════════════════════════════════════
+        RECORD RULES — hr.profile.change.request
+
+        RULE 1: Employee sees only their OWN requests.
+        RULE 2: HR Reviewer sees ALL requests from ALL companies.
+                domain_force = [(1,'=',1)] means NO filter at all.
+        ════════════════════════════════════════════════════════════
+        -->
+
+        <!-- Employees: own records only -->
+        <record id="rule_pcr_employee_own" model="ir.rule">
+            <field name="name">PCR: Employee sees own requests only</field>
+            <field name="model_id" ref="model_hr_profile_change_request"/>
+            <field name="domain_force">
+                [('employee_id.user_id', '=', user.id)]
+            </field>
+            <field name="groups" eval="[(4, ref('base.group_portal')), (4, ref('base.group_user'))]"/>
+            <field name="perm_read"   eval="True"/>
+            <field name="perm_write"  eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <!--
+        HR Reviewer: NO filter — sees every record from every
+        company, every location, every department.
+        This is the fix for the empty list view when switching
+        between companies.
+        -->
+        <record id="rule_pcr_hr_reviewer_all" model="ir.rule">
+            <field name="name">PCR: HR Reviewer sees ALL requests (all companies)</field>
+            <field name="model_id" ref="model_hr_profile_change_request"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('employee_profile_change_request.group_profile_change_hr_reviewer'))]"/>
+            <field name="perm_read"   eval="True"/>
+            <field name="perm_write"  eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+    </data>
+</odoo>
