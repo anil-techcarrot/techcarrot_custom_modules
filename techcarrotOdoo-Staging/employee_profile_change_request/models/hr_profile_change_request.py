@@ -86,6 +86,12 @@ class HrProfileChangeRequest(models.Model):
         selection=[('draft', 'Draft'), ('pending', 'Pending HR Review'), ('approved', 'Approved'), ('rejected', 'Rejected')],
         string='Status', default='draft', tracking=True, index=True,
     )
+    company_id = fields.Many2one(
+        'res.company',
+        string='Company',
+        default=lambda self: self.env.company,
+        required=True
+    )
     submitted_data = fields.Text(string='Submitted Data (JSON)', readonly=True)
     changed_fields_display = fields.Html(string='Submitted Changes', compute='_compute_changed_fields_display', sanitize=False)
     submission_date = fields.Datetime(string='Submitted On', default=fields.Datetime.now, readonly=True)
