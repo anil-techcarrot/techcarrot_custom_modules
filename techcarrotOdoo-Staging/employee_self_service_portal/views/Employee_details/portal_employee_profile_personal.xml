@@ -2032,7 +2032,6 @@ function enableEditMode() {
         input.removeEventListener('input', autosaveDraftNow);
         input.addEventListener('input', validateField);
         input.addEventListener('blur', validateField);
-        /* ── KEY FIX: save draft on every keystroke so navigation never loses data ── */
         input.addEventListener('input', autosaveDraftNow);
         input.addEventListener('change', autosaveDraftNow);
     });
@@ -2041,6 +2040,7 @@ function enableEditMode() {
 function disableEditMode() {
     isEditMode = false;
     localStorage.removeItem('profileEditActive');
+    localStorage.removeItem('profileDraft');
     document.querySelectorAll('.edit-mode-toggle').forEach(t => t.checked = false);
     document.querySelectorAll('#personalDetailsForm input, #personalDetailsForm select').forEach(input => {
         if (input.type === 'hidden') return;
@@ -2348,23 +2348,35 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     switchProfileTab(activeProfileTab);
 
-    /* ── Also save on beforeunload as backup ── */
+    /* ── Save draft on beforeunload (navigating away to another top tab) ── */
     window.addEventListener('beforeunload', function() {
         autosaveDraftNow();
     });
 
-    /* ── Restore draft + edit mode ── */
-    const draftRaw = localStorage.getItem('profileDraft');
+    /* ════════════════════════════════════════════════════════════════
+       FIX 1: Read draft/editActive BEFORE clearing anything
+       FIX 2: ONLY restore if there is a real unsaved draft (wasEditing=true)
+               — this prevents edit mode turning ON on a fresh page visit
+               or after a successful save (both of which clear localStorage)
+       ════════════════════════════════════════════════════════════════ */
+    const draftRaw   = localStorage.getItem('profileDraft');
     const wasEditing = localStorage.getItem('profileEditActive') === '1';
 
+    /* CRITICAL: immediately clear the flag so that if the user just
+       refreshes without navigating away, we don't keep re-entering
+       edit mode.  The flag is re-set inside enableEditMode() only when
+       the user explicitly edits something.                            */
+    localStorage.removeItem('profileEditActive');
+
     if (draftRaw && wasEditing) {
+        /* User navigated away while editing — restore their work */
         try {
             const draft = JSON.parse(draftRaw);
 
-            /* Step 1: enable edit mode so fields become writable */
+            /* Step 1: unlock fields first */
             enableEditMode();
 
-            /* Step 2: NOW restore draft values AFTER fields are unlocked */
+            /* Step 2: overwrite field values with saved draft */
             Object.entries(draft).forEach(function([key, value]) {
                 const input = document.querySelector('[name="' + key + '"]');
                 if (input && input.type !== 'hidden' && input.type !== 'file') {
@@ -2372,12 +2384,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            /* Step 3: re-snapshot originalFormData from SERVER values is already done
-               inside enableEditMode() before we overwrote with draft — that's fine,
-               cancel will restore server values which is correct behaviour */
+            /* Step 3: re-save draft so profileEditActive flag is live again
+               (enableEditMode sets it, then we removed it above — put it back) */
+            localStorage.setItem('profileEditActive', '1');
 
-            showTabMessage(activeProfileTab, 'Your unsaved changes have been restored. Please review and click Save Changes.', 'info');
+            showTabMessage(activeProfileTab,
+                'Your unsaved changes have been restored. Please review and click Save Changes.',
+                'info');
         } catch (ex) { console.error('Error loading draft:', ex); }
+
+    } else {
+        /* Fresh visit OR after successful save — make absolutely sure
+           toggles are OFF and form/view actions are in the right state  */
+        document.querySelectorAll('.edit-mode-toggle').forEach(t => t.checked = false);
+        document.getElementById('formActions').style.display = 'none';
+        document.getElementById('viewActions').style.display = 'block';
     }
 });
                     ]]>
