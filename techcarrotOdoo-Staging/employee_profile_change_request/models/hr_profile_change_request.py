@@ -398,17 +398,22 @@ class HrProfileChangeRequest(models.Model):
                 _logger.warning('PCR %s: No HR Reviewer users found — mail not sent.', self.name)
                 return
 
-            hr_emails = [
-                u.work_email or u.email
-                for u in hr_users
-                if (u.work_email or u.email)
-            ]
+            hr_emails = []
+            hr_names_list = []
+            for u in hr_users:
+                # Use login as most reliable email — work_email can be misconfigured
+                best_email = u.login if '@' in (u.login or '') else (u.work_email or u.partner_id.email or u.email)
+                if best_email:
+                    hr_emails.append(best_email)
+                    hr_names_list.append(u.name)
+                    _logger.info('PCR %s: HR Reviewer %s → will send to: %s', self.name, u.name, best_email)
+
             if not hr_emails:
                 _logger.warning('PCR %s: HR Reviewers have no email addresses.', self.name)
                 return
 
             email_to = ', '.join(hr_emails)
-            hr_names = ', '.join(hr_users.mapped('name'))
+            hr_names = ', '.join(hr_names_list)
 
             _logger.info('PCR %s: sending HR notification to [%s]', self.name, email_to)
 
@@ -476,7 +481,12 @@ class HrProfileChangeRequest(models.Model):
     # ── Mail to Employee ──────────────────────────────────────────
     def _send_mail_to_employee(self, status):
         try:
-            emp_email = self.employee_id.work_email or self.employee_id.private_email
+            # Get employee's linked user login as most reliable email
+            emp_user = self.employee_id.user_id
+            if emp_user and '@' in (emp_user.login or ''):
+                emp_email = emp_user.login
+            else:
+                emp_email = self.employee_id.work_email or self.employee_id.private_email
             if not emp_email:
                 _logger.warning('PCR %s: Employee has no email address.', self.name)
                 return
