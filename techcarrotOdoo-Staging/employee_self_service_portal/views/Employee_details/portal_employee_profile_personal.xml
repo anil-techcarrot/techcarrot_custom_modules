@@ -1254,7 +1254,6 @@
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">
                                         <i class="fa fa-phone text-muted me-1"></i>Emergency Contact Phone
-
                                     </label>
                                     <input type="tel" name="emergency_phone" class="form-control"
                                            t-att-value="portal_overlay.get('emergency_phone') or employee.emergency_phone or ''"
@@ -1902,17 +1901,9 @@
                         </div>
                     </div>
 
-                    <!-- ★ saveErrorBox OUTSIDE formActions so it shows even when formActions is hidden ★ -->
-
-
                     <!-- ===== FORM ACTIONS ===== -->
                     <div class="card shadow-sm">
                         <div class="card-body text-center">
-
-
-                            <!-- ★ saveErrorBox OUTSIDE formActions so it shows even when formActions is hidden ★ -->
-
-
                             <div id="formActions" style="display: none;">
                                 <div class="alert alert-warning text-start mb-3"
                                      style="border-left: 4px solid #ffc107; border-radius: 6px;">
@@ -1972,6 +1963,21 @@ let isEditMode = false;
 let originalFormData = {};
 let activeProfileTab = 'basic';
 
+/* ── Helper: snapshot all editable field values into localStorage immediately ── */
+function autosaveDraftNow() {
+    if (!isEditMode) return;
+    try {
+        const draftData = {};
+        document.querySelectorAll('#personalDetailsForm input, #personalDetailsForm select').forEach(function(input) {
+            if (input.type === 'hidden' || input.type === 'file') return;
+            if (!input.name) return;
+            draftData[input.name] = input.value;
+        });
+        localStorage.setItem('profileDraft', JSON.stringify(draftData));
+        localStorage.setItem('profileEditActive', '1');
+    } catch(e) { console.error('autosave error', e); }
+}
+
 function switchProfileTab(tabKey) {
     const previousTab = activeProfileTab;
     activeProfileTab = tabKey;
@@ -2012,7 +2018,7 @@ function enableEditMode() {
         input.style.removeProperty('pointer-events');
         input.style.removeProperty('background-color');
     });
-    localStorage.setItem('profileEditActive', '1'); // ← THIS WAS THE MISSING LINE
+    localStorage.setItem('profileEditActive', '1');
     document.getElementById('formActions').style.display = 'block';
     document.getElementById('viewActions').style.display = 'none';
     const disc = document.getElementById('personalDisclaimer');
@@ -2022,8 +2028,13 @@ function enableEditMode() {
     document.querySelectorAll('#personalDetailsForm input, #personalDetailsForm select').forEach(input => {
         input.removeEventListener('input', validateField);
         input.removeEventListener('blur', validateField);
+        input.removeEventListener('change', autosaveDraftNow);
+        input.removeEventListener('input', autosaveDraftNow);
         input.addEventListener('input', validateField);
         input.addEventListener('blur', validateField);
+        /* ── KEY FIX: save draft on every keystroke so navigation never loses data ── */
+        input.addEventListener('input', autosaveDraftNow);
+        input.addEventListener('change', autosaveDraftNow);
     });
 }
 
@@ -2074,15 +2085,14 @@ function cancelEdit() {
         const input = document.querySelector(`[name="${key}"]`);
         if (input) input.value = value;
     }
+    localStorage.removeItem('profileDraft');
+    localStorage.removeItem('profileEditActive');
     disableEditMode();
     showTabMessage(activeProfileTab, 'Changes cancelled.', 'info');
 }
 
 function saveAsDraft() {
-    const formData = new FormData(document.getElementById('personalDetailsForm'));
-    const draftData = {};
-    for (let [key, value] of formData.entries()) draftData[key] = value;
-    localStorage.setItem('profileDraft', JSON.stringify(draftData));
+    autosaveDraftNow();
     showTabMessage(activeProfileTab, 'Profile saved as draft.', 'info');
 }
 
@@ -2338,32 +2348,35 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     switchProfileTab(activeProfileTab);
 
-    /* ── Auto-save draft when navigating to other pages ── */
+    /* ── Also save on beforeunload as backup ── */
     window.addEventListener('beforeunload', function() {
-        if (isEditMode) {
-            const formData = new FormData(document.getElementById('personalDetailsForm'));
-            const draftData = {};
-            for (let [key, value] of formData.entries()) draftData[key] = value;
-            localStorage.setItem('profileDraft', JSON.stringify(draftData));
-        }
+        autosaveDraftNow();
     });
 
-    /* ── Restore draft + edit mode if user was editing before navigating away ── */
-    const draftData = localStorage.getItem('profileDraft');
+    /* ── Restore draft + edit mode ── */
+    const draftRaw = localStorage.getItem('profileDraft');
     const wasEditing = localStorage.getItem('profileEditActive') === '1';
-    if (draftData) {
+
+    if (draftRaw && wasEditing) {
         try {
-            const draft = JSON.parse(draftData);
-            if (wasEditing) {
-                enableEditMode(); /* re-enable edit mode first so fields are writable */
-            }
-            Object.entries(draft).forEach(([key, value]) => {
-                const input = document.querySelector(`[name="${key}"]`);
-                if (input && input.type !== 'hidden') input.value = value;
+            const draft = JSON.parse(draftRaw);
+
+            /* Step 1: enable edit mode so fields become writable */
+            enableEditMode();
+
+            /* Step 2: NOW restore draft values AFTER fields are unlocked */
+            Object.entries(draft).forEach(function([key, value]) {
+                const input = document.querySelector('[name="' + key + '"]');
+                if (input && input.type !== 'hidden' && input.type !== 'file') {
+                    input.value = value;
+                }
             });
-            if (wasEditing) {
-                showTabMessage(activeProfileTab, 'Your unsaved changes have been restored. Please review and click Save Changes.', 'info');
-            }
+
+            /* Step 3: re-snapshot originalFormData from SERVER values is already done
+               inside enableEditMode() before we overwrote with draft — that's fine,
+               cancel will restore server values which is correct behaviour */
+
+            showTabMessage(activeProfileTab, 'Your unsaved changes have been restored. Please review and click Save Changes.', 'info');
         } catch (ex) { console.error('Error loading draft:', ex); }
     }
 });
