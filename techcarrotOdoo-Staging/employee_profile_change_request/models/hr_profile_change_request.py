@@ -402,7 +402,8 @@ class HrProfileChangeRequest(models.Model):
             hr_names_list = []
             for u in hr_users:
                 # Use login as most reliable email — work_email can be misconfigured
-                best_email = u.login if '@' in (u.login or '') else (u.work_email or u.partner_id.email or u.email)
+                # best_email = u.login if '@' in (u.login or '') else (u.work_email or u.partner_id.email or u.email)
+                best_email = u.work_email or u.partner_id.email or (u.login if '@' in (u.login or '') else None)
                 if best_email:
                     hr_emails.append(best_email)
                     hr_names_list.append(u.name)
