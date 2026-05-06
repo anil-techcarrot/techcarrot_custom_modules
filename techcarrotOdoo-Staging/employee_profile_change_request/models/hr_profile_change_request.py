@@ -86,12 +86,7 @@ class HrProfileChangeRequest(models.Model):
         selection=[('draft', 'Draft'), ('pending', 'Pending HR Review'), ('approved', 'Approved'), ('rejected', 'Rejected')],
         string='Status', default='draft', tracking=True, index=True,
     )
-    company_id = fields.Many2one(
-        'res.company',
-        string='Company',
-        default=lambda self: self.env.company,
-        required=True
-    )
+
     submitted_data = fields.Text(string='Submitted Data (JSON)', readonly=True)
     changed_fields_display = fields.Html(string='Submitted Changes', compute='_compute_changed_fields_display', sanitize=False)
     submission_date = fields.Datetime(string='Submitted On', default=fields.Datetime.now, readonly=True)
@@ -230,9 +225,7 @@ class HrProfileChangeRequest(models.Model):
 
     def _send_mail_to_hr(self):
         try:
-            # ── Get ALL users in HR Reviewer group ──────────────────
-            # No need to fill hr_manager_id on every employee.
-            # Any HR Reviewer in the same company will receive the email.
+            # ── Get ALL users in HR Reviewer group (no company filter) ──
             hr_group = self.env.ref(
                 'employee_profile_change_request.group_profile_change_hr_reviewer',
                 raise_if_not_found=False,
@@ -241,22 +234,22 @@ class HrProfileChangeRequest(models.Model):
                 _logger.warning('HR Reviewer group not found.')
                 return
 
-            # Filter HR users belonging to the same company as the employee
-            hr_users = hr_group.users.filtered(
-                lambda u: not self.company_id
-                          or self.company_id in u.company_ids
-            )
+            # All HR Reviewers across ALL companies — no filtering
+            hr_users = hr_group.users
 
             if not hr_users:
                 _logger.warning(
-                    'No HR Reviewers found for company %s. '
-                    'Please assign the HR Reviewer group to at least one user.',
-                    self.company_id.name if self.company_id else '—',
+                    'No HR Reviewers found at all. '
+                    'Please assign the HR Reviewer group to at least one user.'
                 )
                 return
 
             # Collect all HR email addresses
-            hr_emails = [u.work_email or u.email for u in hr_users if (u.work_email or u.email)]
+            hr_emails = [
+                u.work_email or u.email
+                for u in hr_users
+                if (u.work_email or u.email)
+            ]
             if not hr_emails:
                 _logger.warning('HR Reviewers found but none have an email address.')
                 return
@@ -334,7 +327,7 @@ class HrProfileChangeRequest(models.Model):
             })
             mail.sudo().send()
             _logger.info(
-                'HR notification sent to %s for request %s',
+                'HR notification sent to ALL HR Reviewers (%s) for request %s',
                 email_to, self.name,
             )
         except Exception as e:
