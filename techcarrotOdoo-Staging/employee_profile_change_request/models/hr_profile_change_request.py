@@ -78,7 +78,6 @@ class HrProfileChangeRequest(models.Model):
     _order = 'create_date desc'
     _rec_name = 'name'
 
-    # Disable Odoo's automatic per-company WHERE clause
     _check_company_auto = False
 
     name = fields.Char(
@@ -108,7 +107,6 @@ class HrProfileChangeRequest(models.Model):
         ],
         string='Status', default='draft', tracking=True, index=True,
     )
-    # company_id for display only — no access filtering
     company_id = fields.Many2one(
         'res.company', string='Company',
         default=lambda self: self.env.company,
@@ -131,29 +129,73 @@ class HrProfileChangeRequest(models.Model):
     )
 
     # ══════════════════════════════════════════════════════════════
-    # KEY FIX: HR Reviewers see ALL records from ALL companies.
-    #
-    # Odoo applies multi-company filtering at TWO levels:
-    #   1. ir.rule domain (handled by security_record_rules.xml)
-    #   2. ORM-level company context from allowed_company_ids
-    #      (the top-bar company switcher) — this is what blocks
-    #      records from other companies even with correct rules.
-    #
-    # Solution: for HR Reviewers, run every query with sudo()
-    # which completely bypasses both layers.
+    # FIX 1: Get HR users via SQL — works in Odoo 17 AND 19
+    #   res.groups.users attribute was removed in Odoo 17+
+    #   groups_id domain field was removed in Odoo 19
+    #   Direct SQL on res_groups_users_rel is the only safe method
     # ══════════════════════════════════════════════════════════════
-
-    def _is_hr_reviewer(self):
-        """Return True if current user has HR Reviewer group."""
+    def _get_hr_reviewer_users(self):
+        """
+        Returns res.users recordset of all HR Reviewers.
+        Uses direct SQL because:
+          - Odoo 17+: res.groups has no .users attribute
+          - Odoo 19:  groups_id domain field removed from res.users
+          - SQL on res_groups_users_rel works in ALL versions
+        """
         try:
             hr_group = self.env.ref(
                 'employee_profile_change_request.group_profile_change_hr_reviewer',
                 raise_if_not_found=False,
             )
-            return bool(hr_group and self.env.user in hr_group.sudo().users)
+            if not hr_group:
+                _logger.warning('HR Reviewer group not found.')
+                return self.env['res.users']
+
+            # Direct SQL — bypasses all ORM field restrictions
+            self.env.cr.execute(
+                'SELECT uid FROM res_groups_users_rel WHERE gid = %s',
+                [hr_group.id]
+            )
+            user_ids = [row[0] for row in self.env.cr.fetchall()]
+            if not user_ids:
+                _logger.warning('No users found in HR Reviewer group (id=%s)', hr_group.id)
+                return self.env['res.users']
+
+            hr_users = self.env['res.users'].sudo().browse(user_ids)
+            _logger.info(
+                'HR Reviewer users found: %s',
+                [(u.name, u.work_email or u.email) for u in hr_users]
+            )
+            return hr_users
+
+        except Exception as e:
+            _logger.error('_get_hr_reviewer_users error: %s', e)
+            return self.env['res.users']
+
+    def _is_hr_reviewer(self):
+        """Return True if current user is in HR Reviewer group."""
+        try:
+            hr_group = self.env.ref(
+                'employee_profile_change_request.group_profile_change_hr_reviewer',
+                raise_if_not_found=False,
+            )
+            if not hr_group:
+                return False
+            # SQL check for current user
+            self.env.cr.execute(
+                'SELECT 1 FROM res_groups_users_rel WHERE gid = %s AND uid = %s',
+                [hr_group.id, self.env.uid]
+            )
+            return bool(self.env.cr.fetchone())
         except Exception:
             return False
 
+    # ══════════════════════════════════════════════════════════════
+    # FIX 2: _search must accept **kwargs so ORM internal calls
+    #   passing active_test=False don't crash with TypeError.
+    #   This was the cause of: TypeError: _search() got an
+    #   unexpected keyword argument 'active_test'
+    # ══════════════════════════════════════════════════════════════
     @api.model
     def search(self, domain, offset=0, limit=None, order=None):
         if self._is_hr_reviewer():
@@ -169,17 +211,17 @@ class HrProfileChangeRequest(models.Model):
         return super().search_count(domain, limit=limit)
 
     @api.model
-    def _search(self, domain, offset=0, limit=None, order=None):
+    def _search(self, domain, offset=0, limit=None, order=None, **kwargs):
         """
-        _search is the lowest-level ORM search called by web client
-        read_group, kanban, list views. Must also be overridden so
-        the company filter is bypassed at every entry point.
+        FIX: Accept **kwargs so Odoo ORM internal calls like
+        _search(..., active_test=False) don't raise TypeError.
+        Without **kwargs, Odoo 17/19 internal fetch calls crash.
         """
         if self._is_hr_reviewer():
             return self.sudo()._search(
-                domain, offset=offset, limit=limit, order=order,
+                domain, offset=offset, limit=limit, order=order, **kwargs
             )
-        return super()._search(domain, offset=offset, limit=limit, order=order)
+        return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
 
     def read_group(self, domain, fields, groupby, offset=0, limit=None,
                    orderby=False, lazy=True):
@@ -344,21 +386,16 @@ class HrProfileChangeRequest(models.Model):
             'action_date': fields.Datetime.now(),
         })
 
-    # ── Mail to ALL HR Reviewers — all companies ──────────────────
+    # ══════════════════════════════════════════════════════════════
+    # FIX 3: _send_mail_to_hr — use SQL to get HR users
+    #   Old code used hr_group.sudo().users which fails in Odoo 17+
+    #   New code uses _get_hr_reviewer_users() with SQL approach
+    # ══════════════════════════════════════════════════════════════
     def _send_mail_to_hr(self):
         try:
-            hr_group = self.env.ref(
-                'employee_profile_change_request.group_profile_change_hr_reviewer',
-                raise_if_not_found=False,
-            )
-            if not hr_group:
-                _logger.warning('HR Reviewer group not found.')
-                return
-
-            # sudo() — gets users from ALL companies, not just current
-            hr_users = hr_group.sudo().users
+            hr_users = self._get_hr_reviewer_users()
             if not hr_users:
-                _logger.warning('No users in HR Reviewer group.')
+                _logger.warning('PCR %s: No HR Reviewer users found — mail not sent.', self.name)
                 return
 
             hr_emails = [
@@ -367,13 +404,13 @@ class HrProfileChangeRequest(models.Model):
                 if (u.work_email or u.email)
             ]
             if not hr_emails:
-                _logger.warning('HR Reviewers have no email addresses.')
+                _logger.warning('PCR %s: HR Reviewers have no email addresses.', self.name)
                 return
 
             email_to = ', '.join(hr_emails)
             hr_names = ', '.join(hr_users.mapped('name'))
 
-            _logger.info('PCR %s: notifying HR Reviewers [%s]', self.name, email_to)
+            _logger.info('PCR %s: sending HR notification to [%s]', self.name, email_to)
 
             mail = self.env['mail.mail'].sudo().create({
                 'subject': f'New Profile Change Request: {self.name} — {self.employee_id.name}',
@@ -431,15 +468,17 @@ class HrProfileChangeRequest(models.Model):
                 ''',
             })
             mail.sudo().send()
-            _logger.info('PCR %s: HR notification sent to %s', self.name, email_to)
+            _logger.info('PCR %s: HR notification sent successfully to %s', self.name, email_to)
+
         except Exception as e:
-            _logger.warning('Failed to send HR notification: %s', e)
+            _logger.warning('PCR %s: Failed to send HR notification: %s', self.name, e)
 
     # ── Mail to Employee ──────────────────────────────────────────
     def _send_mail_to_employee(self, status):
         try:
             emp_email = self.employee_id.work_email or self.employee_id.private_email
             if not emp_email:
+                _logger.warning('PCR %s: Employee has no email address.', self.name)
                 return
             if status == 'approved':
                 subject = f'Profile Update Approved - {self.name}'
@@ -465,6 +504,6 @@ class HrProfileChangeRequest(models.Model):
                 'body_html':   body,
             })
             mail.sudo().send()
-            _logger.info('Employee notification sent to %s', emp_email)
+            _logger.info('PCR %s: Employee notification sent to %s', self.name, emp_email)
         except Exception as e:
-            _logger.warning('Failed to send employee notification: %s', e)
+            _logger.warning('PCR %s: Failed to send employee notification: %s', self.name, e)
