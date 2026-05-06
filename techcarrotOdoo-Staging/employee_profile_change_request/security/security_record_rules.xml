@@ -1,18 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-
-        <!--
-        ════════════════════════════════════════════════════════════
-        RECORD RULES — hr.profile.change.request
-
-        RULE 1: Employee sees only their OWN requests.
-        RULE 2: HR Reviewer sees ALL requests from ALL companies.
-                domain_force = [(1,'=',1)] means NO filter at all.
-        ════════════════════════════════════════════════════════════
-        -->
-
-        <!-- Employees: own records only -->
+        <!-- Employee sees own requests only -->
         <record id="rule_pcr_employee_own" model="ir.rule">
             <field name="name">PCR: Employee sees own requests only</field>
             <field name="model_id" ref="model_hr_profile_change_request"/>
@@ -26,12 +15,7 @@
             <field name="perm_unlink" eval="False"/>
         </record>
 
-        <!--
-        HR Reviewer: NO filter — sees every record from every
-        company, every location, every department.
-        This is the fix for the empty list view when switching
-        between companies.
-        -->
+        <!-- HR Reviewer sees ALL requests — no company filter -->
         <record id="rule_pcr_hr_reviewer_all" model="ir.rule">
             <field name="name">PCR: HR Reviewer sees ALL requests (all companies)</field>
             <field name="model_id" ref="model_hr_profile_change_request"/>
@@ -42,6 +26,5 @@
             <field name="perm_create" eval="True"/>
             <field name="perm_unlink" eval="True"/>
         </record>
-
     </data>
 </odoo>
