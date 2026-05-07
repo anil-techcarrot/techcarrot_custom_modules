@@ -1273,10 +1273,10 @@
                                     <input type="text" name="phone_code_1" class="form-control"
                                            t-att-value="portal_overlay.get('phone_code_1') or employee.phone_code_1 or ''"
                                            readonly="readonly"
-                                           placeholder="+971"
+                                           placeholder="+91, +971"
                                            data-validation="phone"/>
                                     <div class="invalid-feedback"></div>
-                                    <small class="text-muted">E.g. +971</small>
+                                    <small class="text-muted">E.g. +91, +971</small>
                                 </div>
                             </div>
                         </div>
