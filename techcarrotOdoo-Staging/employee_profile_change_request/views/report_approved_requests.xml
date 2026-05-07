@@ -2,9 +2,7 @@
 <odoo>
     <data>
 
-        <!-- ══════════════════════════════════════════════
-             LIST VIEW
-        ══════════════════════════════════════════════ -->
+        <!-- LIST VIEW -->
         <record id="view_pcr_approved_report_list" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.list</field>
             <field name="model">hr.profile.change.request</field>
@@ -26,9 +24,7 @@
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             FORM VIEW
-        ══════════════════════════════════════════════ -->
+        <!-- FORM VIEW -->
         <record id="view_pcr_approved_report_form" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.form</field>
             <field name="model">hr.profile.change.request</field>
@@ -77,9 +73,7 @@
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             PIVOT VIEW
-        ══════════════════════════════════════════════ -->
+        <!-- PIVOT VIEW -->
         <record id="view_pcr_approved_report_pivot" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.pivot</field>
             <field name="model">hr.profile.change.request</field>
@@ -92,9 +86,7 @@
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             GRAPH VIEW
-        ══════════════════════════════════════════════ -->
+        <!-- GRAPH VIEW -->
         <record id="view_pcr_approved_report_graph" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.graph</field>
             <field name="model">hr.profile.change.request</field>
@@ -106,17 +98,12 @@
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             SEARCH VIEW — Odoo 19 safe version
-             Only <field> and <group> with context group_by.
-             No <filter date="..."/>, no domain expressions.
-        ══════════════════════════════════════════════ -->
+        <!-- SEARCH VIEW — Odoo 19: only <field> and <filter context> allowed -->
         <record id="view_pcr_approved_report_search" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.search</field>
             <field name="model">hr.profile.change.request</field>
             <field name="arch" type="xml">
                 <search string="Search Approved Requests">
-
                     <field name="name" string="Reference"/>
                     <field name="employee_id" string="Employee"/>
                     <field name="department_id" string="Department"/>
@@ -124,35 +111,24 @@
                     <field name="reviewed_by" string="Approved By"/>
                     <field name="review_date" string="Approved On"/>
                     <field name="submission_date" string="Submitted On"/>
-
-                    <group expand="0" string="Group By">
-                        <filter name="group_company"
-                                string="Company"
-                                context="{'group_by': 'company_id'}"/>
-                        <filter name="group_department"
-                                string="Department"
-                                context="{'group_by': 'department_id'}"/>
-                        <filter name="group_approved_by"
-                                string="Approved By"
-                                context="{'group_by': 'reviewed_by'}"/>
-                        <filter name="group_employee"
-                                string="Employee"
-                                context="{'group_by': 'employee_id'}"/>
-                        <filter name="group_month"
-                                string="Approval Month"
-                                context="{'group_by': 'review_date:month'}"/>
-                        <filter name="group_year"
-                                string="Approval Year"
-                                context="{'group_by': 'review_date:year'}"/>
-                    </group>
-
+                    <separator/>
+                    <filter name="group_company" string="Company"
+                            context="{'group_by': 'company_id'}"/>
+                    <filter name="group_department" string="Department"
+                            context="{'group_by': 'department_id'}"/>
+                    <filter name="group_approved_by" string="Approved By"
+                            context="{'group_by': 'reviewed_by'}"/>
+                    <filter name="group_employee" string="Employee"
+                            context="{'group_by': 'employee_id'}"/>
+                    <filter name="group_month" string="Approval Month"
+                            context="{'group_by': 'review_date:month'}"/>
+                    <filter name="group_year" string="Approval Year"
+                            context="{'group_by': 'review_date:year'}"/>
                 </search>
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             ACTION
-        ══════════════════════════════════════════════ -->
+        <!-- ACTION -->
         <record id="action_pcr_approved_report" model="ir.actions.act_window">
             <field name="name">Approved Requests Report</field>
             <field name="res_model">hr.profile.change.request</field>
@@ -178,9 +154,7 @@
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             MENUS
-        ══════════════════════════════════════════════ -->
+        <!-- MENUS -->
         <menuitem
             id="menu_pcr_reports"
             name="Reports"
