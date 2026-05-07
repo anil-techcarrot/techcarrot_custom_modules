@@ -210,18 +210,32 @@ class HrProfileChangeRequest(models.Model):
             return self.sudo().search_count(domain, limit=limit)
         return super().search_count(domain, limit=limit)
 
+    # @api.model
+    # def _search(self, domain, offset=0, limit=None, order=None, **kwargs):
+    #     """
+    #     FIX: Accept **kwargs so Odoo ORM internal calls like
+    #     _search(..., active_test=False) don't raise TypeError.
+    #     Without **kwargs, Odoo 17/19 internal fetch calls crash.
+    #     """
+    #     if self._is_hr_reviewer():
+    #         return self.sudo()._search(
+    #             domain, offset=offset, limit=limit, order=order, **kwargs
+    #         )
+    #     return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
+
     @api.model
-    def _search(self, domain, offset=0, limit=None, order=None, **kwargs):
-        """
-        FIX: Accept **kwargs so Odoo ORM internal calls like
-        _search(..., active_test=False) don't raise TypeError.
-        Without **kwargs, Odoo 17/19 internal fetch calls crash.
-        """
-        if self._is_hr_reviewer():
-            return self.sudo()._search(
-                domain, offset=offset, limit=limit, order=order, **kwargs
+    def search(self, domain, offset=0, limit=None, order=None):
+        if self._is_hr_reviewer() and not self.env.su:
+            return super(HrProfileChangeRequest, self.sudo()).search(
+                domain, offset=offset, limit=limit, order=order,
             )
-        return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
+        return super().search(domain, offset=offset, limit=limit, order=order)
+
+    @api.model
+    def search_count(self, domain, limit=None):
+        if self._is_hr_reviewer() and not self.env.su:
+            return super(HrProfileChangeRequest, self.sudo()).search_count(domain, limit=limit)
+        return super().search_count(domain, limit=limit)
 
     def read_group(self, domain, fields, groupby, offset=0, limit=None,
                    orderby=False, lazy=True):
