@@ -2,7 +2,9 @@
 <odoo>
     <data>
 
-        <!-- LIST VIEW -->
+        <!-- ══════════════════════════════════════════════
+             LIST VIEW
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_list" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.list</field>
             <field name="model">hr.profile.change.request</field>
@@ -18,14 +20,15 @@
                     <field name="submission_date" string="Submitted On"/>
                     <field name="review_date" string="Approved On"/>
                     <field name="reviewed_by" string="Approved By"/>
-                    <field name="state" string="Status"
-                           decoration-success="state == 'approved'"
-                           widget="badge"/>
+                    <field name="state" string="Status" widget="badge"
+                           decoration-success="state == 'approved'"/>
                 </list>
             </field>
         </record>
 
-        <!-- FORM VIEW -->
+        <!-- ══════════════════════════════════════════════
+             FORM VIEW
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_form" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.form</field>
             <field name="model">hr.profile.change.request</field>
@@ -74,7 +77,9 @@
             </field>
         </record>
 
-        <!-- PIVOT VIEW -->
+        <!-- ══════════════════════════════════════════════
+             PIVOT VIEW
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_pivot" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.pivot</field>
             <field name="model">hr.profile.change.request</field>
@@ -87,7 +92,9 @@
             </field>
         </record>
 
-        <!-- GRAPH VIEW -->
+        <!-- ══════════════════════════════════════════════
+             GRAPH VIEW
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_graph" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.graph</field>
             <field name="model">hr.profile.change.request</field>
@@ -99,7 +106,11 @@
             </field>
         </record>
 
-        <!-- SEARCH VIEW — NO Python expressions, only simple domains -->
+        <!-- ══════════════════════════════════════════════
+             SEARCH VIEW — Odoo 19 safe version
+             Only <field> and <group> with context group_by.
+             No <filter date="..."/>, no domain expressions.
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_search" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.search</field>
             <field name="model">hr.profile.change.request</field>
@@ -112,13 +123,7 @@
                     <field name="company_id" string="Company"/>
                     <field name="reviewed_by" string="Approved By"/>
                     <field name="review_date" string="Approved On"/>
-
-                    <!-- Simple date filter — no Python, uses Odoo built-in date picker -->
-                    <filter name="approved_this_month"
-                            string="This Month"
-                            date="review_date"/>
-
-                    <separator/>
+                    <field name="submission_date" string="Submitted On"/>
 
                     <group expand="0" string="Group By">
                         <filter name="group_company"
@@ -133,10 +138,10 @@
                         <filter name="group_employee"
                                 string="Employee"
                                 context="{'group_by': 'employee_id'}"/>
-                        <filter name="group_approved_month"
+                        <filter name="group_month"
                                 string="Approval Month"
                                 context="{'group_by': 'review_date:month'}"/>
-                        <filter name="group_approved_year"
+                        <filter name="group_year"
                                 string="Approval Year"
                                 context="{'group_by': 'review_date:year'}"/>
                     </group>
@@ -145,7 +150,9 @@
             </field>
         </record>
 
-        <!-- ACTION -->
+        <!-- ══════════════════════════════════════════════
+             ACTION
+        ══════════════════════════════════════════════ -->
         <record id="action_pcr_approved_report" model="ir.actions.act_window">
             <field name="name">Approved Requests Report</field>
             <field name="res_model">hr.profile.change.request</field>
@@ -171,7 +178,9 @@
             </field>
         </record>
 
-        <!-- MENUS -->
+        <!-- ══════════════════════════════════════════════
+             MENUS
+        ══════════════════════════════════════════════ -->
         <menuitem
             id="menu_pcr_reports"
             name="Reports"
