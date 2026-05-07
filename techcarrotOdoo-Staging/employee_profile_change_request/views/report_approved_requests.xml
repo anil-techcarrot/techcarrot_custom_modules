@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ══════════════════════════════════════════════
+             LIST VIEW — Approved Requests Report
+        ══════════════════════════════════════════════ -->
+        <record id="view_pcr_approved_report_list" model="ir.ui.view">
+            <field name="name">hr.profile.change.request.approved.list</field>
+            <field name="model">hr.profile.change.request</field>
+            <field name="arch" type="xml">
+                <list string="Approved Profile Change Requests"
+                      create="false" edit="false" delete="false"
+                      decoration-success="state == 'approved'">
+                    <field name="name" string="Reference"/>
+                    <field name="employee_id" string="Employee"/>
+                    <field name="company_id" string="Company"/>
+                    <field name="department_id" string="Department"/>
+                    <field name="work_location_id" string="Work Location"/>
+                    <field name="submission_date" string="Submitted On"/>
+                    <field name="review_date" string="Approved On"/>
+                    <field name="reviewed_by" string="Approved By"/>
+                    <field name="state" string="Status"
+                           decoration-success="state == 'approved'"
+                           widget="badge"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════
+             FORM VIEW — Read-only view of approved record
+        ══════════════════════════════════════════════ -->
+        <record id="view_pcr_approved_report_form" model="ir.ui.view">
+            <field name="name">hr.profile.change.request.approved.form</field>
+            <field name="model">hr.profile.change.request</field>
+            <field name="arch" type="xml">
+                <form string="Approved Profile Change Request" create="false">
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group string="Employee Info">
+                                <field name="employee_id" readonly="1"/>
+                                <field name="company_id" readonly="1"/>
+                                <field name="department_id" readonly="1"/>
+                                <field name="work_location_id" readonly="1"/>
+                            </group>
+                            <group string="Approval Info">
+                                <field name="state" readonly="1" widget="badge"/>
+                                <field name="submission_date" readonly="1"/>
+                                <field name="review_date" readonly="1"/>
+                                <field name="reviewed_by" readonly="1"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Approved Changes">
+                                <field name="changed_fields_display"
+                                       readonly="1"
+                                       widget="html"
+                                       nolabel="1"/>
+                            </page>
+                            <page string="Audit Trail">
+                                <field name="trail_ids" readonly="1">
+                                    <list>
+                                        <field name="action_date" string="Date"/>
+                                        <field name="action" string="Action"/>
+                                        <field name="user_id" string="By"/>
+                                        <field name="note" string="Note"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════
+             PIVOT VIEW — Analytics
+        ══════════════════════════════════════════════ -->
+        <record id="view_pcr_approved_report_pivot" model="ir.ui.view">
+            <field name="name">hr.profile.change.request.approved.pivot</field>
+            <field name="model">hr.profile.change.request</field>
+            <field name="arch" type="xml">
+                <pivot string="Approved Requests Analysis">
+                    <field name="company_id" type="row"/>
+                    <field name="department_id" type="row"/>
+                    <field name="reviewed_by" type="col"/>
+                    <field name="review_date" type="col" interval="month"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════
+             GRAPH VIEW — Bar chart
+        ══════════════════════════════════════════════ -->
+        <record id="view_pcr_approved_report_graph" model="ir.ui.view">
+            <field name="name">hr.profile.change.request.approved.graph</field>
+            <field name="model">hr.profile.change.request</field>
+            <field name="arch" type="xml">
+                <graph string="Approved Requests by Department" type="bar">
+                    <field name="department_id" type="row"/>
+                    <field name="company_id" type="col"/>
+                </graph>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════
+             SEARCH VIEW — Filters and Group By
+        ══════════════════════════════════════════════ -->
+        <record id="view_pcr_approved_report_search" model="ir.ui.view">
+            <field name="name">hr.profile.change.request.approved.search</field>
+            <field name="model">hr.profile.change.request</field>
+            <field name="arch" type="xml">
+                <search string="Search Approved Requests">
+
+                    <!-- Search fields -->
+                    <field name="name" string="Reference"/>
+                    <field name="employee_id" string="Employee"/>
+                    <field name="department_id" string="Department"/>
+                    <field name="company_id" string="Company"/>
+                    <field name="reviewed_by" string="Approved By"/>
+
+                    <!-- Fixed filter — always show only approved -->
+                    <filter name="filter_approved"
+                            string="Approved"
+                            domain="[('state','=','approved')]"
+                            invisible="1"/>
+
+                    <!-- Date filters -->
+                    <filter name="approved_today"
+                            string="Approved Today"
+                            domain="[
+                                ('state','=','approved'),
+                                ('review_date','&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),
+                                ('review_date','&lt;=', datetime.datetime.now().strftime('%Y-%m-%d 23:59:59'))
+                            ]"/>
+                    <filter name="approved_this_month"
+                            string="Approved This Month"
+                            domain="[
+                                ('state','=','approved'),
+                                ('review_date','&gt;=', (datetime.datetime.now().replace(day=1)).strftime('%Y-%m-%d'))
+                            ]"/>
+                    <filter name="approved_this_year"
+                            string="Approved This Year"
+                            domain="[
+                                ('state','=','approved'),
+                                ('review_date','&gt;=', datetime.datetime.now().strftime('%Y-01-01'))
+                            ]"/>
+
+                    <separator/>
+
+                    <!-- Group By options -->
+                    <group expand="0" string="Group By">
+                        <filter name="group_company"
+                                string="Company"
+                                context="{'group_by': 'company_id'}"/>
+                        <filter name="group_department"
+                                string="Department"
+                                context="{'group_by': 'department_id'}"/>
+                        <filter name="group_approved_by"
+                                string="Approved By"
+                                context="{'group_by': 'reviewed_by'}"/>
+                        <filter name="group_employee"
+                                string="Employee"
+                                context="{'group_by': 'employee_id'}"/>
+                        <filter name="group_approved_month"
+                                string="Approval Month"
+                                context="{'group_by': 'review_date:month'}"/>
+                    </group>
+
+                </search>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════
+             ACTION — Opens Approved Report
+        ══════════════════════════════════════════════ -->
+        <record id="action_pcr_approved_report" model="ir.actions.act_window">
+            <field name="name">Approved Requests Report</field>
+            <field name="res_model">hr.profile.change.request</field>
+            <field name="view_mode">list,form,pivot,graph</field>
+            <field name="domain">[('state', '=', 'approved')]</field>
+            <field name="context">{
+                'search_default_filter_approved': 1,
+                'search_default_group_department': 0
+            }</field>
+            <field name="view_ids" eval="[
+                (5, 0, 0),
+                (0, 0, {'view_mode': 'list',  'view_id': ref('view_pcr_approved_report_list')}),
+                (0, 0, {'view_mode': 'form',  'view_id': ref('view_pcr_approved_report_form')}),
+                (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_pcr_approved_report_pivot')}),
+                (0, 0, {'view_mode': 'graph', 'view_id': ref('view_pcr_approved_report_graph')}),
+            ]"/>
+            <field name="search_view_id" ref="view_pcr_approved_report_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No approved profile change requests found.
+                </p>
+                <p>
+                    Approved requests will appear here once HR approves
+                    employee profile update submissions.
+                </p>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════
+             MENU — Reports section
+        ══════════════════════════════════════════════ -->
+
+        <!-- Reports top-level menu under Profile Change Requests -->
+        <menuitem
+            id="menu_pcr_reports"
+            name="Reports"
+            parent="employee_profile_change_request.menu_profile_change_request_root"
+            sequence="30"/>
+
+        <!-- Approved Requests submenu -->
+        <menuitem
+            id="menu_pcr_approved_report"
+            name="Approved Requests"
+            parent="menu_pcr_reports"
+            action="action_pcr_approved_report"
+            sequence="10"/>
+
+    </data>
+</odoo>
