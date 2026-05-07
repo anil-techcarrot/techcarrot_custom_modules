@@ -798,7 +798,7 @@
                                     <input type="text" name="phone_code_1" class="form-control"
                                            t-att-value="portal_overlay.get('phone_code_1') or employee.phone_code_1 or ''"
                                            readonly="readonly"
-                                           data-validation="phone"/>
+                                           />
                                     <div class="invalid-feedback"></div>
                                     <small class="text-muted">E.g. +91, +971</small>
                                 </div>
