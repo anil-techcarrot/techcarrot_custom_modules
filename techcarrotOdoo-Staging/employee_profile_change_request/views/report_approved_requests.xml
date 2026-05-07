@@ -98,7 +98,7 @@
             </field>
         </record>
 
-        <!-- SEARCH VIEW — Odoo 19: only <field> and <filter context> allowed -->
+        <!-- SEARCH VIEW -->
         <record id="view_pcr_approved_report_search" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.search</field>
             <field name="model">hr.profile.change.request</field>
@@ -154,11 +154,11 @@
             </field>
         </record>
 
-        <!-- MENUS -->
+        <!-- MENUS — correct root: menu_profile_change_root -->
         <menuitem
             id="menu_pcr_reports"
             name="Reports"
-            parent="employee_profile_change_request.menu_profile_change_request_root"
+            parent="employee_profile_change_request.menu_profile_change_root"
             sequence="30"/>
 
         <menuitem
