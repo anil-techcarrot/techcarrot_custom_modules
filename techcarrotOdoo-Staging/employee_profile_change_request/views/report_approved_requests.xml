@@ -2,9 +2,7 @@
 <odoo>
     <data>
 
-        <!-- ══════════════════════════════════════════════
-             LIST VIEW — Approved Requests Report
-        ══════════════════════════════════════════════ -->
+        <!-- LIST VIEW -->
         <record id="view_pcr_approved_report_list" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.list</field>
             <field name="model">hr.profile.change.request</field>
@@ -27,9 +25,7 @@
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             FORM VIEW — Read-only view of approved record
-        ══════════════════════════════════════════════ -->
+        <!-- FORM VIEW -->
         <record id="view_pcr_approved_report_form" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.form</field>
             <field name="model">hr.profile.change.request</field>
@@ -78,9 +74,7 @@
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             PIVOT VIEW — Analytics
-        ══════════════════════════════════════════════ -->
+        <!-- PIVOT VIEW -->
         <record id="view_pcr_approved_report_pivot" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.pivot</field>
             <field name="model">hr.profile.change.request</field>
@@ -89,14 +83,11 @@
                     <field name="company_id" type="row"/>
                     <field name="department_id" type="row"/>
                     <field name="reviewed_by" type="col"/>
-                    <field name="review_date" type="col" interval="month"/>
                 </pivot>
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             GRAPH VIEW — Bar chart
-        ══════════════════════════════════════════════ -->
+        <!-- GRAPH VIEW -->
         <record id="view_pcr_approved_report_graph" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.graph</field>
             <field name="model">hr.profile.change.request</field>
@@ -108,52 +99,27 @@
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             SEARCH VIEW — Filters and Group By
-        ══════════════════════════════════════════════ -->
+        <!-- SEARCH VIEW — NO Python expressions, only simple domains -->
         <record id="view_pcr_approved_report_search" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.search</field>
             <field name="model">hr.profile.change.request</field>
             <field name="arch" type="xml">
                 <search string="Search Approved Requests">
 
-                    <!-- Search fields -->
                     <field name="name" string="Reference"/>
                     <field name="employee_id" string="Employee"/>
                     <field name="department_id" string="Department"/>
                     <field name="company_id" string="Company"/>
                     <field name="reviewed_by" string="Approved By"/>
+                    <field name="review_date" string="Approved On"/>
 
-                    <!-- Fixed filter — always show only approved -->
-                    <filter name="filter_approved"
-                            string="Approved"
-                            domain="[('state','=','approved')]"
-                            invisible="1"/>
-
-                    <!-- Date filters -->
-                    <filter name="approved_today"
-                            string="Approved Today"
-                            domain="[
-                                ('state','=','approved'),
-                                ('review_date','&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),
-                                ('review_date','&lt;=', datetime.datetime.now().strftime('%Y-%m-%d 23:59:59'))
-                            ]"/>
+                    <!-- Simple date filter — no Python, uses Odoo built-in date picker -->
                     <filter name="approved_this_month"
-                            string="Approved This Month"
-                            domain="[
-                                ('state','=','approved'),
-                                ('review_date','&gt;=', (datetime.datetime.now().replace(day=1)).strftime('%Y-%m-%d'))
-                            ]"/>
-                    <filter name="approved_this_year"
-                            string="Approved This Year"
-                            domain="[
-                                ('state','=','approved'),
-                                ('review_date','&gt;=', datetime.datetime.now().strftime('%Y-01-01'))
-                            ]"/>
+                            string="This Month"
+                            date="review_date"/>
 
                     <separator/>
 
-                    <!-- Group By options -->
                     <group expand="0" string="Group By">
                         <filter name="group_company"
                                 string="Company"
@@ -170,24 +136,22 @@
                         <filter name="group_approved_month"
                                 string="Approval Month"
                                 context="{'group_by': 'review_date:month'}"/>
+                        <filter name="group_approved_year"
+                                string="Approval Year"
+                                context="{'group_by': 'review_date:year'}"/>
                     </group>
 
                 </search>
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             ACTION — Opens Approved Report
-        ══════════════════════════════════════════════ -->
+        <!-- ACTION -->
         <record id="action_pcr_approved_report" model="ir.actions.act_window">
             <field name="name">Approved Requests Report</field>
             <field name="res_model">hr.profile.change.request</field>
             <field name="view_mode">list,form,pivot,graph</field>
             <field name="domain">[('state', '=', 'approved')]</field>
-            <field name="context">{
-                'search_default_filter_approved': 1,
-                'search_default_group_department': 0
-            }</field>
+            <field name="context">{}</field>
             <field name="view_ids" eval="[
                 (5, 0, 0),
                 (0, 0, {'view_mode': 'list',  'view_id': ref('view_pcr_approved_report_list')}),
@@ -207,18 +171,13 @@
             </field>
         </record>
 
-        <!-- ══════════════════════════════════════════════
-             MENU — Reports section
-        ══════════════════════════════════════════════ -->
-
-        <!-- Reports top-level menu under Profile Change Requests -->
+        <!-- MENUS -->
         <menuitem
             id="menu_pcr_reports"
             name="Reports"
             parent="employee_profile_change_request.menu_profile_change_request_root"
             sequence="30"/>
 
-        <!-- Approved Requests submenu -->
         <menuitem
             id="menu_pcr_approved_report"
             name="Approved Requests"
