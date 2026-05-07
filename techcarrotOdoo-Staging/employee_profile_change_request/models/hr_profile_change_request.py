@@ -128,6 +128,77 @@ class HrProfileChangeRequest(models.Model):
         inverse_name='request_id', string='Audit Trail', readonly=True,
     )
 
+
+
+
+    # ── Document upload tracking fields ──────────────────────────
+    has_emirates_id_doc = fields.Boolean(
+        string='Emirates ID Uploaded',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+    has_passport_doc = fields.Boolean(
+        string='Passport Uploaded',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+    has_other_doc = fields.Boolean(
+        string='Other Doc Uploaded',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+    has_work_permit_doc = fields.Boolean(
+        string='Work Permit Uploaded',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+    has_any_doc = fields.Boolean(
+        string='Has Any Document',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+    total_docs_uploaded = fields.Integer(
+        string='Total Documents',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+
+    # ── Compute document flags from submitted_data JSON ──────────
+    @api.depends('submitted_data')
+    def _compute_doc_flags(self):
+        """
+        Check submitted_data JSON to see which document fields
+        were included in the portal submission.
+        Document fields submitted from portal:
+          - emirates_id_file
+          - passport_file
+          - other_documents
+          - has_work_permit
+        """
+        doc_field_map = {
+            'emirates_id_file': 'has_emirates_id_doc',
+            'passport_file': 'has_passport_doc',
+            'other_documents': 'has_other_doc',
+            'has_work_permit': 'has_work_permit_doc',
+        }
+        for rec in self:
+            flags = {f: False for f in doc_field_map.values()}
+            if rec.submitted_data:
+                try:
+                    data = json.loads(rec.submitted_data)
+                    for field_name, flag_name in doc_field_map.items():
+                        if field_name in data and data[field_name]:
+                            flags[flag_name] = True
+                except Exception:
+                    pass
+            for flag_name, value in flags.items():
+                setattr(rec, flag_name, value)
+            rec.total_docs_uploaded = sum(1 for v in flags.values() if v)
+            rec.has_any_doc = any(flags.values())
+
+
+
+
     # ══════════════════════════════════════════════════════════════
     # FIX 1: Get HR users via SQL — works in Odoo 17 AND 19
     #   res.groups.users attribute was removed in Odoo 17+
