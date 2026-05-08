@@ -145,10 +145,10 @@ class HrProfileChangeRequest(models.Model):
         compute='_compute_doc_flags',
         store=True,
     )
-    doc_emirates_id = fields.integer(
-        string='emirates id',
-        store=True,
-    )
+    # doc_emirates_id = fields.integer(
+    #     string='emirates id',
+    #     store=True,
+    # )
     has_work_permit_doc = fields.Boolean(
         string='Work Permit Uploaded',
         compute='_compute_doc_flags',
