@@ -70,6 +70,14 @@ FIELD_LABELS = {
     'last_report_manager_mail': 'Reporting Manager Email',
 }
 
+# Document field mapping: form field name → display label
+DOC_FIELD_MAP = {
+    'emirates_id_file': ('has_emirates_id_doc', 'Emirates ID Copy'),
+    'passport_file':    ('has_passport_doc',    'Passport Copy'),
+    'other_documents':  ('has_other_doc',        'Other Documents'),
+    'has_work_permit':  ('has_work_permit_doc',  'Work Permit'),
+}
+
 
 class HrProfileChangeRequest(models.Model):
     _name = 'hr.profile.change.request'
@@ -77,7 +85,6 @@ class HrProfileChangeRequest(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'create_date desc'
     _rec_name = 'name'
-
     _check_company_auto = False
 
     # ── Core fields ───────────────────────────────────────────────
@@ -129,121 +136,64 @@ class HrProfileChangeRequest(models.Model):
         inverse_name='request_id', string='Audit Trail', readonly=True,
     )
 
-    # # ── Document upload tracking fields ──────────────────────────
-    # has_emirates_id_doc = fields.Boolean(
-    #     string='Emirates ID Uploaded',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    # has_passport_doc = fields.Boolean(
-    #     string='Passport Uploaded',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    # has_other_doc = fields.Boolean(
-    #     string='Other Doc Uploaded',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    #
-    # has_work_permit_doc = fields.Boolean(
-    #     string='Work Permit Uploaded',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    # has_any_doc = fields.Boolean(
-    #     string='Has Any Document',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    # total_docs_uploaded = fields.Integer(
-    #     string='Total Documents',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    #
-    # doc_emirates_id = fields.Boolean(
-    #     string='Emirates ID Uploaded',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    # doc_passport = fields.Boolean(
-    #     string='Passport Uploaded',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    # doc_other = fields.Boolean(
-    #     string='Other Document Uploaded',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    # doc_work_permit = fields.Boolean(
-    #     string='Work Permit Uploaded',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    # doc_count = fields.Integer(
-    #     string='Total Documents Uploaded',
-    #     compute='_compute_doc_flags',
-    #     store=True,
-    # )
-    #
-    # # ── Compute method ─────────────────────────────────────────────
-    # @api.depends('submitted_data')
-    # def _compute_doc_flags(self):
-    #     """
-    #     Parse submitted_data JSON and check which document fields
-    #     were submitted (non-empty values = file was uploaded).
-    #     Document field names match the portal form field names.
-    #     """
-    #     DOC_FIELDS = {
-    #         'doc_emirates_id': ['emirates_id_file'],
-    #         'doc_passport': ['passport_file'],
-    #         'doc_other': ['other_documents'],
-    #         'doc_work_permit': ['has_work_permit'],
-    #     }
-    #     for rec in self:
-    #         data = {}
-    #         if rec.submitted_data:
-    #             try:
-    #                 data = json.loads(rec.submitted_data)
-    #             except Exception:
-    #                 data = {}
-    #
-    #         count = 0
-    #         for field_name, keys in DOC_FIELDS.items():
-    #             found = any(
-    #                 bool(data.get(k) and str(data.get(k)).strip() not in ('', 'False', 'None'))
-    #                 for k in keys
-    #             )
-    #             rec[field_name] = found
-    #             if found:
-    #                 count += 1
-    #
-    #         rec.doc_count = count
+    # ── Document upload tracking fields ──────────────────────────
+    has_emirates_id_doc = fields.Boolean(
+        string='Emirates ID Uploaded',
+        compute='_compute_doc_flags', store=True,
+    )
+    has_passport_doc = fields.Boolean(
+        string='Passport Uploaded',
+        compute='_compute_doc_flags', store=True,
+    )
+    has_other_doc = fields.Boolean(
+        string='Other Doc Uploaded',
+        compute='_compute_doc_flags', store=True,
+    )
+    has_work_permit_doc = fields.Boolean(
+        string='Work Permit Uploaded',
+        compute='_compute_doc_flags', store=True,
+    )
+    has_any_doc = fields.Boolean(
+        string='Has Any Document',
+        compute='_compute_doc_flags', store=True,
+    )
+    total_docs_uploaded = fields.Integer(
+        string='Total Documents',
+        compute='_compute_doc_flags', store=True,
+    )
+    # Summary of which fields were actually changed (stored for reporting)
+    changed_field_count = fields.Integer(
+        string='Fields Changed',
+        compute='_compute_changed_field_count', store=True,
+    )
+    # Category tags for filtering
+    has_personal_changes = fields.Boolean(
+        string='Personal Info Changes',
+        compute='_compute_change_categories', store=True,
+    )
+    has_contact_changes = fields.Boolean(
+        string='Contact Info Changes',
+        compute='_compute_change_categories', store=True,
+    )
+    has_family_changes = fields.Boolean(
+        string='Family Info Changes',
+        compute='_compute_change_categories', store=True,
+    )
+    has_document_changes = fields.Boolean(
+        string='Document Changes',
+        compute='_compute_change_categories', store=True,
+    )
 
+    # ── Compute: document flags ───────────────────────────────────
     @api.depends('submitted_data')
     def _compute_doc_flags(self):
-        """
-        Parse submitted_data JSON to detect which documents
-        were uploaded via the ESS portal.
-        Portal file field names:
-          emirates_id_file, passport_file,
-          other_documents, has_work_permit
-        """
-        doc_field_map = {
-            'emirates_id_file':  'has_emirates_id_doc',
-            'passport_file':     'has_passport_doc',
-            'other_documents':   'has_other_doc',
-            'has_work_permit':   'has_work_permit_doc',
-        }
         for rec in self:
-            flags = {f: False for f in doc_field_map.values()}
+            flags = {fname: False for fname, _ in DOC_FIELD_MAP.values()}
             if rec.submitted_data:
                 try:
                     data = json.loads(rec.submitted_data)
-                    for field_name, flag_name in doc_field_map.items():
-                        val = data.get(field_name, '')
+                    for field_key, (flag_name, _label) in DOC_FIELD_MAP.items():
+                        val = data.get(field_key, '')
                         if val and str(val).strip() not in ('', 'False', 'None', 'false'):
                             flags[flag_name] = True
                 except Exception:
@@ -253,35 +203,68 @@ class HrProfileChangeRequest(models.Model):
             rec.total_docs_uploaded = sum(1 for v in flags.values() if v)
             rec.has_any_doc = any(flags.values())
 
+    @api.depends('submitted_data')
+    def _compute_changed_field_count(self):
+        for rec in self:
+            count = 0
+            if rec.submitted_data:
+                try:
+                    data = json.loads(rec.submitted_data)
+                    count = len([k for k, v in data.items()
+                                 if v and str(v).strip() not in ('', 'False', 'None')])
+                except Exception:
+                    pass
+            rec.changed_field_count = count
+
+    @api.depends('submitted_data')
+    def _compute_change_categories(self):
+        PERSONAL_FIELDS  = {'legal_name', 'place_of_birth', 'work_phone', 'whatsapp',
+                             'linkedin', 'facebook_profile', 'insta_profile', 'twitter_profile',
+                             'industry_start_date', 'experience', 'current_role'}
+        CONTACT_FIELDS   = {'private_email', 'private_phone', 'private_street', 'private_street2',
+                             'private_city', 'private_zip', 'emergency_phone', 'e_private_city',
+                             'emergency_contact_person_name', 'emergency_contact_person_phone',
+                             'alternate_mobile_number', 'home_land_line_no'}
+        FAMILY_FIELDS    = {'father_name', 'father_dob', 'mother_name', 'mother_dob',
+                             'children', 'spouse_passport_no', 'spouse_visa_no',
+                             'spouse_emirates_id_no', 'dependent_child_name_1'}
+        DOCUMENT_FIELDS  = set(DOC_FIELD_MAP.keys())
+
+        for rec in self:
+            keys = set()
+            if rec.submitted_data:
+                try:
+                    data = json.loads(rec.submitted_data)
+                    keys = {k for k, v in data.items()
+                            if v and str(v).strip() not in ('', 'False', 'None')}
+                except Exception:
+                    pass
+            rec.has_personal_changes  = bool(keys & PERSONAL_FIELDS)
+            rec.has_contact_changes   = bool(keys & CONTACT_FIELDS)
+            rec.has_family_changes    = bool(keys & FAMILY_FIELDS)
+            rec.has_document_changes  = bool(keys & DOCUMENT_FIELDS)
+
     # ── HR Reviewer helpers ───────────────────────────────────────
     def _get_hr_reviewer_users(self):
-        """Get all HR Reviewer users via SQL (Odoo 17/19 compatible)."""
         try:
             hr_group = self.env.ref(
                 'employee_profile_change_request.group_profile_change_hr_reviewer',
                 raise_if_not_found=False,
             )
             if not hr_group:
-                _logger.warning('HR Reviewer group not found.')
                 return self.env['res.users']
             self.env.cr.execute(
-                'SELECT uid FROM res_groups_users_rel WHERE gid = %s',
-                [hr_group.id]
+                'SELECT uid FROM res_groups_users_rel WHERE gid = %s', [hr_group.id]
             )
             user_ids = [row[0] for row in self.env.cr.fetchall()]
             if not user_ids:
-                _logger.warning('No users in HR Reviewer group (id=%s)', hr_group.id)
                 return self.env['res.users']
-            hr_users = self.env['res.users'].sudo().browse(user_ids)
-            _logger.info('HR Reviewer users found: %s',
-                         [(u.name, u.work_email or u.email) for u in hr_users])
-            return hr_users
+            return self.env['res.users'].sudo().browse(user_ids)
         except Exception as e:
             _logger.error('_get_hr_reviewer_users error: %s', e)
             return self.env['res.users']
 
     def _is_hr_reviewer(self):
-        """Return True if current user is in HR Reviewer group."""
         try:
             hr_group = self.env.ref(
                 'employee_profile_change_request.group_profile_change_hr_reviewer',
@@ -297,47 +280,35 @@ class HrProfileChangeRequest(models.Model):
         except Exception:
             return False
 
-    # ── ORM overrides — ONE definition each, infinite-loop safe ──
+    # ── ORM overrides ─────────────────────────────────────────────
     @api.model
     def search(self, domain, offset=0, limit=None, order=None):
         if self._is_hr_reviewer() and not self.env.su:
             return super(HrProfileChangeRequest, self.sudo()).search(
-                domain, offset=offset, limit=limit, order=order,
-            )
+                domain, offset=offset, limit=limit, order=order)
         return super().search(domain, offset=offset, limit=limit, order=order)
 
     @api.model
     def search_count(self, domain, limit=None):
         if self._is_hr_reviewer() and not self.env.su:
-            return super(HrProfileChangeRequest, self.sudo()).search_count(
-                domain, limit=limit,
-            )
+            return super(HrProfileChangeRequest, self.sudo()).search_count(domain, limit=limit)
         return super().search_count(domain, limit=limit)
 
     @api.model
     def _search(self, domain, offset=0, limit=None, order=None, **kwargs):
-        """Accept **kwargs to avoid TypeError on active_test= calls."""
         if self._is_hr_reviewer() and not self.env.su:
             return super(HrProfileChangeRequest, self.sudo())._search(
-                domain, offset=offset, limit=limit, order=order, **kwargs
-            )
-        return super()._search(
-            domain, offset=offset, limit=limit, order=order, **kwargs
-        )
+                domain, offset=offset, limit=limit, order=order, **kwargs)
+        return super()._search(domain, offset=offset, limit=limit, order=order, **kwargs)
 
     def read_group(self, domain, fields, groupby, offset=0, limit=None,
                    orderby=False, lazy=True):
         if self._is_hr_reviewer() and not self.env.su:
             return super(HrProfileChangeRequest, self.sudo()).read_group(
-                domain, fields, groupby,
-                offset=offset, limit=limit,
-                orderby=orderby, lazy=lazy,
-            )
-        return super().read_group(
-            domain, fields, groupby,
-            offset=offset, limit=limit,
-            orderby=orderby, lazy=lazy,
-        )
+                domain, fields, groupby, offset=offset, limit=limit,
+                orderby=orderby, lazy=lazy)
+        return super().read_group(domain, fields, groupby, offset=offset, limit=limit,
+                                  orderby=orderby, lazy=lazy)
 
     # ── Sequence ──────────────────────────────────────────────────
     @api.model_create_multi
@@ -345,9 +316,7 @@ class HrProfileChangeRequest(models.Model):
         for vals in vals_list:
             name_val = vals.get('name', '')
             if not name_val or not name_val.startswith('PCR/'):
-                seq = self.env['ir.sequence'].sudo().next_by_code(
-                    'hr.profile.change.request'
-                )
+                seq = self.env['ir.sequence'].sudo().next_by_code('hr.profile.change.request')
                 if seq:
                     vals['name'] = seq
                 else:
@@ -359,13 +328,38 @@ class HrProfileChangeRequest(models.Model):
     def _compute_changed_fields_display(self):
         for rec in self:
             if not rec.submitted_data:
-                rec.changed_fields_display = '<p class="text-muted">No data submitted yet.</p>'
+                rec.changed_fields_display = (
+                    '<p style="color:#9ca3af;font-style:italic;">No data submitted yet.</p>'
+                )
                 continue
             try:
                 data = json.loads(rec.submitted_data)
-                rows = ''
+                # Separate doc fields from regular fields
+                doc_rows = ''
+                field_rows = ''
+                changed_count = 0
+                unchanged_count = 0
+
                 for key, new_val in data.items():
                     label = FIELD_LABELS.get(key, key.replace('_', ' ').title())
+                    # Document field
+                    if key in DOC_FIELD_MAP:
+                        _, doc_label = DOC_FIELD_MAP[key]
+                        if new_val and str(new_val).strip() not in ('', 'False', 'None'):
+                            doc_rows += (
+                                f'<tr>'
+                                f'<td style="padding:10px 14px;border:1px solid #e5e7eb;">'
+                                f'<span style="display:inline-flex;align-items:center;gap:6px;">'
+                                f'<span style="width:8px;height:8px;border-radius:50%;'
+                                f'background:#10b981;display:inline-block;"></span>'
+                                f'<strong>{doc_label}</strong></span></td>'
+                                f'<td style="padding:10px 14px;border:1px solid #e5e7eb;">'
+                                f'<span style="background:#d1fae5;color:#065f46;padding:3px 10px;'
+                                f'border-radius:20px;font-size:12px;font-weight:600;">✓ Uploaded</span>'
+                                f'</td></tr>'
+                            )
+                        continue
+
                     try:
                         current = getattr(rec.employee_id, key, '') or ''
                         if hasattr(current, 'name'):
@@ -373,36 +367,95 @@ class HrProfileChangeRequest(models.Model):
                         current = str(current)
                     except Exception:
                         current = '—'
+
                     new_val_str = str(new_val) if new_val else '—'
-                    is_changed  = new_val_str != current
-                    row_style   = 'background:#fffde7;' if is_changed else ''
-                    badge = (
-                        '<span style="background:#ff9800;color:white;padding:2px 6px;'
-                        'border-radius:3px;font-size:11px;">CHANGED</span>'
-                        if is_changed else ''
-                    )
-                    rows += (
+                    is_changed  = new_val_str.strip() != current.strip() and new_val_str != '—'
+
+                    if is_changed:
+                        changed_count += 1
+                        badge = (
+                            '<span style="background:#f59e0b;color:#fff;padding:2px 8px;'
+                            'border-radius:20px;font-size:11px;font-weight:700;">CHANGED</span>'
+                        )
+                        row_style = 'background:#fffbeb;'
+                        curr_style = 'color:#6b7280;text-decoration:line-through;'
+                        new_style  = 'color:#065f46;font-weight:700;'
+                    else:
+                        unchanged_count += 1
+                        badge = (
+                            '<span style="background:#e5e7eb;color:#6b7280;padding:2px 8px;'
+                            'border-radius:20px;font-size:11px;">SAME</span>'
+                        )
+                        row_style  = ''
+                        curr_style = 'color:#374151;'
+                        new_style  = 'color:#374151;'
+
+                    field_rows += (
                         f'<tr style="{row_style}">'
-                        f'<td style="padding:8px 12px;border:1px solid #ddd;"><strong>{label}</strong></td>'
-                        f'<td style="padding:8px 12px;border:1px solid #ddd;color:#888;">{current or "—"}</td>'
-                        f'<td style="padding:8px 12px;border:1px solid #ddd;color:#2e7d32;font-weight:600;">{new_val_str}</td>'
-                        f'<td style="padding:8px 12px;border:1px solid #ddd;text-align:center;">{badge}</td>'
+                        f'<td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;color:#1f2937;">{label}</td>'
+                        f'<td style="padding:10px 14px;border:1px solid #e5e7eb;{curr_style}">{current or "—"}</td>'
+                        f'<td style="padding:10px 14px;border:1px solid #e5e7eb;{new_style}">{new_val_str}</td>'
+                        f'<td style="padding:10px 14px;border:1px solid #e5e7eb;text-align:center;">{badge}</td>'
                         f'</tr>'
                     )
+
+                summary_bar = (
+                    f'<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">'
+                    f'<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;'
+                    f'padding:8px 16px;display:flex;align-items:center;gap:8px;">'
+                    f'<span style="font-size:18px;">✏️</span>'
+                    f'<div><div style="font-size:20px;font-weight:800;color:#92400e;">{changed_count}</div>'
+                    f'<div style="font-size:11px;color:#78350f;">Fields Changed</div></div></div>'
+                    f'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;'
+                    f'padding:8px 16px;display:flex;align-items:center;gap:8px;">'
+                    f'<span style="font-size:18px;">✅</span>'
+                    f'<div><div style="font-size:20px;font-weight:800;color:#14532d;">{unchanged_count}</div>'
+                    f'<div style="font-size:11px;color:#166534;">Unchanged</div></div></div>'
+                    f'<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;'
+                    f'padding:8px 16px;display:flex;align-items:center;gap:8px;">'
+                    f'<span style="font-size:18px;">📎</span>'
+                    f'<div><div style="font-size:20px;font-weight:800;color:#1e3a8a;">'
+                    f'{sum(1 for k in data if k in DOC_FIELD_MAP and data[k])}</div>'
+                    f'<div style="font-size:11px;color:#1e40af;">Docs Uploaded</div></div></div>'
+                    f'</div>'
+                )
+
+                doc_section = ''
+                if doc_rows:
+                    doc_section = (
+                        f'<h4 style="color:#1f2937;font-size:14px;margin:20px 0 8px;'
+                        f'border-bottom:2px solid #e5e7eb;padding-bottom:6px;">📎 Uploaded Documents</h4>'
+                        f'<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">'
+                        f'<thead><tr style="background:#f3f4f6;">'
+                        f'<th style="padding:10px 14px;border:1px solid #e5e7eb;text-align:left;color:#374151;">Document</th>'
+                        f'<th style="padding:10px 14px;border:1px solid #e5e7eb;text-align:left;color:#374151;">Status</th>'
+                        f'</tr></thead><tbody>{doc_rows}</tbody></table>'
+                    )
+
+                fields_section = (
+                    f'<h4 style="color:#1f2937;font-size:14px;margin:0 0 8px;'
+                    f'border-bottom:2px solid #e5e7eb;padding-bottom:6px;">📋 Field Changes</h4>'
+                    f'<div style="overflow-x:auto;">'
+                    f'<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+                    f'<thead><tr style="background:#1e3a5f;">'
+                    f'<th style="padding:11px 14px;border:1px solid #1e40af;text-align:left;color:#fff;font-weight:700;">Field</th>'
+                    f'<th style="padding:11px 14px;border:1px solid #1e40af;text-align:left;color:#fff;font-weight:700;">Current Value</th>'
+                    f'<th style="padding:11px 14px;border:1px solid #1e40af;text-align:left;color:#fff;font-weight:700;">Submitted Value</th>'
+                    f'<th style="padding:11px 14px;border:1px solid #1e40af;text-align:center;color:#fff;font-weight:700;">Status</th>'
+                    f'</tr></thead><tbody>{field_rows}</tbody></table></div>'
+                    f'<p style="font-size:11px;color:#9ca3af;margin-top:8px;">'
+                    f'⚠ Highlighted rows indicate values that differ from the current employee record.</p>'
+                )
+
                 rec.changed_fields_display = (
-                    '<div style="overflow-x:auto;">'
-                    '<table style="width:100%;border-collapse:collapse;font-size:13px;font-family:Arial,sans-serif;">'
-                    '<thead><tr style="background:#4e73df;color:white;">'
-                    '<th style="padding:10px 12px;text-align:left;border:1px solid #3a5ec9;">Field</th>'
-                    '<th style="padding:10px 12px;text-align:left;border:1px solid #3a5ec9;">Current Value</th>'
-                    '<th style="padding:10px 12px;text-align:left;border:1px solid #3a5ec9;">Submitted Value</th>'
-                    '<th style="padding:10px 12px;text-align:center;border:1px solid #3a5ec9;">Status</th>'
-                    f'</tr></thead><tbody>{rows}</tbody></table></div>'
-                    '<p style="font-size:11px;color:#999;margin-top:8px;">'
-                    '⚠ Highlighted rows indicate values that differ from current record.</p>'
+                    f'<div style="font-family:\'Segoe UI\',Arial,sans-serif;">'
+                    f'{summary_bar}{doc_section}{fields_section}'
+                    f'</div>'
                 )
             except Exception as e:
-                rec.changed_fields_display = f'<p class="text-danger">Error: {e}</p>'
+                rec.changed_fields_display = (
+                    f'<p style="color:#dc2626;">Error rendering changes: {e}</p>'
+                )
 
     # ── Submit ────────────────────────────────────────────────────
     def action_submit(self):
@@ -426,7 +479,7 @@ class HrProfileChangeRequest(models.Model):
         except Exception:
             raise UserError(_('Submitted data is corrupted.'))
 
-        skip_fields = {'csrf_token', 'submit'}
+        skip_fields = {'csrf_token', 'submit'} | set(DOC_FIELD_MAP.keys())
         write_vals  = {k: v for k, v in data.items()
                        if k not in skip_fields and v is not None and v != ''}
         for f in {'children'}:
@@ -502,25 +555,21 @@ class HrProfileChangeRequest(models.Model):
         try:
             hr_users = self._get_hr_reviewer_users()
             if not hr_users:
-                _logger.warning('PCR %s: No HR Reviewer users — mail not sent.', self.name)
                 return
             hr_emails = []
             hr_names_list = []
             for u in hr_users:
                 best_email = (
-                    u.work_email
-                    or u.partner_id.email
+                    u.work_email or u.partner_id.email
                     or (u.login if '@' in (u.login or '') else None)
                 )
                 if best_email:
                     hr_emails.append(best_email)
                     hr_names_list.append(u.name)
-                    _logger.info('PCR %s: will notify %s at %s', self.name, u.name, best_email)
             if not hr_emails:
-                _logger.warning('PCR %s: HR Reviewers have no email addresses.', self.name)
                 return
-            email_to = ', '.join(hr_emails)
-            hr_names = ', '.join(hr_names_list)
+            email_to  = ', '.join(hr_emails)
+            hr_names  = ', '.join(hr_names_list)
             mail = self.env['mail.mail'].sudo().create({
                 'subject':    f'New Profile Change Request: {self.name} — {self.employee_id.name}',
                 'email_to':   email_to,
@@ -530,45 +579,44 @@ class HrProfileChangeRequest(models.Model):
                 ),
                 'auto_delete': False,
                 'body_html': f'''
-                <div style="font-family:Arial,sans-serif;max-width:620px;
-                            margin:auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-                    <div style="background:#4e73df;padding:24px 28px;">
-                        <h2 style="color:white;margin:0;font-size:20px;">📋 New Profile Change Request</h2>
-                        <p style="color:#c8d8ff;margin:6px 0 0;font-size:13px;">
+                <div style="font-family:\'Segoe UI\',Arial,sans-serif;max-width:640px;
+                            margin:auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+                    <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);padding:28px 32px;">
+                        <h2 style="color:white;margin:0;font-size:22px;">📋 New Profile Change Request</h2>
+                        <p style="color:#bfdbfe;margin:8px 0 0;font-size:13px;">
                             Action required — please review and approve or reject</p>
                     </div>
-                    <div style="padding:24px;background:#f9f9f9;">
-                        <p>Dear HR Team,</p>
-                        <p><b>{self.employee_id.name}</b> has submitted a profile update request.</p>
-                        <table style="width:100%;border-collapse:collapse;margin:16px 0;background:white;">
-                            <tr style="background:#eef2ff;">
-                                <td style="padding:10px 14px;border:1px solid #ddd;font-weight:bold;width:38%;">Reference</td>
-                                <td style="padding:10px 14px;border:1px solid #ddd;">{self.name}</td>
+                    <div style="padding:28px 32px;background:#f9fafb;">
+                        <p style="color:#374151;">Dear HR Team,</p>
+                        <p style="color:#374151;"><b>{self.employee_id.name}</b> has submitted a profile update request.</p>
+                        <table style="width:100%;border-collapse:collapse;margin:16px 0;background:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                            <tr style="background:#eff6ff;">
+                                <td style="padding:11px 16px;border-bottom:1px solid #e5e7eb;font-weight:700;color:#1e40af;width:38%;">Reference</td>
+                                <td style="padding:11px 16px;border-bottom:1px solid #e5e7eb;color:#1f2937;">{self.name}</td>
                             </tr>
                             <tr>
-                                <td style="padding:10px 14px;border:1px solid #ddd;font-weight:bold;">Employee</td>
-                                <td style="padding:10px 14px;border:1px solid #ddd;">{self.employee_id.name}</td>
+                                <td style="padding:11px 16px;border-bottom:1px solid #e5e7eb;font-weight:700;color:#374151;">Employee</td>
+                                <td style="padding:11px 16px;border-bottom:1px solid #e5e7eb;color:#1f2937;">{self.employee_id.name}</td>
                             </tr>
-                            <tr style="background:#eef2ff;">
-                                <td style="padding:10px 14px;border:1px solid #ddd;font-weight:bold;">Company</td>
-                                <td style="padding:10px 14px;border:1px solid #ddd;">{self.company_id.name if self.company_id else '—'}</td>
+                            <tr style="background:#f9fafb;">
+                                <td style="padding:11px 16px;border-bottom:1px solid #e5e7eb;font-weight:700;color:#374151;">Company</td>
+                                <td style="padding:11px 16px;border-bottom:1px solid #e5e7eb;color:#1f2937;">{self.company_id.name if self.company_id else '—'}</td>
                             </tr>
                             <tr>
-                                <td style="padding:10px 14px;border:1px solid #ddd;font-weight:bold;">Department</td>
-                                <td style="padding:10px 14px;border:1px solid #ddd;">{self.department_id.name or '—'}</td>
+                                <td style="padding:11px 16px;border-bottom:1px solid #e5e7eb;font-weight:700;color:#374151;">Department</td>
+                                <td style="padding:11px 16px;border-bottom:1px solid #e5e7eb;color:#1f2937;">{self.department_id.name or '—'}</td>
                             </tr>
-                            <tr style="background:#eef2ff;">
-                                <td style="padding:10px 14px;border:1px solid #ddd;font-weight:bold;">Submitted On</td>
-                                <td style="padding:10px 14px;border:1px solid #ddd;">{self.submission_date}</td>
+                            <tr style="background:#f9fafb;">
+                                <td style="padding:11px 16px;font-weight:700;color:#374151;">Submitted On</td>
+                                <td style="padding:11px 16px;color:#1f2937;">{self.submission_date}</td>
                             </tr>
                         </table>
-                        <p>Go to: <b>Profile Change Requests → Pending Review</b></p>
-                        <p style="color:#999;font-size:11px;">Sent to: {hr_names}</p>
+                        <p style="color:#374151;">Navigate to: <b>Profile Change Requests → Pending Review</b> to take action.</p>
+                        <p style="color:#9ca3af;font-size:11px;">Sent to: {hr_names}</p>
                     </div>
                 </div>''',
             })
             mail.sudo().send()
-            _logger.info('PCR %s: HR notification sent to %s', self.name, email_to)
         except Exception as e:
             _logger.warning('PCR %s: Failed to send HR notification: %s', self.name, e)
 
@@ -576,28 +624,41 @@ class HrProfileChangeRequest(models.Model):
     def _send_mail_to_employee(self, status):
         try:
             emp_user = self.employee_id.user_id
-            if emp_user and '@' in (emp_user.login or ''):
-                emp_email = emp_user.login
-            else:
-                emp_email = self.employee_id.work_email or self.employee_id.private_email
+            emp_email = (
+                (emp_user.login if emp_user and '@' in (emp_user.login or '') else None)
+                or self.employee_id.work_email
+                or self.employee_id.private_email
+            )
             if not emp_email:
-                _logger.warning('PCR %s: Employee has no email.', self.name)
                 return
             if status == 'approved':
-                subject = f'Profile Update Approved - {self.name}'
+                subject = f'Profile Update Approved — {self.name}'
                 body = (
+                    f'<div style="font-family:\'Segoe UI\',Arial,sans-serif;max-width:520px;margin:auto;">'
+                    f'<div style="background:#065f46;padding:20px 24px;border-radius:8px 8px 0 0;">'
+                    f'<h2 style="color:white;margin:0;">✅ Profile Update Approved</h2></div>'
+                    f'<div style="background:#f0fdf4;padding:24px;border:1px solid #d1fae5;border-radius:0 0 8px 8px;">'
                     f'<p>Dear <b>{self.employee_id.name}</b>,</p>'
                     f'<p>Your request <b>{self.name}</b> has been '
-                    f'<b style="color:green">APPROVED</b>. '
+                    f'<b style="color:#065f46;">APPROVED</b>. '
                     f'Your profile has been updated successfully.</p>'
+                    f'<p style="color:#6b7280;font-size:12px;">Approved by: {self.reviewed_by.name if self.reviewed_by else "HR Team"}</p>'
+                    f'</div></div>'
                 )
             else:
-                subject = f'Profile Update Rejected - {self.name}'
+                subject = f'Profile Update Rejected — {self.name}'
                 body = (
+                    f'<div style="font-family:\'Segoe UI\',Arial,sans-serif;max-width:520px;margin:auto;">'
+                    f'<div style="background:#7f1d1d;padding:20px 24px;border-radius:8px 8px 0 0;">'
+                    f'<h2 style="color:white;margin:0;">❌ Profile Update Rejected</h2></div>'
+                    f'<div style="background:#fef2f2;padding:24px;border:1px solid #fecaca;border-radius:0 0 8px 8px;">'
                     f'<p>Dear <b>{self.employee_id.name}</b>,</p>'
                     f'<p>Your request <b>{self.name}</b> has been '
-                    f'<b style="color:red">REJECTED</b>.</p>'
-                    f'<p>Reason: {self.rejection_reason or "No reason provided"}</p>'
+                    f'<b style="color:#7f1d1d;">REJECTED</b>.</p>'
+                    f'<div style="background:#fee2e2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:4px;margin:12px 0;">'
+                    f'<strong>Reason:</strong> {self.rejection_reason or "No reason provided"}</div>'
+                    f'<p>Please correct the information and resubmit from the employee portal.</p>'
+                    f'</div></div>'
                 )
             mail = self.env['mail.mail'].sudo().create({
                 'subject':     subject,
@@ -607,9 +668,26 @@ class HrProfileChangeRequest(models.Model):
                 'body_html':   body,
             })
             mail.sudo().send()
-            _logger.info('PCR %s: Employee notification sent to %s', self.name, emp_email)
         except Exception as e:
             _logger.warning('PCR %s: Failed to send employee notification: %s', self.name, e)
+
+
+class HrProfileChangeRequestTrail(models.Model):
+    _name = 'hr.profile.change.request.trail'
+    _description = 'Profile Change Request Audit Trail'
+    _order = 'action_date desc'
+
+    request_id  = fields.Many2one('hr.profile.change.request', ondelete='cascade')
+    action_date = fields.Datetime(string='Date', default=fields.Datetime.now)
+    action      = fields.Selection([
+        ('submitted', 'Submitted'),
+        ('approved',  'Approved'),
+        ('rejected',  'Rejected'),
+        ('reopened',  'Re-opened'),
+    ], string='Action')
+    user_id = fields.Many2one('res.users', string='By')
+    note    = fields.Text(string='Note')
+    reason  = fields.Text(string='Reason')
 
 
 
