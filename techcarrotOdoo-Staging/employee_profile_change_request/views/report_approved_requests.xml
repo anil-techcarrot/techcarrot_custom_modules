@@ -296,11 +296,11 @@
                   parent="menu_pcr_reports"
                   action="action_pcr_approved_report"
                   sequence="10"/>
-        <menuitem id="menu_pcr_documents_report"
-                  name="Document Uploads"
-                  parent="menu_pcr_reports"
-                  action="action_pcr_documents_report"
-                  sequence="20"/>
+<!--        <menuitem id="menu_pcr_documents_report"-->
+<!--                  name="Document Uploads"-->
+<!--                  parent="menu_pcr_reports"-->
+<!--                  action="action_pcr_documents_report"-->
+<!--                  sequence="20"/>-->
 
     </data>
 </odoo>
