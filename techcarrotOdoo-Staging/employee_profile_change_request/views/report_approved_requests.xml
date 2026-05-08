@@ -2,27 +2,24 @@
 <odoo>
     <data>
 
-        <!-- LIST VIEW — all text BLACK, only Status badge colored -->
+        <!-- ══════════════════════════════════════════════
+             LIST VIEW — uses only REAL model fields
+             No _display fields — those caused broken form
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_list" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.list</field>
             <field name="model">hr.profile.change.request</field>
             <field name="arch" type="xml">
-                <!--
-                    KEY: Use Char display fields (not Many2one) so
-                    Odoo does not render them as blue clickable links.
-                    No decoration-* on list tag so rows stay black.
-                -->
                 <list string="Profile Change Requests Report"
-                      create="false" edit="false" delete="false"
-                      open_form_view="true">
+                      create="false" edit="false" delete="false">
                     <field name="name" string="Reference"/>
-                    <field name="employee_name_display" string="Employee"/>
-                    <field name="company_name_display" string="Company"/>
-                    <field name="department_name_display" string="Department"/>
-                    <field name="work_location_name_display" string="Work Location"/>
+                    <field name="employee_id" string="Employee"/>
+                    <field name="company_id" string="Company"/>
+                    <field name="department_id" string="Department"/>
+                    <field name="work_location_id" string="Work Location"/>
                     <field name="submission_date" string="Submitted On"/>
                     <field name="review_date" string="Reviewed On"/>
-                    <field name="reviewed_by_name_display" string="Reviewed By"/>
+                    <field name="reviewed_by" string="Reviewed By"/>
                     <field name="state" string="Status"
                            widget="badge"
                            decoration-success="state == 'approved'"
@@ -33,12 +30,33 @@
             </field>
         </record>
 
-        <!-- FORM VIEW -->
+        <!-- ══════════════════════════════════════════════
+             FORM VIEW — uses only REAL fields
+             This fixes the missing Approve/Reject buttons
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_form" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.form</field>
             <field name="model">hr.profile.change.request</field>
             <field name="arch" type="xml">
                 <form string="Profile Change Request Detail" create="false">
+                    <header>
+                        <button name="action_approve"
+                                string="Approve"
+                                type="object"
+                                class="btn-success"
+                                invisible="state != 'pending'"/>
+                        <button name="action_reject"
+                                string="Reject"
+                                type="object"
+                                class="btn-danger"
+                                invisible="state != 'pending'"/>
+                        <button name="action_reset_to_pending"
+                                string="Re-open"
+                                type="object"
+                                invisible="state != 'rejected'"/>
+                        <field name="state" widget="statusbar"
+                               statusbar_visible="draft,pending,approved,rejected"/>
+                    </header>
                     <sheet>
                         <div class="oe_title">
                             <h1><field name="name" readonly="1"/></h1>
@@ -49,10 +67,10 @@
                                 <field name="company_id" readonly="1"/>
                                 <field name="department_id" readonly="1"/>
                                 <field name="work_location_id" readonly="1"/>
+                                <field name="submission_date" readonly="1"/>
                             </group>
                             <group string="Review Info">
                                 <field name="state" readonly="1" widget="badge"/>
-                                <field name="submission_date" readonly="1"/>
                                 <field name="review_date" readonly="1"/>
                                 <field name="reviewed_by" readonly="1"/>
                                 <field name="rejection_reason" readonly="1"
@@ -71,16 +89,24 @@
                                         <field name="action" string="Action"/>
                                         <field name="user_id" string="By"/>
                                         <field name="note" string="Note"/>
+                                        <field name="reason" string="Reason"/>
                                     </list>
                                 </field>
                             </page>
                         </notebook>
                     </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="activity_ids"/>
+                        <field name="message_ids"/>
+                    </div>
                 </form>
             </field>
         </record>
 
-        <!-- PIVOT VIEW -->
+        <!-- ══════════════════════════════════════════════
+             PIVOT VIEW
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_pivot" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.pivot</field>
             <field name="model">hr.profile.change.request</field>
@@ -93,7 +119,9 @@
             </field>
         </record>
 
-        <!-- GRAPH VIEW -->
+        <!-- ══════════════════════════════════════════════
+             GRAPH VIEW
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_graph" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.graph</field>
             <field name="model">hr.profile.change.request</field>
@@ -105,7 +133,9 @@
             </field>
         </record>
 
-        <!-- SEARCH VIEW -->
+        <!-- ══════════════════════════════════════════════
+             SEARCH VIEW — Odoo 19 safe
+        ══════════════════════════════════════════════ -->
         <record id="view_pcr_approved_report_search" model="ir.ui.view">
             <field name="name">hr.profile.change.request.approved.search</field>
             <field name="model">hr.profile.change.request</field>
@@ -116,6 +146,8 @@
                     <field name="department_id" string="Department"/>
                     <field name="company_id" string="Company"/>
                     <field name="reviewed_by" string="Reviewed By"/>
+                    <field name="submission_date" string="Submitted On"/>
+                    <field name="review_date" string="Reviewed On"/>
                     <separator/>
                     <filter name="filter_approved" string="Approved"
                             domain="[('state','=','approved')]"/>
@@ -123,9 +155,6 @@
                             domain="[('state','=','rejected')]"/>
                     <filter name="filter_pending" string="Pending"
                             domain="[('state','=','pending')]"/>
-                    <separator/>
-                    <filter name="filter_this_month" string="This Month"
-                            domain="[('submission_date','&gt;=', context_today().strftime('%Y-%m-01'))]"/>
                     <separator/>
                     <filter name="group_status" string="Status"
                             context="{'group_by': 'state'}"/>
@@ -139,32 +168,15 @@
                             context="{'group_by': 'reviewed_by'}"/>
                     <filter name="group_submit_month" string="Submission Month"
                             context="{'group_by': 'submission_date:month'}"/>
+                    <filter name="group_review_month" string="Review Month"
+                            context="{'group_by': 'review_date:month'}"/>
                 </search>
-            </field>
-        </record>
-
-        <!-- ACTION — Profile Change Report -->
-        <record id="action_pcr_approved_report" model="ir.actions.act_window">
-            <field name="name">Profile Change Requests Report</field>
-            <field name="res_model">hr.profile.change.request</field>
-            <field name="view_mode">list,form,pivot,graph</field>
-            <field name="domain">[('state', 'in', ['approved', 'rejected'])]</field>
-            <field name="context">{'search_default_filter_approved': 1}</field>
-            <field name="view_ids" eval="[
-                (5, 0, 0),
-                (0, 0, {'view_mode': 'list',  'view_id': ref('view_pcr_approved_report_list')}),
-                (0, 0, {'view_mode': 'form',  'view_id': ref('view_pcr_approved_report_form')}),
-                (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_pcr_approved_report_pivot')}),
-                (0, 0, {'view_mode': 'graph', 'view_id': ref('view_pcr_approved_report_graph')}),
-            ]"/>
-            <field name="search_view_id" ref="view_pcr_approved_report_search"/>
-            <field name="help" type="html">
-                <p class="o_view_nocontent_smiling_face">No reviewed requests found.</p>
             </field>
         </record>
 
         <!-- ══════════════════════════════════════════════
              DOCUMENT UPLOADS LIST VIEW
+             Shows which documents employees uploaded
         ══════════════════════════════════════════════ -->
         <record id="view_pcr_documents_list" model="ir.ui.view">
             <field name="name">hr.profile.change.request.documents.list</field>
@@ -173,15 +185,19 @@
                 <list string="Document Uploads Report"
                       create="false" edit="false" delete="false">
                     <field name="name" string="Reference"/>
-                    <field name="employee_name_display" string="Employee"/>
-                    <field name="company_name_display" string="Company"/>
-                    <field name="department_name_display" string="Department"/>
+                    <field name="employee_id" string="Employee"/>
+                    <field name="company_id" string="Company"/>
+                    <field name="department_id" string="Department"/>
                     <field name="submission_date" string="Uploaded On"/>
-                    <field name="has_emirates_id_doc" string="Emirates ID"/>
-                    <field name="has_passport_doc" string="Passport"/>
-                    <field name="has_other_doc" string="Other Doc"/>
-                    <field name="has_work_permit_doc" string="Work Permit"/>
-                    <field name="total_docs_uploaded" string="Total Docs"/>
+                    <field name="doc_emirates_id" string="Emirates ID"
+                           widget="boolean_toggle" readonly="1"/>
+                    <field name="doc_passport" string="Passport"
+                           widget="boolean_toggle" readonly="1"/>
+                    <field name="doc_other" string="Other Doc"
+                           widget="boolean_toggle" readonly="1"/>
+                    <field name="doc_work_permit" string="Work Permit"
+                           widget="boolean_toggle" readonly="1"/>
+                    <field name="doc_count" string="Total Docs"/>
                     <field name="state" string="Status" widget="badge"
                            decoration-success="state == 'approved'"
                            decoration-danger="state == 'rejected'"
@@ -199,15 +215,16 @@
                     <field name="employee_id" string="Employee"/>
                     <field name="company_id" string="Company"/>
                     <field name="department_id" string="Department"/>
+                    <field name="name" string="Reference"/>
                     <separator/>
-                    <filter name="filter_has_emirates" string="Emirates ID Uploaded"
-                            domain="[('has_emirates_id_doc','=',True)]"/>
-                    <filter name="filter_has_passport" string="Passport Uploaded"
-                            domain="[('has_passport_doc','=',True)]"/>
-                    <filter name="filter_has_other" string="Other Doc Uploaded"
-                            domain="[('has_other_doc','=',True)]"/>
-                    <filter name="filter_has_work_permit" string="Work Permit Uploaded"
-                            domain="[('has_work_permit_doc','=',True)]"/>
+                    <filter name="filter_has_emirates" string="Has Emirates ID"
+                            domain="[('doc_emirates_id','=',True)]"/>
+                    <filter name="filter_has_passport" string="Has Passport"
+                            domain="[('doc_passport','=',True)]"/>
+                    <filter name="filter_has_other" string="Has Other Doc"
+                            domain="[('doc_other','=',True)]"/>
+                    <filter name="filter_has_work_permit" string="Has Work Permit"
+                            domain="[('doc_work_permit','=',True)]"/>
                     <separator/>
                     <filter name="filter_approved" string="Approved"
                             domain="[('state','=','approved')]"/>
@@ -231,7 +248,7 @@
             <field name="name">Document Uploads Report</field>
             <field name="res_model">hr.profile.change.request</field>
             <field name="view_mode">list</field>
-            <field name="domain">[('has_any_doc', '=', True)]</field>
+            <field name="domain">[('doc_count', '&gt;', 0)]</field>
             <field name="view_ids" eval="[
                 (5, 0, 0),
                 (0, 0, {'view_mode': 'list', 'view_id': ref('view_pcr_documents_list')}),
@@ -243,7 +260,31 @@
             </field>
         </record>
 
-        <!-- MENUS -->
+        <!-- ══════════════════════════════════════════════
+             MAIN REPORT ACTION
+        ══════════════════════════════════════════════ -->
+        <record id="action_pcr_approved_report" model="ir.actions.act_window">
+            <field name="name">Profile Change Requests Report</field>
+            <field name="res_model">hr.profile.change.request</field>
+            <field name="view_mode">list,form,pivot,graph</field>
+            <field name="domain">[('state', 'in', ['approved', 'rejected'])]</field>
+            <field name="context">{'search_default_filter_approved': 1}</field>
+            <field name="view_ids" eval="[
+                (5, 0, 0),
+                (0, 0, {'view_mode': 'list',  'view_id': ref('view_pcr_approved_report_list')}),
+                (0, 0, {'view_mode': 'form',  'view_id': ref('view_pcr_approved_report_form')}),
+                (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_pcr_approved_report_pivot')}),
+                (0, 0, {'view_mode': 'graph', 'view_id': ref('view_pcr_approved_report_graph')}),
+            ]"/>
+            <field name="search_view_id" ref="view_pcr_approved_report_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">No reviewed requests found.</p>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════
+             MENUS
+        ══════════════════════════════════════════════ -->
         <menuitem id="menu_pcr_reports"
                   name="Reports"
                   parent="employee_profile_change_request.menu_profile_change_root"
