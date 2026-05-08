@@ -20,6 +20,18 @@
                     </div>
                 </div>
 
+                <!-- Issue 11: upload progress overlay -->
+                <div id="uploadProgressOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+                     background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+                    <div style="background:#fff; border-radius:12px; padding:32px 40px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+                        <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem;" role="status">
+                            <span class="visually-hidden">Uploading...</span>
+                        </div>
+                        <h5 class="mb-1">Uploading File...</h5>
+                        <p class="text-muted mb-0">Please wait, this may take a moment for large files.</p>
+                    </div>
+                </div>
+
                 <!-- Experience Management Form -->
                 <form id="experienceForm" action="/my/employee/experience" method="post"
                       enctype="multipart/form-data">
@@ -31,12 +43,9 @@
                             <h5 class="mb-0">
                                 <i class="fa fa-briefcase text-primary me-2"></i>Work Experience
                             </h5>
-                            <div class="d-flex gap-2">
-                                <span class="badge bg-info" id="experienceYears">0 Years</span>
-                                <button type="button" class="btn btn-sm btn-outline-primary"
-                                        onclick="toggleEditMode('experience')">
-                                    <i class="fa fa-edit me-1"></i>Edit
-                                </button>
+                            <div class="d-flex gap-2 align-items-center">
+                                <!-- Issue 9: only show badge when value > 0 -->
+                                <span class="badge bg-info" id="experienceYears" style="display:none;"></span>
                             </div>
                         </div>
                         <div class="card-body">
@@ -49,12 +58,10 @@
                                           class="form-control"
                                           rows="6"
                                           readonly=""
-                                          placeholder="Describe your professional experience, roles, responsibilities, and achievements...">
-                                    <t t-esc="employee.x_experience"/>
-                                </textarea>
-                                <small class="text-muted">
-                                    <span id="experienceWordCount">0</span>
-                                    words
+                                          placeholder="Describe your professional experience, roles, responsibilities, and achievements..."><t t-esc="employee.x_experience or ''"/></textarea>
+                                <!-- Issue 9: only show word count when > 0 -->
+                                <small class="text-muted" id="experienceWordCountWrap" style="display:none;">
+                                    <span id="experienceWordCount">0</span> words
                                 </small>
                             </div>
                         </div>
@@ -66,12 +73,9 @@
                             <h5 class="mb-0">
                                 <i class="fa fa-cogs text-primary me-2"></i>Skills &amp; Competencies
                             </h5>
-                            <div class="d-flex gap-2">
-                                <span class="badge bg-success" id="skillsCount">0 Skills</span>
-                                <button type="button" class="btn btn-sm btn-outline-primary"
-                                        onclick="toggleEditMode('skills')">
-                                    <i class="fa fa-edit me-1"></i>Edit
-                                </button>
+                            <div class="d-flex gap-2 align-items-center">
+                                <!-- Issue 9: only show badge when value > 0 -->
+                                <span class="badge bg-success" id="skillsCount" style="display:none;"></span>
                             </div>
                         </div>
                         <div class="card-body">
@@ -99,13 +103,14 @@
 
                     <!-- Resume/CV Upload Only -->
                     <div class="card mb-4 shadow-sm">
-                        <div class="card-header bg-light">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
                                 <i class="fa fa-folder-open text-primary me-2"></i>Resume / CV
                             </h5>
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
+                                <!-- Issue 13: file input disabled in non-edit mode -->
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">
                                         <i class="fa fa-file-pdf text-muted me-1"></i>Resume/CV
@@ -125,8 +130,10 @@
                                     </t>
                                     <input type="file"
                                            name="resume_file"
-                                           class="form-control form-control-sm"
-                                           accept=".pdf,.doc,.docx"/>
+                                           id="resumeFileInput"
+                                           class="form-control form-control-sm exp-file-input"
+                                           accept=".pdf,.doc,.docx"
+                                           disabled="disabled"/>
                                     <small class="text-muted">PDF, DOC, DOCX (Max: 10MB)</small>
                                 </div>
                             </div>
@@ -138,7 +145,7 @@
                         <div class="card-body text-center">
                             <div id="formActions" style="display: none;">
 
-                                <!-- ✅ DISCLAIMER — only addition -->
+                                <!-- Disclaimer -->
                                 <div class="alert alert-warning text-start mb-3"
                                      style="border-left: 4px solid #ffc107; border-radius: 6px;">
                                     <div class="form-check d-flex align-items-start gap-2">
@@ -175,11 +182,13 @@
                             <div id="viewActions">
                                 <p class="text-muted mb-3">
                                     Last updated:
-                                    <strong>
+                                    <strong id="expLastUpdated">
                                         <t t-esc="employee.write_date.strftime('%d %b, %Y at %I:%M %p') if employee.write_date else 'Never'"/>
                                     </strong>
                                 </p>
-                                <button type="button" class="btn btn-outline-primary" onclick="enableFullEdit()">
+                                <!-- Issue 10: Edit button changes appearance in edit mode -->
+                                <button type="button" id="expEditBtn"
+                                        class="btn btn-outline-primary" onclick="enableFullEdit()">
                                     <i class="fa fa-edit me-1"></i>Edit Experience &amp; Skills
                                 </button>
                             </div>
@@ -191,17 +200,52 @@
                     <![CDATA[
 let isEditMode = false;
 let originalFormData = {};
+/* Issue 12: snapshot original text/skills values at page load for change detection */
+let originalExpText = '';
+let originalSkillsText = '';
+
+/* Issue 8: fix last-updated timezone */
+(function fixExpTimezone() {
+    var el = document.getElementById('expLastUpdated');
+    if (!el) return;
+    var raw = el.textContent.trim().replace(/\u00a0/g,' ');
+    if (!raw || raw === 'Never') return;
+    try {
+        var m = raw.match(/(\d{1,2})\s+(\w+),?\s+(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (m) {
+            var months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+            var monIdx = months[m[2].toLowerCase().substring(0,3)];
+            var hr = parseInt(m[4],10);
+            var isPM = m[6].toUpperCase()==='PM';
+            if (isPM && hr < 12) hr += 12;
+            if (!isPM && hr === 12) hr = 0;
+            var dt = new Date(Date.UTC(parseInt(m[3],10), monIdx, parseInt(m[1],10), hr, parseInt(m[5],10)));
+            if (!isNaN(dt.getTime())) {
+                el.textContent = dt.toLocaleString(undefined,{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true});
+            }
+        }
+    } catch(e) {}
+})();
 
 document.addEventListener('DOMContentLoaded', function () {
+    /* snapshot originals for change detection (Issue 12) */
+    originalExpText = (document.getElementById('experienceText').value || '').trim();
+    originalSkillsText = (document.getElementById('skillsInput').value || '').trim();
+
     updateSkillsDisplay();
     updateWordCount();
     calculateExperience();
+
+    /* Issue 13: ensure resume file input is disabled on load */
+    document.querySelectorAll('.exp-file-input').forEach(fi => fi.setAttribute('disabled','disabled'));
 });
 
+/* Issue 9: show badge only when count > 0 */
 function updateSkillsDisplay() {
     const skillsInput = document.getElementById('skillsInput');
     const skillsBadges = document.getElementById('skillsBadges');
-    if (skillsInput && skillsInput.value) {
+    const skillsCountEl = document.getElementById('skillsCount');
+    if (skillsInput && skillsInput.value && skillsInput.value.trim()) {
         const skills = skillsInput.value.split(',').map(s => s.trim()).filter(s => s);
         skillsBadges.innerHTML = '';
         skills.forEach(skill => {
@@ -210,64 +254,54 @@ function updateSkillsDisplay() {
             badge.textContent = skill;
             skillsBadges.appendChild(badge);
         });
-        document.getElementById('skillsCount').textContent = skills.length + ' Skills';
+        if (skills.length > 0) {
+            skillsCountEl.textContent = skills.length + ' Skills';
+            skillsCountEl.style.display = '';
+        } else {
+            skillsCountEl.style.display = 'none';
+        }
     } else {
         skillsBadges.innerHTML = '<span class="text-muted small">No skills added yet</span>';
-        document.getElementById('skillsCount').textContent = '0 Skills';
+        skillsCountEl.style.display = 'none';
     }
 }
 
+/* Issue 9: show word count only when > 0 */
 function updateWordCount() {
     const experienceText = document.getElementById('experienceText');
+    const wrapEl = document.getElementById('experienceWordCountWrap');
+    const countEl = document.getElementById('experienceWordCount');
     if (experienceText) {
         const wordCount = experienceText.value.trim().split(/\s+/).filter(w => w.length > 0).length;
-        document.getElementById('experienceWordCount').textContent = wordCount;
+        if (wordCount > 0) {
+            countEl.textContent = wordCount;
+            wrapEl.style.display = '';
+        } else {
+            wrapEl.style.display = 'none';
+        }
     }
 }
 
+/* Issue 9: show years badge only when value > 0 */
 function calculateExperience() {
     const experienceText = document.getElementById('experienceText');
+    const yearsEl = document.getElementById('experienceYears');
     if (!experienceText) return;
     const text = experienceText.value.toLowerCase();
     const yearMatches = text.match(/(\d+)\s*(years?|yrs?)/g);
     if (yearMatches) {
         const years = yearMatches.map(m => parseInt(m.match(/\d+/)[0]));
-        document.getElementById('experienceYears').textContent = Math.max(...years) + ' Years';
-    } else {
-        document.getElementById('experienceYears').textContent = '0 Years';
-    }
-}
-
-function toggleEditMode(section) {
-    if (section === 'experience') {
-        const textarea = document.getElementById('experienceText');
-        if (textarea.hasAttribute('readonly')) {
-            textarea.removeAttribute('readonly');
-            textarea.focus();
-            showFormActions();
-        }
-    } else if (section === 'skills') {
-        const input = document.getElementById('skillsInput');
-        if (input.hasAttribute('readonly')) {
-            input.removeAttribute('readonly');
-            input.focus();
-            showFormActions();
+        const maxYears = Math.max(...years);
+        if (maxYears > 0) {
+            yearsEl.textContent = maxYears + ' Years';
+            yearsEl.style.display = '';
+            return;
         }
     }
+    yearsEl.style.display = 'none';
 }
 
-function showFormActions() {
-    isEditMode = true;
-    storeOriginalFormData();
-    document.getElementById('formActions').style.display = 'block';
-    document.getElementById('viewActions').style.display = 'none';
-    /* ── Reset disclaimer & save button ── */
-    const disc = document.getElementById('expDisclaimer');
-    if (disc) disc.checked = false;
-    const btn = document.getElementById('expSaveBtn');
-    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
-}
-
+/* Issue 10: change Edit button style when in edit mode */
 function enableFullEdit() {
     isEditMode = true;
     storeOriginalFormData();
@@ -278,9 +312,20 @@ function enableFullEdit() {
             input.removeAttribute('disabled');
         }
     });
+    /* Issue 13: enable file inputs in edit mode */
+    document.querySelectorAll('#experienceForm .exp-file-input').forEach(fi => fi.removeAttribute('disabled'));
+
     document.getElementById('formActions').style.display = 'block';
     document.getElementById('viewActions').style.display = 'none';
-    /* ── Reset disclaimer & save button ── */
+
+    /* Issue 10: change button appearance */
+    var editBtn = document.getElementById('expEditBtn');
+    if (editBtn) {
+        editBtn.classList.remove('btn-outline-primary');
+        editBtn.classList.add('btn-primary', 'edit-active');
+        editBtn.innerHTML = '<i class="fa fa-pencil me-1"></i>Editing Mode ON';
+    }
+
     const disc = document.getElementById('expDisclaimer');
     if (disc) disc.checked = false;
     const btn = document.getElementById('expSaveBtn');
@@ -292,7 +337,6 @@ function enableFullEdit() {
     document.getElementById('skillsInput').addEventListener('input', updateSkillsDisplay);
 }
 
-/* ── ONLY NEW FUNCTION ── */
 function toggleExpSaveBtn() {
     const checked = document.getElementById('expDisclaimer').checked;
     const btn = document.getElementById('expSaveBtn');
@@ -331,9 +375,23 @@ function disableEditMode() {
             input.setAttribute('readonly', 'readonly');
         }
     });
+    /* Issue 13: disable file inputs when leaving edit mode */
+    document.querySelectorAll('#experienceForm .exp-file-input').forEach(fi => {
+        fi.setAttribute('disabled', 'disabled');
+        fi.value = '';
+    });
+
     document.getElementById('formActions').style.display = 'none';
     document.getElementById('viewActions').style.display = 'block';
-    /* ── Reset disclaimer & save button ── */
+
+    /* Issue 10: restore button appearance */
+    var editBtn = document.getElementById('expEditBtn');
+    if (editBtn) {
+        editBtn.classList.remove('btn-primary', 'edit-active');
+        editBtn.classList.add('btn-outline-primary');
+        editBtn.innerHTML = '<i class="fa fa-edit me-1"></i>Edit Experience &amp; Skills';
+    }
+
     const disc = document.getElementById('expDisclaimer');
     if (disc) disc.checked = false;
     const btn = document.getElementById('expSaveBtn');
@@ -342,20 +400,44 @@ function disableEditMode() {
 
 document.getElementById('experienceForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    /* ── Guard: disclaimer must be checked ── */
     const disc = document.getElementById('expDisclaimer');
     if (disc && !disc.checked) {
         showMessage('Please read and accept the Employee Disclaimer before saving.', 'error');
         return;
     }
+
+    /* Issue 12: detect if anything actually changed */
+    const currentExpText = (document.getElementById('experienceText').value || '').trim();
+    const currentSkillsText = (document.getElementById('skillsInput').value || '').trim();
+    const resumeInput = document.getElementById('resumeFileInput');
+    const hasFileChange = resumeInput && resumeInput.files && resumeInput.files.length > 0;
+
+    if (currentExpText === originalExpText && currentSkillsText === originalSkillsText && !hasFileChange) {
+        showMessage('No changes detected. Your experience data is already up to date.', 'info');
+        return;
+    }
+
+    /* Issue 11: show upload overlay for large files */
+    const hasLargeFile = hasFileChange && resumeInput.files[0].size > 1 * 1024 * 1024; /* >1MB */
+    var overlay = document.getElementById('uploadProgressOverlay');
+    if (hasLargeFile || hasFileChange) {
+        overlay.style.display = 'flex';
+    }
+
     const formData = new FormData(this);
     fetch('/my/employee/experience', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (overlay) overlay.style.display = 'none';
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
+            /* Update snapshots so re-save correctly detects no change */
+            originalExpText = currentExpText;
+            originalSkillsText = currentSkillsText;
             showMessage('Experience and skills updated successfully!', 'success');
             disableEditMode();
         } else {
@@ -363,6 +445,7 @@ document.getElementById('experienceForm').addEventListener('submit', function (e
         }
     })
     .catch(error => {
+        if (overlay) overlay.style.display = 'none';
         console.error('Error:', error);
         showMessage('Network error. Please try again.', 'error');
     });
@@ -377,6 +460,10 @@ function showMessage(text, type) {
     successMsg.classList.remove('show');
     errorMsg.classList.remove('show');
     if (type === 'success') {
+        document.getElementById('successText').textContent = text;
+        successMsg.style.display = 'block';
+        successMsg.classList.add('show');
+    } else if (type === 'info') {
         document.getElementById('successText').textContent = text;
         successMsg.style.display = 'block';
         successMsg.classList.add('show');
@@ -404,6 +491,10 @@ function showMessage(text, type) {
     margin-top: 1rem;
 }
 .badge { font-size: 0.875em; padding: 0.5em 0.75em; }
+/* Issue 10: active edit button */
+#expEditBtn.edit-active { box-shadow: 0 0 0 3px rgba(13,110,253,0.35); }
+/* Issue 13: disabled file input */
+input[type="file"]:disabled { background-color: #e9ecef; cursor: not-allowed; opacity: 0.65; }
                     ]]>
                 </style>
             </t>

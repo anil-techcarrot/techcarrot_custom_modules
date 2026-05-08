@@ -103,6 +103,17 @@
                 </t>
                 <!-- ══ End Overlay Banner ══ -->
 
+                <!-- Issue 4: Pending-lock banner — blocks editing when a request is pending -->
+                <t t-if="notification and notification.get('type') == 'warning'">
+                    <div id="pendingLockBanner" class="alert alert-warning mb-3"
+                         style="border-left:4px solid #ffc107;border-radius:6px;">
+                        <i class="fa fa-lock me-2"></i>
+                        <strong>Editing Locked:</strong>
+                        You have a profile update currently pending HR review.
+                        Editing is disabled until HR approves or rejects your request.
+                    </div>
+                </t>
+
                 <t t-set="all_countries" t-value="request.env['res.country'].sudo().search([], order='name')"/>
 
                 <!-- Success/Error Messages -->
@@ -512,6 +523,7 @@
                                     <div class="invalid-feedback"></div>
                                     <small class="text-muted">Letters and digits only</small>
                                 </div>
+                                <!-- Issue 6: file input only enabled in edit mode -->
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Work Permit File</label>
                                     <t t-if="employee.has_work_permit">
@@ -522,7 +534,7 @@
                                             </a>
                                         </div>
                                     </t>
-                                    <input type="file" name="has_work_permit" class="form-control"/>
+                                    <input type="file" name="has_work_permit" class="form-control file-upload-input" disabled="disabled"/>
                                 </div>
                             </div>
                         </div>
@@ -1837,6 +1849,7 @@
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
+                                <!-- Issue 5 & 6: file inputs have data-prev-file and are disabled by default -->
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">
                                         <i class="fa fa-id-card text-muted me-1"></i>Emirates ID Copy
@@ -1849,8 +1862,8 @@
                                             </a>
                                         </div>
                                     </t>
-                                    <input type="file" name="emirates_id_file" class="form-control"
-                                           accept=".pdf,.jpg,.jpeg,.png"/>
+                                    <input type="file" name="emirates_id_file" class="form-control file-upload-input"
+                                           accept=".pdf,.jpg,.jpeg,.png" disabled="disabled"/>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">
@@ -1864,8 +1877,8 @@
                                             </a>
                                         </div>
                                     </t>
-                                    <input type="file" name="passport_file" class="form-control"
-                                           accept=".pdf,.jpg,.jpeg,.png"/>
+                                    <input type="file" name="passport_file" class="form-control file-upload-input"
+                                           accept=".pdf,.jpg,.jpeg,.png" disabled="disabled"/>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">
@@ -1879,8 +1892,8 @@
                                             </a>
                                         </div>
                                     </t>
-                                    <input type="file" name="other_documents" class="form-control"
-                                           accept=".pdf,.jpg,.jpeg,.png"/>
+                                    <input type="file" name="other_documents" class="form-control file-upload-input"
+                                           accept=".pdf,.jpg,.jpeg,.png" disabled="disabled"/>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">
@@ -1894,8 +1907,8 @@
                                             </a>
                                         </div>
                                     </t>
-                                    <input type="file" name="has_work_permit" class="form-control"
-                                           accept=".pdf,.jpg,.jpeg,.png"/>
+                                    <input type="file" name="has_work_permit" class="form-control file-upload-input"
+                                           accept=".pdf,.jpg,.jpeg,.png" disabled="disabled"/>
                                 </div>
                             </div>
                         </div>
@@ -1943,11 +1956,14 @@
                                 <p class="text-muted mb-3">
                                     <i class="fa fa-info-circle me-1"></i>
                                     Profile last updated:
-                                    <strong>
+                                    <strong id="profileLastUpdated">
+                                        <!-- Issue 8: timezone-formatted date rendered server-side -->
                                         <t t-esc="employee.write_date.strftime('%d %b, %Y at %I:%M %p') if employee.write_date else 'Never'"/>
                                     </strong>
                                 </p>
-                                <button type="button" class="btn btn-outline-primary" onclick="enableEditMode()">
+                                <!-- Issue 10: Edit button changes style when in edit mode -->
+                                <button type="button" id="editProfileBtn"
+                                        class="btn btn-outline-primary" onclick="enableEditMode()">
                                     <i class="fa fa-edit me-1"></i>Edit Profile
                                 </button>
                             </div>
@@ -1959,9 +1975,50 @@
                 <!-- ===== JAVASCRIPT ===== -->
                 <script type="text/javascript">
                     <![CDATA[
+/* ── Issue 4: detect if a pending submission exists ── */
+var PENDING_LOCKED = (function() {
+    var banner = document.getElementById('pendingLockBanner');
+    return !!banner;
+})();
+
 let isEditMode = false;
 let originalFormData = {};
 let activeProfileTab = 'basic';
+
+/* ── Issue 8: display write_date in browser's local timezone ── */
+(function fixLastUpdatedTimezone() {
+    /* The server renders UTC time in the text; we convert it to the
+       browser's local timezone so the displayed time matches the user's clock. */
+    var el = document.getElementById('profileLastUpdated');
+    if (!el) return;
+    var raw = el.textContent.trim();
+    if (!raw || raw === 'Never') return;
+    /* Parse format: "28 Apr, 2025 at 03:45 PM"  (server UTC) */
+    try {
+        /* Replace non-breaking spaces and normalise */
+        raw = raw.replace(/\u00a0/g, ' ').trim();
+        var dt = new Date(raw);
+        if (isNaN(dt.getTime())) {
+            /* Try manual parse: "DD Mon, YYYY at HH:MM AM/PM" */
+            var m = raw.match(/(\d{1,2})\s+(\w+),?\s+(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            if (m) {
+                var months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+                var monIdx = months[m[2].toLowerCase().substring(0,3)];
+                var hr = parseInt(m[4],10);
+                var isPM = m[6].toUpperCase()==='PM';
+                if (isPM && hr < 12) hr += 12;
+                if (!isPM && hr === 12) hr = 0;
+                /* server stores UTC; construct a UTC date */
+                dt = new Date(Date.UTC(parseInt(m[3],10), monIdx, parseInt(m[1],10), hr, parseInt(m[5],10)));
+            }
+        }
+        if (!isNaN(dt.getTime())) {
+            var opts = { day:'2-digit', month:'short', year:'numeric',
+                         hour:'2-digit', minute:'2-digit', hour12:true };
+            el.textContent = dt.toLocaleString(undefined, opts);
+        }
+    } catch(e) { /* leave original */ }
+})();
 
 /* ── Helper: snapshot all editable field values into localStorage immediately ── */
 function autosaveDraftNow() {
@@ -1974,9 +2031,6 @@ function autosaveDraftNow() {
             draftData[input.name] = input.value;
         });
         localStorage.setItem('profileDraft', JSON.stringify(draftData));
-        /* NOTE: we do NOT set profileEditActive here anymore.
-           It is only set once — right when the user explicitly
-           navigates away while in edit mode (beforeunload).        */
     } catch(e) { console.error('autosave error', e); }
 }
 
@@ -1997,14 +2051,35 @@ function switchProfileTab(tabKey) {
 }
 
 function syncAndToggleEditMode(sourceCheckbox) {
+    /* Issue 4: block editing when pending */
+    if (PENDING_LOCKED) {
+        sourceCheckbox.checked = false;
+        alert('Editing is disabled while your profile update is pending HR review.');
+        return;
+    }
     document.querySelectorAll('.edit-mode-toggle').forEach(t => { t.checked = sourceCheckbox.checked; });
     sourceCheckbox.checked ? enableEditMode() : disableEditMode();
 }
 
 function enableEditMode() {
+    /* Issue 4: block editing when pending */
+    if (PENDING_LOCKED) {
+        alert('Editing is disabled while your profile update is pending HR review.');
+        return;
+    }
+
     isEditMode = true;
     document.querySelectorAll('.edit-mode-toggle').forEach(t => t.checked = true);
     storeOriginalFormData();
+
+    /* Issue 10: change Edit Profile button appearance */
+    var editBtn = document.getElementById('editProfileBtn');
+    if (editBtn) {
+        editBtn.classList.remove('btn-outline-primary');
+        editBtn.classList.add('btn-primary', 'edit-active');
+        editBtn.innerHTML = '<i class="fa fa-pencil me-1"></i>Editing Mode ON';
+    }
+
     document.querySelectorAll('#personalDetailsForm input, #personalDetailsForm select').forEach(input => {
         if (input.type === 'hidden') return;
         if (input.classList.contains('edit-mode-toggle')) return;
@@ -2015,21 +2090,36 @@ function enableEditMode() {
             input.style.setProperty('background-color', '#e9ecef');
             return;
         }
+        /* Issue 6: enable file inputs in edit mode */
+        if (input.type === 'file') {
+            input.removeAttribute('disabled');
+            return;
+        }
         input.removeAttribute('readonly');
         input.removeAttribute('disabled');
         input.style.removeProperty('pointer-events');
         input.style.removeProperty('background-color');
     });
-    /* NOTE: Do NOT set profileEditActive here.
-       It is only written in beforeunload so it only
-       survives a real navigation — not a page refresh. */
+
     document.getElementById('formActions').style.display = 'block';
     document.getElementById('viewActions').style.display = 'none';
     const disc = document.getElementById('personalDisclaimer');
     if (disc) disc.checked = false;
     const btn = document.getElementById('personalSaveBtn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
-    document.querySelectorAll('#personalDetailsForm input, #personalDetailsForm select').forEach(input => {
+
+    /* Issue 5: attach change listener to file inputs to prevent accidental clearing */
+    document.querySelectorAll('#personalDetailsForm input[type="file"].file-upload-input').forEach(fileInput => {
+        fileInput.addEventListener('change', function() {
+            /* If user cancels the file dialog, files list is empty — do nothing (keep previous) */
+            if (this.files && this.files.length === 0) {
+                /* Reset the input to avoid sending an empty file that removes the previous one */
+                this.value = '';
+            }
+        });
+    });
+
+    document.querySelectorAll('#personalDetailsForm input:not([type="file"]), #personalDetailsForm select').forEach(input => {
         input.removeEventListener('input', validateField);
         input.removeEventListener('blur', validateField);
         input.removeEventListener('change', autosaveDraftNow);
@@ -2043,10 +2133,18 @@ function enableEditMode() {
 
 function disableEditMode() {
     isEditMode = false;
-    /* Clear BOTH keys — user explicitly cancelled or saved */
     localStorage.removeItem('profileEditActive');
     localStorage.removeItem('profileDraft');
     document.querySelectorAll('.edit-mode-toggle').forEach(t => t.checked = false);
+
+    /* Issue 10: restore Edit Profile button */
+    var editBtn = document.getElementById('editProfileBtn');
+    if (editBtn) {
+        editBtn.classList.remove('btn-primary', 'edit-active');
+        editBtn.classList.add('btn-outline-primary');
+        editBtn.innerHTML = '<i class="fa fa-edit me-1"></i>Edit Profile';
+    }
+
     document.querySelectorAll('#personalDetailsForm input, #personalDetailsForm select').forEach(input => {
         if (input.type === 'hidden') return;
         if (input.classList.contains('edit-mode-toggle')) return;
@@ -2057,11 +2155,20 @@ function disableEditMode() {
             input.style.setProperty('background-color', '#e9ecef');
             return;
         }
+        /* Issue 6: disable file inputs in non-edit mode */
+        if (input.type === 'file') {
+            input.setAttribute('disabled', 'disabled');
+            input.value = ''; /* clear selection */
+            return;
+        }
         input.setAttribute('readonly', 'readonly');
         if (input.tagName === 'SELECT' || input.type === 'checkbox') input.setAttribute('disabled', 'disabled');
+        /* Issue 7: remove is-valid class so green tick does not show in non-edit mode */
+        input.classList.remove('is-valid', 'is-invalid');
         input.style.removeProperty('pointer-events');
         input.style.removeProperty('background-color');
     });
+
     document.getElementById('formActions').style.display = 'none';
     document.getElementById('viewActions').style.display = 'block';
     ['basic', 'professional', 'family', 'education', 'documents'].forEach(t => clearValidationStates(t));
@@ -2088,7 +2195,7 @@ function storeOriginalFormData() {
 function cancelEdit() {
     for (let [key, value] of Object.entries(originalFormData)) {
         const input = document.querySelector(`[name="${key}"]`);
-        if (input) input.value = value;
+        if (input && input.type !== 'hidden' && input.type !== 'file') input.value = value;
     }
     localStorage.removeItem('profileDraft');
     localStorage.removeItem('profileEditActive');
@@ -2122,7 +2229,11 @@ function hideSaveError() {
     if (box) box.style.display = 'none';
 }
 
+/* Issue 7: validateField should NOT add is-valid in non-edit mode */
 function validateField(event) {
+    /* Skip validation entirely when not in edit mode — Issue 7 fix */
+    if (!isEditMode) return true;
+
     const field = event.target;
     const parentSection = field.closest('.profile-tab-section');
     const isUserEvent = event.type === 'input' || event.type === 'blur' || event.type === 'change';
@@ -2160,12 +2271,9 @@ function validateField(event) {
                     else { const d = phoneCleaned.replace('+', ''); if (d.length < 7 || d.length > 15) { isValid = false; errorMessage = 'Phone number must be between 7 and 15 digits.'; } }
                     break;
                 case 'isd-code':
-    const isdCleaned = val.replace(/\s/g, '');
-    if (!/^\+?[0-9]+$/.test(isdCleaned)) {
-        isValid = false;
-        errorMessage = 'Phone number must contain digits only. A leading + is allowed.';
-    }
-    break;
+                    const isdCleaned = val.replace(/\s/g, '');
+                    if (!/^\+?[0-9]+$/.test(isdCleaned)) { isValid = false; errorMessage = 'Phone number must contain digits only. A leading + is allowed.'; }
+                    break;
                 case 'digits-only':
                     if (!/^[0-9]+$/.test(val)) { isValid = false; errorMessage = 'This field must contain digits only.'; }
                     break;
@@ -2203,7 +2311,8 @@ function validateField(event) {
     }
     if (field.value.trim() || !isValid) {
         if (isValid) {
-            field.classList.add('is-valid');
+            /* Issue 7: only add is-valid when in edit mode AND field has been touched */
+            if (isEditMode) field.classList.add('is-valid');
         } else {
             field.classList.add('is-invalid');
             if (feedback) { feedback.textContent = errorMessage; feedback.style.display = 'block'; }
@@ -2275,6 +2384,12 @@ function showTabMessage(tabKey, text, type) {
 document.getElementById('personalDetailsForm').addEventListener('submit', function(e) {
     e.preventDefault();
 
+    /* Issue 4: block submit when pending */
+    if (PENDING_LOCKED) {
+        showSaveError('<i class="fa fa-lock me-2"></i>Editing is locked while your submission is pending HR review.');
+        return;
+    }
+
     const disc = document.getElementById('personalDisclaimer');
     if (disc && !disc.checked) {
         showSaveError('<i class="fa fa-exclamation-triangle me-2"></i>Please read and accept the Employee Disclaimer before saving.');
@@ -2316,7 +2431,7 @@ document.getElementById('personalDetailsForm').addEventListener('submit', functi
 
     const toReenable = [];
     document.querySelectorAll('#personalDetailsForm select[disabled], #personalDetailsForm input[type="checkbox"][disabled]').forEach(el => {
-        if (!el.hasAttribute('data-always-readonly')) { el.removeAttribute('disabled'); toReenable.push(el); }
+        if (!el.hasAttribute('data-always-readonly') && el.type !== 'file') { el.removeAttribute('disabled'); toReenable.push(el); }
     });
     const formData = new FormData(this);
     const csrfToken = document.querySelector('input[name="csrf_token"]').value;
@@ -2355,31 +2470,24 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     switchProfileTab(activeProfileTab);
 
-    /* ══════════════════════════════════════════════════════════════
-       KEY DESIGN:
-       - profileEditActive is ONLY written in beforeunload
-         (real navigation away) — never inside enableEditMode()
-       - On page load we ALWAYS force toggles OFF first
-       - Then we check if user was mid-edit when they navigated away
-       ══════════════════════════════════════════════════════════════ */
-
-    /* STEP 1 — Always force edit mode OFF on every page load, no exceptions */
+    /* Always force edit mode OFF on every page load */
     document.querySelectorAll('.edit-mode-toggle').forEach(t => t.checked = false);
     document.getElementById('formActions').style.display = 'none';
     document.getElementById('viewActions').style.display = 'block';
     isEditMode = false;
 
-    /* STEP 2 — Read flags BEFORE touching localStorage */
+    /* Issue 6: Ensure all file inputs start disabled */
+    document.querySelectorAll('#personalDetailsForm input[type="file"].file-upload-input').forEach(fi => {
+        fi.setAttribute('disabled', 'disabled');
+    });
+
     const draftRaw   = localStorage.getItem('profileDraft');
     const wasEditing = localStorage.getItem('profileEditActive') === '1';
 
-    /* STEP 3 — Immediately wipe the flag so refresh never re-triggers edit mode */
     localStorage.removeItem('profileEditActive');
 
-    /* STEP 4 — Save on real navigation (top tab links, browser back, etc.) */
     window.addEventListener('beforeunload', function() {
         if (isEditMode) {
-            /* Save current field values */
             const draftData = {};
             document.querySelectorAll('#personalDetailsForm input, #personalDetailsForm select').forEach(function(input) {
                 if (input.type === 'hidden' || input.type === 'file') return;
@@ -2388,28 +2496,21 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             try {
                 localStorage.setItem('profileDraft', JSON.stringify(draftData));
-                /* Only set the flag here — this is the ONLY place */
                 localStorage.setItem('profileEditActive', '1');
             } catch(e) {}
         }
     });
 
-    /* STEP 5 — Restore draft if user navigated away while editing */
-    if (draftRaw && wasEditing) {
+    if (draftRaw && wasEditing && !PENDING_LOCKED) {
         try {
             const draft = JSON.parse(draftRaw);
-
-            /* Unlock fields */
             enableEditMode();
-
-            /* Restore saved values */
             Object.entries(draft).forEach(function([key, value]) {
                 const input = document.querySelector('[name="' + key + '"]');
                 if (input && input.type !== 'hidden' && input.type !== 'file') {
                     input.value = value;
                 }
             });
-
             showTabMessage(activeProfileTab,
                 'Your unsaved changes have been restored. Please review and click Save Changes.',
                 'info');
@@ -2417,6 +2518,15 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error loading draft:', ex);
             localStorage.removeItem('profileDraft');
         }
+    }
+
+    /* Issue 4: Hide edit toggles when pending */
+    if (PENDING_LOCKED) {
+        document.querySelectorAll('.edit-mode-toggle').forEach(t => {
+            t.closest('.form-check.form-switch') && (t.closest('.form-check.form-switch').style.display = 'none');
+        });
+        var editBtn = document.getElementById('editProfileBtn');
+        if (editBtn) { editBtn.disabled = true; editBtn.title = 'Editing locked — pending HR review'; }
     }
 });
                     ]]>
@@ -2440,11 +2550,11 @@ document.addEventListener('DOMContentLoaded', function() {
 .form-switch .form-check-input { background-color: #6c757d; }
 .form-switch .form-check-input:checked { background-color: #0d6efd; border-color: #0d6efd; }
 .tab-message-box { border-radius: 0.5rem; font-weight: 500; }
+/* Issue 10: active edit button */
+#editProfileBtn.edit-active { box-shadow: 0 0 0 3px rgba(13,110,253,0.35); }
+/* Issue 6: disabled file input styling */
+input[type="file"]:disabled { background-color: #e9ecef; cursor: not-allowed; opacity: 0.65; }
 @media (max-width: 768px) { .card-body { padding: 1rem; } .row.g-3 > * { margin-bottom: 1rem; } .profile-tab-navigation .nav-link { font-size: 0.85rem; padding: 0.4rem 0.6rem; } }
-@keyframes slideDown {
-    from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
                     ]]>
                 </style>
             </t>

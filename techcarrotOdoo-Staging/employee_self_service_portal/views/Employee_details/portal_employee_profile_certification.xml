@@ -20,16 +20,35 @@
                     </div>
                 </div>
 
+                <!-- Issue 11: upload progress overlay for certification -->
+                <div id="certUploadOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+                     background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+                    <div style="background:#fff; border-radius:12px; padding:32px 40px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+                        <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem;" role="status">
+                            <span class="visually-hidden">Uploading...</span>
+                        </div>
+                        <h5 class="mb-1">Uploading File...</h5>
+                        <p class="text-muted mb-0">Please wait, this may take a moment for large files.</p>
+                    </div>
+                </div>
+
                 <form id="certificationForm" action="/my/employee/certification" method="post"
                       enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
                     <!-- Certifications Text -->
+                    <!-- Issue 14: Add Edit Mode header with button -->
                     <div class="card mb-4 shadow-sm">
                         <div class="card-header bg-light d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
                                 <i class="fa fa-certificate text-primary me-2"></i>Certifications
                             </h5>
+                            <!-- Issue 14: Edit Mode toggle — mirrors experience/personal pattern -->
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox"
+                                       id="certEditToggle" onchange="certToggleEditMode(this)"/>
+                                <label class="form-check-label" for="certEditToggle">Edit Mode</label>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
@@ -39,9 +58,7 @@
                                           class="form-control"
                                           rows="5"
                                           readonly=""
-                                          placeholder="List your certifications, licenses, and professional qualifications...">
-                                    <t t-esc="employee.x_certifications"/>
-                                </textarea>
+                                          placeholder="List your certifications, licenses, and professional qualifications..."><t t-esc="employee.x_certifications or ''"/></textarea>
                                 <small class="text-muted">
                                     e.g., AWS Certified Solutions Architect, PMP, CPA...
                                 </small>
@@ -59,7 +76,7 @@
                         <div class="card-body">
                             <div class="row g-3">
 
-                                <!-- Training Certificates -->
+                                <!-- Training Certificates — Issue 6/13: disabled in non-edit mode -->
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">
                                         <i class="fa fa-certificate text-muted me-1"></i>Training Certificates
@@ -79,12 +96,13 @@
                                     </t>
                                     <input type="file"
                                            name="training_certificates"
-                                           class="form-control form-control-sm"
-                                           accept=".pdf,.jpg,.jpeg,.png"/>
+                                           class="form-control form-control-sm cert-file-input"
+                                           accept=".pdf,.jpg,.jpeg,.png"
+                                           disabled="disabled"/>
                                     <small class="text-muted">PDF, JPG, PNG (Max: 5MB)</small>
                                 </div>
 
-                                <!-- Awards & Recognition -->
+                                <!-- Awards & Recognition — disabled in non-edit mode -->
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">
                                         <i class="fa fa-trophy text-muted me-1"></i>Awards &amp; Recognition
@@ -104,8 +122,9 @@
                                     </t>
                                     <input type="file"
                                            name="awards_files"
-                                           class="form-control form-control-sm"
-                                           accept=".pdf,.jpg,.jpeg,.png"/>
+                                           class="form-control form-control-sm cert-file-input"
+                                           accept=".pdf,.jpg,.jpeg,.png"
+                                           disabled="disabled"/>
                                     <small class="text-muted">PDF, JPG, PNG (Max: 5MB)</small>
                                 </div>
 
@@ -118,7 +137,7 @@
                         <div class="card-body text-center">
                             <div id="certFormActions" style="display: none;">
 
-                                <!-- ✅ DISCLAIMER — only addition -->
+                                <!-- Disclaimer -->
                                 <div class="alert alert-warning text-start mb-3"
                                      style="border-left: 4px solid #ffc107; border-radius: 6px;">
                                     <div class="form-check d-flex align-items-start gap-2">
@@ -153,6 +172,22 @@
                                     <i class="fa fa-check me-1"></i>Save Changes
                                 </button>
                             </div>
+
+                            <!-- View mode actions -->
+                            <div id="certViewActions">
+                                <p class="text-muted mb-3">
+                                    Last updated:
+                                    <strong id="certLastUpdated">
+                                        <t t-esc="employee.write_date.strftime('%d %b, %Y at %I:%M %p') if employee.write_date else 'Never'"/>
+                                    </strong>
+                                </p>
+                                <!-- Issue 14: Visible Edit button in view mode -->
+                                <button type="button" id="certEditBtn"
+                                        class="btn btn-outline-primary"
+                                        onclick="certEnableEdit()">
+                                    <i class="fa fa-edit me-1"></i>Edit Certifications
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -160,9 +195,58 @@
                 <script type="text/javascript">
                     <![CDATA[
 let certOriginalData = {};
+let certOriginalText = '';
+let certIsEditMode = false;
+
+/* Issue 8: fix last-updated timezone */
+(function fixCertTimezone() {
+    var el = document.getElementById('certLastUpdated');
+    if (!el) return;
+    var raw = el.textContent.trim().replace(/\u00a0/g,' ');
+    if (!raw || raw === 'Never') return;
+    try {
+        var m = raw.match(/(\d{1,2})\s+(\w+),?\s+(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (m) {
+            var months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+            var monIdx = months[m[2].toLowerCase().substring(0,3)];
+            var hr = parseInt(m[4],10);
+            var isPM = m[6].toUpperCase()==='PM';
+            if (isPM && hr < 12) hr += 12;
+            if (!isPM && hr === 12) hr = 0;
+            var dt = new Date(Date.UTC(parseInt(m[3],10), monIdx, parseInt(m[1],10), hr, parseInt(m[5],10)));
+            if (!isNaN(dt.getTime())) {
+                el.textContent = dt.toLocaleString(undefined,{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true});
+            }
+        }
+    } catch(e) {}
+})();
+
+document.addEventListener('DOMContentLoaded', function() {
+    /* snapshot for change detection */
+    certOriginalText = (document.getElementById('certText').value || '').trim();
+    /* ensure file inputs start disabled */
+    document.querySelectorAll('.cert-file-input').forEach(fi => fi.setAttribute('disabled','disabled'));
+    /* ensure view actions shown */
+    document.getElementById('certViewActions').style.display = 'block';
+    document.getElementById('certFormActions').style.display = 'none';
+});
+
+/* Issue 14: toggle via the form-switch checkbox */
+function certToggleEditMode(checkbox) {
+    if (checkbox.checked) {
+        certEnableEdit();
+    } else {
+        certCancelEdit();
+    }
+}
 
 function certEnableEdit() {
+    certIsEditMode = true;
     certStoreOriginal();
+    /* sync toggle */
+    var tog = document.getElementById('certEditToggle');
+    if (tog) tog.checked = true;
+
     const inputs = document.querySelectorAll('#certificationForm input, #certificationForm textarea');
     inputs.forEach(input => {
         if (input.type !== 'hidden') {
@@ -170,8 +254,20 @@ function certEnableEdit() {
             input.removeAttribute('disabled');
         }
     });
+    /* enable file inputs */
+    document.querySelectorAll('#certificationForm .cert-file-input').forEach(fi => fi.removeAttribute('disabled'));
+
     document.getElementById('certFormActions').style.display = 'block';
-    /* ── Reset disclaimer & save button ── */
+    document.getElementById('certViewActions').style.display = 'none';
+
+    /* Issue 10: change Edit button appearance */
+    var editBtn = document.getElementById('certEditBtn');
+    if (editBtn) {
+        editBtn.classList.remove('btn-outline-primary');
+        editBtn.classList.add('btn-primary', 'edit-active');
+        editBtn.innerHTML = '<i class="fa fa-pencil me-1"></i>Editing Mode ON';
+    }
+
     const disc = document.getElementById('certDisclaimer');
     if (disc) disc.checked = false;
     const btn = document.getElementById('certSaveBtn');
@@ -199,21 +295,40 @@ function certCancelEdit() {
 }
 
 function certDisableEdit() {
+    certIsEditMode = false;
     const inputs = document.querySelectorAll('#certificationForm input, #certificationForm textarea');
     inputs.forEach(input => {
         if (input.type !== 'hidden' && input.type !== 'file') {
             input.setAttribute('readonly', 'readonly');
         }
     });
+    /* disable file inputs */
+    document.querySelectorAll('#certificationForm .cert-file-input').forEach(fi => {
+        fi.setAttribute('disabled', 'disabled');
+        fi.value = '';
+    });
+
     document.getElementById('certFormActions').style.display = 'none';
-    /* ── Reset disclaimer & save button ── */
+    document.getElementById('certViewActions').style.display = 'block';
+
+    /* sync toggle off */
+    var tog = document.getElementById('certEditToggle');
+    if (tog) tog.checked = false;
+
+    /* Issue 10: restore edit button appearance */
+    var editBtn = document.getElementById('certEditBtn');
+    if (editBtn) {
+        editBtn.classList.remove('btn-primary', 'edit-active');
+        editBtn.classList.add('btn-outline-primary');
+        editBtn.innerHTML = '<i class="fa fa-edit me-1"></i>Edit Certifications';
+    }
+
     const disc = document.getElementById('certDisclaimer');
     if (disc) disc.checked = false;
     const btn = document.getElementById('certSaveBtn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
 }
 
-/* ── ONLY NEW FUNCTION ── */
 function toggleCertSaveBtn() {
     const checked = document.getElementById('certDisclaimer').checked;
     const btn = document.getElementById('certSaveBtn');
@@ -223,20 +338,43 @@ function toggleCertSaveBtn() {
 
 document.getElementById('certificationForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    /* ── Guard: disclaimer must be checked ── */
     const disc = document.getElementById('certDisclaimer');
     if (disc && !disc.checked) {
         certShowMessage('Please read and accept the Employee Disclaimer before saving.', 'error');
         return;
     }
+
+    /* Issue 12 pattern: detect no-change */
+    const currentText = (document.getElementById('certText').value || '').trim();
+    const trainingInput = document.querySelector('[name="training_certificates"]');
+    const awardsInput = document.querySelector('[name="awards_files"]');
+    const hasTrainingFile = trainingInput && trainingInput.files && trainingInput.files.length > 0;
+    const hasAwardsFile = awardsInput && awardsInput.files && awardsInput.files.length > 0;
+
+    if (currentText === certOriginalText && !hasTrainingFile && !hasAwardsFile) {
+        certShowMessage('No changes detected. Your certification data is already up to date.', 'info');
+        return;
+    }
+
+    /* Issue 11: show overlay when uploading files */
+    const hasAnyFile = hasTrainingFile || hasAwardsFile;
+    var overlay = document.getElementById('certUploadOverlay');
+    if (hasAnyFile) {
+        overlay.style.display = 'flex';
+    }
+
     const formData = new FormData(this);
     fetch('/my/employee/certification', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (overlay) overlay.style.display = 'none';
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
+            certOriginalText = currentText;
             certShowMessage('Certifications updated successfully!', 'success');
             certDisableEdit();
         } else {
@@ -244,6 +382,7 @@ document.getElementById('certificationForm').addEventListener('submit', function
         }
     })
     .catch(error => {
+        if (overlay) overlay.style.display = 'none';
         console.error('Error:', error);
         certShowMessage('Network error. Please try again.', 'error');
     });
@@ -257,7 +396,7 @@ function certShowMessage(text, type) {
     errorMsg.style.display = 'none';
     successMsg.classList.remove('show');
     errorMsg.classList.remove('show');
-    if (type === 'success') {
+    if (type === 'success' || type === 'info') {
         document.getElementById('certSuccessText').textContent = text;
         successMsg.style.display = 'block';
         successMsg.classList.add('show');
@@ -275,6 +414,15 @@ function certShowMessage(text, type) {
 }
                     ]]>
                 </script>
+
+                <style>
+                    <![CDATA[
+/* Issue 10: active edit button */
+#certEditBtn.edit-active { box-shadow: 0 0 0 3px rgba(13,110,253,0.35); }
+/* Issue 6/13: disabled file inputs */
+input[type="file"]:disabled { background-color: #e9ecef; cursor: not-allowed; opacity: 0.65; }
+                    ]]>
+                </style>
             </t>
         </t>
     </template>
