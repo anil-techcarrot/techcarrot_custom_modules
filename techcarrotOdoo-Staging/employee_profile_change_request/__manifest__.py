@@ -18,7 +18,7 @@
         'data/sequence_data.xml',
         'data/mail_template_data.xml',
         # 'views/email_templates.xml',
-        'views/report_approved_requests.xml',
+        # 'views/report_approved_requests.xml',
         'views/hr_profile_change_request_wizard_views.xml',
         'views/hr_profile_change_request_views.xml',
     ],
