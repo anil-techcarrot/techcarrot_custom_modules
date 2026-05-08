@@ -145,11 +145,7 @@ class HrProfileChangeRequest(models.Model):
         compute='_compute_doc_flags',
         store=True,
     )
-    doc_emirates_id = fields.Boolean(
-        string='doc id',
-        compute='_compute_doc_flags',
-        store=True,
-    )
+
     has_work_permit_doc = fields.Boolean(
         string='Work Permit Uploaded',
         compute='_compute_doc_flags',
@@ -165,6 +161,66 @@ class HrProfileChangeRequest(models.Model):
         compute='_compute_doc_flags',
         store=True,
     )
+
+    doc_emirates_id = fields.Boolean(
+        string='Emirates ID Uploaded',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+    doc_passport = fields.Boolean(
+        string='Passport Uploaded',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+    doc_other = fields.Boolean(
+        string='Other Document Uploaded',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+    doc_work_permit = fields.Boolean(
+        string='Work Permit Uploaded',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+    doc_count = fields.Integer(
+        string='Total Documents Uploaded',
+        compute='_compute_doc_flags',
+        store=True,
+    )
+
+    # ── Compute method ─────────────────────────────────────────────
+    @api.depends('submitted_data')
+    def _compute_doc_flags(self):
+        """
+        Parse submitted_data JSON and check which document fields
+        were submitted (non-empty values = file was uploaded).
+        Document field names match the portal form field names.
+        """
+        DOC_FIELDS = {
+            'doc_emirates_id': ['emirates_id_file'],
+            'doc_passport': ['passport_file'],
+            'doc_other': ['other_documents'],
+            'doc_work_permit': ['has_work_permit'],
+        }
+        for rec in self:
+            data = {}
+            if rec.submitted_data:
+                try:
+                    data = json.loads(rec.submitted_data)
+                except Exception:
+                    data = {}
+
+            count = 0
+            for field_name, keys in DOC_FIELDS.items():
+                found = any(
+                    bool(data.get(k) and str(data.get(k)).strip() not in ('', 'False', 'None'))
+                    for k in keys
+                )
+                rec[field_name] = found
+                if found:
+                    count += 1
+
+            rec.doc_count = count
 
     @api.depends('submitted_data')
     def _compute_doc_flags(self):
