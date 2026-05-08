@@ -180,87 +180,87 @@
              DOCUMENT UPLOADS LIST VIEW
              Shows which documents employees uploaded
         ══════════════════════════════════════════════ -->
-        <record id="view_pcr_documents_list" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.documents.list</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <list string="Document Uploads Report"
-                      create="false" edit="false" delete="false">
-                    <field name="name" string="Reference"/>
-                    <field name="employee_id" string="Employee"/>
-                    <field name="company_id" string="Company"/>
-                    <field name="department_id" string="Department"/>
-                    <field name="submission_date" string="Uploaded On"/>
-                    <field name="doc_emirates_id" string="Emirates ID"
-                           widget="boolean_toggle" readonly="1"/>
-                    <field name="doc_passport" string="Passport"
-                           widget="boolean_toggle" readonly="1"/>
-                    <field name="doc_other" string="Other Doc"
-                           widget="boolean_toggle" readonly="1"/>
-                    <field name="doc_work_permit" string="Work Permit"
-                           widget="boolean_toggle" readonly="1"/>
-                    <field name="doc_count" string="Total Docs"/>
-                    <field name="state" string="Status" widget="badge"
-                           decoration-success="state == 'approved'"
-                           decoration-danger="state == 'rejected'"
-                           decoration-warning="state == 'pending'"/>
-                </list>
-            </field>
-        </record>
+<!--        <record id="view_pcr_documents_list" model="ir.ui.view">-->
+<!--            <field name="name">hr.profile.change.request.documents.list</field>-->
+<!--            <field name="model">hr.profile.change.request</field>-->
+<!--            <field name="arch" type="xml">-->
+<!--                <list string="Document Uploads Report"-->
+<!--                      create="false" edit="false" delete="false">-->
+<!--                    <field name="name" string="Reference"/>-->
+<!--                    <field name="employee_id" string="Employee"/>-->
+<!--                    <field name="company_id" string="Company"/>-->
+<!--                    <field name="department_id" string="Department"/>-->
+<!--                    <field name="submission_date" string="Uploaded On"/>-->
+<!--                    <field name="doc_emirates_id" string="Emirates ID"-->
+<!--                           widget="boolean_toggle" readonly="1"/>-->
+<!--                    <field name="doc_passport" string="Passport"-->
+<!--                           widget="boolean_toggle" readonly="1"/>-->
+<!--                    <field name="doc_other" string="Other Doc"-->
+<!--                           widget="boolean_toggle" readonly="1"/>-->
+<!--                    <field name="doc_work_permit" string="Work Permit"-->
+<!--                           widget="boolean_toggle" readonly="1"/>-->
+<!--                    <field name="doc_count" string="Total Docs"/>-->
+<!--                    <field name="state" string="Status" widget="badge"-->
+<!--                           decoration-success="state == 'approved'"-->
+<!--                           decoration-danger="state == 'rejected'"-->
+<!--                           decoration-warning="state == 'pending'"/>-->
+<!--                </list>-->
+<!--            </field>-->
+<!--        </record>-->
 
         <!-- DOCUMENT UPLOADS SEARCH -->
-        <record id="view_pcr_documents_search" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.documents.search</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <search string="Document Uploads Search">
-                    <field name="employee_id" string="Employee"/>
-                    <field name="company_id" string="Company"/>
-                    <field name="department_id" string="Department"/>
-                    <field name="name" string="Reference"/>
-                    <separator/>
-                    <filter name="filter_has_emirates" string="Has Emirates ID"
-                            domain="[('doc_emirates_id','=',True)]"/>
-                    <filter name="filter_has_passport" string="Has Passport"
-                            domain="[('doc_passport','=',True)]"/>
-                    <filter name="filter_has_other" string="Has Other Doc"
-                            domain="[('doc_other','=',True)]"/>
-                    <filter name="filter_has_work_permit" string="Has Work Permit"
-                            domain="[('doc_work_permit','=',True)]"/>
-                    <separator/>
-                    <filter name="filter_approved" string="Approved"
-                            domain="[('state','=','approved')]"/>
-                    <filter name="filter_pending" string="Pending"
-                            domain="[('state','=','pending')]"/>
-                    <separator/>
-                    <filter name="group_employee" string="Employee"
-                            context="{'group_by': 'employee_id'}"/>
-                    <filter name="group_company" string="Company"
-                            context="{'group_by': 'company_id'}"/>
-                    <filter name="group_dept" string="Department"
-                            context="{'group_by': 'department_id'}"/>
-                    <filter name="group_month" string="Upload Month"
-                            context="{'group_by': 'submission_date:month'}"/>
-                </search>
-            </field>
-        </record>
+<!--        <record id="view_pcr_documents_search" model="ir.ui.view">-->
+<!--            <field name="name">hr.profile.change.request.documents.search</field>-->
+<!--            <field name="model">hr.profile.change.request</field>-->
+<!--            <field name="arch" type="xml">-->
+<!--                <search string="Document Uploads Search">-->
+<!--                    <field name="employee_id" string="Employee"/>-->
+<!--                    <field name="company_id" string="Company"/>-->
+<!--                    <field name="department_id" string="Department"/>-->
+<!--                    <field name="name" string="Reference"/>-->
+<!--                    <separator/>-->
+<!--                    <filter name="filter_has_emirates" string="Has Emirates ID"-->
+<!--                            domain="[('doc_emirates_id','=',True)]"/>-->
+<!--                    <filter name="filter_has_passport" string="Has Passport"-->
+<!--                            domain="[('doc_passport','=',True)]"/>-->
+<!--                    <filter name="filter_has_other" string="Has Other Doc"-->
+<!--                            domain="[('doc_other','=',True)]"/>-->
+<!--                    <filter name="filter_has_work_permit" string="Has Work Permit"-->
+<!--                            domain="[('doc_work_permit','=',True)]"/>-->
+<!--                    <separator/>-->
+<!--                    <filter name="filter_approved" string="Approved"-->
+<!--                            domain="[('state','=','approved')]"/>-->
+<!--                    <filter name="filter_pending" string="Pending"-->
+<!--                            domain="[('state','=','pending')]"/>-->
+<!--                    <separator/>-->
+<!--                    <filter name="group_employee" string="Employee"-->
+<!--                            context="{'group_by': 'employee_id'}"/>-->
+<!--                    <filter name="group_company" string="Company"-->
+<!--                            context="{'group_by': 'company_id'}"/>-->
+<!--                    <filter name="group_dept" string="Department"-->
+<!--                            context="{'group_by': 'department_id'}"/>-->
+<!--                    <filter name="group_month" string="Upload Month"-->
+<!--                            context="{'group_by': 'submission_date:month'}"/>-->
+<!--                </search>-->
+<!--            </field>-->
+<!--        </record>-->
 
         <!-- DOCUMENT UPLOADS ACTION -->
-        <record id="action_pcr_documents_report" model="ir.actions.act_window">
-            <field name="name">Document Uploads Report</field>
-            <field name="res_model">hr.profile.change.request</field>
-            <field name="view_mode">list</field>
-            <field name="domain">[('doc_count', '&gt;', 0)]</field>
-            <field name="view_ids" eval="[
-                (5, 0, 0),
-                (0, 0, {'view_mode': 'list', 'view_id': ref('view_pcr_documents_list')}),
-            ]"/>
-            <field name="search_view_id" ref="view_pcr_documents_search"/>
-            <field name="help" type="html">
-                <p class="o_view_nocontent_smiling_face">No document uploads found.</p>
-                <p>Shows employees who uploaded documents through the ESS portal.</p>
-            </field>
-        </record>
+<!--        <record id="action_pcr_documents_report" model="ir.actions.act_window">-->
+<!--            <field name="name">Document Uploads Report</field>-->
+<!--            <field name="res_model">hr.profile.change.request</field>-->
+<!--            <field name="view_mode">list</field>-->
+<!--            <field name="domain">[('doc_count', '&gt;', 0)]</field>-->
+<!--            <field name="view_ids" eval="[-->
+<!--                (5, 0, 0),-->
+<!--                (0, 0, {'view_mode': 'list', 'view_id': ref('view_pcr_documents_list')}),-->
+<!--            ]"/>-->
+<!--            <field name="search_view_id" ref="view_pcr_documents_search"/>-->
+<!--            <field name="help" type="html">-->
+<!--                <p class="o_view_nocontent_smiling_face">No document uploads found.</p>-->
+<!--                <p>Shows employees who uploaded documents through the ESS portal.</p>-->
+<!--            </field>-->
+<!--        </record>-->
 
         <!-- ══════════════════════════════════════════════
              MAIN REPORT ACTION
