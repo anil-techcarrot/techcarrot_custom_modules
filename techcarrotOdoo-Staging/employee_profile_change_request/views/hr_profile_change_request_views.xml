@@ -1,740 +1,202 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
 
-        <!-- ══════════════════════════════════════════════════════════════════
-             MAIN REPORT — LIST VIEW
-             Clean black text; only the Status badge is coloured.
-        ══════════════════════════════════════════════════════════════════════ -->
-        <record id="view_pcr_approved_report_list" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.approved.list</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <list string="Profile Change Requests Report"
-                      create="false" edit="false" delete="false"
-                      open_form_view="true"
-                      default_order="submission_date desc">
+    <!-- LIST VIEW -->
+    <record id="view_profile_change_request_list" model="ir.ui.view">
+        <field name="name">hr.profile.change.request.list</field>
+        <field name="model">hr.profile.change.request</field>
+        <field name="arch" type="xml">
+            <list string="Profile Change Requests"
+                  decoration-warning="state == 'pending'"
+                  decoration-success="state == 'approved'"
+                  decoration-danger="state == 'rejected'">
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="company_id" optional="show"/>
+                <field name="department_id"/>
+                <field name="work_location_id" readonly="1"/>
+                <field name="submission_date"/>
+                <field name="review_date"/>
+                <field name="reviewed_by"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state == 'pending'"
+                       decoration-success="state == 'approved'"
+                       decoration-danger="state == 'rejected'"/>
+            </list>
+        </field>
+    </record>
 
-                    <field name="name" string="Reference" decoration-bf="1"/>
-                    <field name="employee_id" string="Employee"/>
-                    <field name="company_id" string="Company" optional="show"/>
-                    <field name="department_id" string="Department" optional="show"/>
-                    <field name="work_location_id" string="Work Location" optional="hide"/>
-
-                    <!-- Change summary badges -->
-                    <field name="changed_field_count" string="Fields Changed"
-                           optional="show"/>
-                    <field name="has_personal_changes"  string="Personal"
-                           widget="boolean" optional="hide"/>
-                    <field name="has_contact_changes"   string="Contact"
-                           widget="boolean" optional="hide"/>
-                    <field name="has_family_changes"    string="Family"
-                           widget="boolean" optional="hide"/>
-
-                    <!-- Document upload indicators -->
-                    <field name="total_docs_uploaded" string="Docs Uploaded" optional="show"/>
-                    <field name="has_emirates_id_doc"  string="Emirates ID"
-                           widget="boolean" optional="show"/>
-                    <field name="has_passport_doc"     string="Passport"
-                           widget="boolean" optional="show"/>
-                    <field name="has_other_doc"        string="Other Doc"
-                           widget="boolean" optional="hide"/>
-                    <field name="has_work_permit_doc"  string="Work Permit"
-                           widget="boolean" optional="hide"/>
-
-                    <!-- Dates -->
-                    <field name="submission_date" string="Submitted On" optional="show"/>
-                    <field name="review_date"     string="Reviewed On"  optional="show"/>
-                    <field name="reviewed_by"     string="Reviewed By"  optional="show"/>
-
-                    <!-- Status — only this cell is coloured -->
-                    <field name="state" string="Status"
-                           widget="badge"
-                           decoration-success="state == 'approved'"
-                           decoration-danger="state == 'rejected'"
-                           decoration-warning="state == 'pending'"
-                           decoration-info="state == 'draft'"/>
-                </list>
-            </field>
-        </record>
-
-        <!-- ══════════════════════════════════════════════════════════════════
-             MAIN REPORT — FORM VIEW
-             Full detail with Approve / Reject / Re-open buttons.
-        ══════════════════════════════════════════════════════════════════════ -->
-        <record id="view_pcr_approved_report_form" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.approved.form</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="priority">20</field>
-            <field name="arch" type="xml">
-                <form string="Profile Change Request">
-                    <header>
-                        <!-- ── Approve ── -->
-                        <button name="action_approve"
-                                string="✅  Approve"
-                                type="object"
-                                class="btn-success"
-                                groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                                invisible="state != 'pending'"
-                                confirm="This will write all submitted data into the employee record. Continue?"/>
-                        <!-- ── Reject ── -->
-                        <button name="action_reject"
-                                string="❌  Reject"
-                                type="object"
-                                class="btn-danger"
-                                groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                                invisible="state != 'pending'"/>
-                        <!-- ── Re-open ── -->
-                        <button name="action_reset_to_pending"
-                                string="🔄  Re-open"
-                                type="object"
-                                class="btn-secondary"
-                                groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                                invisible="state != 'rejected'"/>
-
-                        <field name="state" widget="statusbar"
-                               statusbar_visible="pending,approved,rejected"/>
-                    </header>
-
-                    <sheet>
-                        <!-- ── Title ── -->
-                        <div class="oe_title">
-                            <h1>
-                                <field name="name" readonly="1"/>
-                            </h1>
-                        </div>
-
-                        <!-- ── Quick stat row ── -->
-                        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
-                            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;
-                                        padding:12px 20px;min-width:120px;text-align:center;">
-                                <div style="font-size:24px;font-weight:800;color:#1e40af;">
-                                    <field name="changed_field_count" readonly="1"/>
-                                </div>
-                                <div style="font-size:11px;color:#3b82f6;margin-top:2px;">Fields Changed</div>
-                            </div>
-                            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;
-                                        padding:12px 20px;min-width:120px;text-align:center;">
-                                <div style="font-size:24px;font-weight:800;color:#15803d;">
-                                    <field name="total_docs_uploaded" readonly="1"/>
-                                </div>
-                                <div style="font-size:11px;color:#16a34a;margin-top:2px;">Docs Uploaded</div>
-                            </div>
-                        </div>
-
-                        <!-- ── Employee + Review info ── -->
-                        <group>
-                            <group string="Employee Information">
-                                <field name="employee_id" readonly="1"/>
-                                <field name="company_id"  readonly="1"/>
-                                <field name="department_id" readonly="1"/>
-                                <field name="work_location_id" readonly="1"/>
-                            </group>
-                            <group string="Review Information">
-                                <field name="state" readonly="1" widget="badge"/>
-                                <field name="submission_date" readonly="1"/>
-                                <field name="review_date"  readonly="1"/>
-                                <field name="reviewed_by"  readonly="1"/>
-                                <field name="rejection_reason" readonly="1"
-                                       invisible="state != 'rejected'"/>
-                            </group>
-                        </group>
-
-                        <!-- ── Change category summary ── -->
-                        <group string="Change Categories">
-                            <group>
-                                <field name="has_personal_changes"  readonly="1" widget="boolean_toggle"/>
-                                <field name="has_contact_changes"   readonly="1" widget="boolean_toggle"/>
-                            </group>
-                            <group>
-                                <field name="has_family_changes"    readonly="1" widget="boolean_toggle"/>
-                                <field name="has_document_changes"  readonly="1" widget="boolean_toggle"/>
-                            </group>
-                        </group>
-
-                        <!-- ── Document upload summary ── -->
-                        <group string="Document Uploads">
-                            <group>
-                                <field name="has_emirates_id_doc"  readonly="1" widget="boolean_toggle"/>
-                                <field name="has_passport_doc"     readonly="1" widget="boolean_toggle"/>
-                            </group>
-                            <group>
-                                <field name="has_other_doc"        readonly="1" widget="boolean_toggle"/>
-                                <field name="has_work_permit_doc"  readonly="1" widget="boolean_toggle"/>
-                            </group>
-                        </group>
-
-                        <!-- ── Notebook ── -->
-                        <notebook>
-                            <page string="📋 Submitted Changes" name="submitted_changes">
-                                <field name="changed_fields_display"
-                                       readonly="1" widget="html" nolabel="1"/>
-                            </page>
-                            <page string="🕒 Audit Trail" name="audit_trail">
-                                <field name="trail_ids" readonly="1">
-                                    <list default_order="action_date desc">
-                                        <field name="action_date" string="Date / Time"/>
-                                        <field name="action" string="Action"
-                                               widget="badge"
-                                               decoration-success="action == 'approved'"
-                                               decoration-danger="action == 'rejected'"
-                                               decoration-info="action == 'submitted'"
-                                               decoration-warning="action == 'reopened'"/>
-                                        <field name="user_id" string="By"/>
-                                        <field name="note"   string="Note"/>
-                                        <field name="reason" string="Reason"
-                                               optional="hide"/>
-                                    </list>
-                                </field>
-                            </page>
-                        </notebook>
-                    </sheet>
-                    <chatter/>
-                </form>
-            </field>
-        </record>
-
-        <!-- ══════════════════════════════════════════════════════════════════
-             PIVOT VIEW — cross-tab analysis
-        ══════════════════════════════════════════════════════════════════════ -->
-        <record id="view_pcr_approved_report_pivot" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.approved.pivot</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <pivot string="Profile Change Requests Analysis">
-                    <field name="state"         type="col"/>
-                    <field name="company_id"    type="row"/>
-                    <field name="department_id" type="row"/>
-                    <field name="changed_field_count" type="measure"/>
-                    <field name="total_docs_uploaded" type="measure"/>
-                </pivot>
-            </field>
-        </record>
-
-        <!-- ══════════════════════════════════════════════════════════════════
-             GRAPH VIEW
-        ══════════════════════════════════════════════════════════════════════ -->
-        <record id="view_pcr_approved_report_graph" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.approved.graph</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <graph string="Requests by Department and Status" type="bar" stacked="1">
-                    <field name="department_id" type="row"/>
-                    <field name="state"         type="col"/>
-                </graph>
-            </field>
-        </record>
-
-        <!-- ══════════════════════════════════════════════════════════════════
-             SEARCH VIEW — unified for report and main views
-        ══════════════════════════════════════════════════════════════════════ -->
-        <record id="view_pcr_approved_report_search" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.approved.search</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <search string="Search Profile Change Reports">
-                    <!-- Text search -->
-                    <field name="name"        string="Reference"/>
-                    <field name="employee_id" string="Employee"/>
-                    <field name="department_id" string="Department"/>
-                    <field name="company_id"  string="Company"/>
-                    <field name="reviewed_by" string="Reviewed By"/>
-
-                    <separator/>
-
-                    <!-- Status filters -->
-                    <filter name="filter_approved" string="Approved"
-                            domain="[('state','=','approved')]"/>
-                    <filter name="filter_rejected" string="Rejected"
-                            domain="[('state','=','rejected')]"/>
-                    <filter name="filter_pending"  string="Pending"
-                            domain="[('state','=','pending')]"/>
-
-                    <separator/>
-
-                    <!-- Change category filters -->
-                    <filter name="filter_personal"  string="Has Personal Changes"
-                            domain="[('has_personal_changes','=',True)]"/>
-                    <filter name="filter_contact"   string="Has Contact Changes"
-                            domain="[('has_contact_changes','=',True)]"/>
-                    <filter name="filter_family"    string="Has Family Changes"
-                            domain="[('has_family_changes','=',True)]"/>
-                    <filter name="filter_docs_changed" string="Has Document Changes"
-                            domain="[('has_document_changes','=',True)]"/>
-
-                    <separator/>
-
-                    <!-- Document upload filters -->
-                    <filter name="filter_has_any_doc"     string="Has Any Document"
-                            domain="[('has_any_doc','=',True)]"/>
-                    <filter name="filter_has_emirates"    string="Emirates ID Uploaded"
-                            domain="[('has_emirates_id_doc','=',True)]"/>
-                    <filter name="filter_has_passport"    string="Passport Uploaded"
-                            domain="[('has_passport_doc','=',True)]"/>
-                    <filter name="filter_has_other"       string="Other Doc Uploaded"
-                            domain="[('has_other_doc','=',True)]"/>
-                    <filter name="filter_has_work_permit" string="Work Permit Uploaded"
-                            domain="[('has_work_permit_doc','=',True)]"/>
-
-                    <separator/>
-
-                    <!-- Date filters -->
-                    <filter name="filter_this_month" string="Submitted This Month"
-                            domain="[('submission_date','&gt;=', context_today().strftime('%Y-%m-01'))]"/>
-                    <filter name="filter_reviewed_month" string="Reviewed This Month"
-                            domain="[('review_date','&gt;=', context_today().strftime('%Y-%m-01'))]"/>
-                    <filter name="filter_today" string="Submitted Today"
-                            domain="[('submission_date','&gt;=', context_today().strftime('%Y-%m-%d')),
-                                     ('submission_date','&lt;', (context_today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
-
-                    <separator/>
-
-                    <!-- Group By -->
-                    <filter name="group_status"      string="Status"
-                            context="{'group_by': 'state'}"/>
-                    <filter name="group_company"     string="Company"
-                            context="{'group_by': 'company_id'}"/>
-                    <filter name="group_department"  string="Department"
-                            context="{'group_by': 'department_id'}"/>
-                    <filter name="group_employee"    string="Employee"
-                            context="{'group_by': 'employee_id'}"/>
-                    <filter name="group_approved_by" string="Reviewed By"
-                            context="{'group_by': 'reviewed_by'}"/>
-                    <filter name="group_submit_month" string="Submission Month"
-                            context="{'group_by': 'submission_date:month'}"/>
-                    <filter name="group_review_month" string="Review Month"
-                            context="{'group_by': 'review_date:month'}"/>
-                </search>
-            </field>
-        </record>
-
-        <!-- ══════════════════════════════════════════════════════════════════
-             ACTION — Profile Change Report (approved + rejected only)
-        ══════════════════════════════════════════════════════════════════════ -->
-        <record id="action_pcr_approved_report" model="ir.actions.act_window">
-            <field name="name">Profile Change Report</field>
-            <field name="res_model">hr.profile.change.request</field>
-            <field name="view_mode">list,form,pivot,graph</field>
-            <field name="domain">[('state', 'in', ['approved', 'rejected'])]</field>
-            <field name="context">{'search_default_filter_approved': 1}</field>
-            <field name="view_ids" eval="[
-                (5, 0, 0),
-                (0, 0, {'view_mode': 'list',  'view_id': ref('view_pcr_approved_report_list')}),
-                (0, 0, {'view_mode': 'form',  'view_id': ref('view_pcr_approved_report_form')}),
-                (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_pcr_approved_report_pivot')}),
-                (0, 0, {'view_mode': 'graph', 'view_id': ref('view_pcr_approved_report_graph')}),
-            ]"/>
-            <field name="search_view_id" ref="view_pcr_approved_report_search"/>
-            <field name="help" type="html">
-                <p class="o_view_nocontent_smiling_face">No reviewed requests found.</p>
-                <p>Approved and rejected profile change requests will appear here.</p>
-            </field>
-        </record>
-
-        <!-- ══════════════════════════════════════════════════════════════════
-             DOCUMENT UPLOADS REPORT — list view
-        ══════════════════════════════════════════════════════════════════════ -->
-        <record id="view_pcr_documents_list" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.documents.list</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <list string="Document Uploads Report"
-                      create="false" edit="false" delete="false"
-                      open_form_view="true"
-                      default_order="submission_date desc">
-                    <field name="name"          string="Reference" decoration-bf="1"/>
-                    <field name="employee_id"   string="Employee"/>
-                    <field name="company_id"    string="Company"    optional="show"/>
-                    <field name="department_id" string="Department" optional="show"/>
-                    <field name="submission_date" string="Uploaded On"/>
-                    <field name="has_emirates_id_doc" string="Emirates ID"
-                           widget="boolean"/>
-                    <field name="has_passport_doc"    string="Passport"
-                           widget="boolean"/>
-                    <field name="has_other_doc"       string="Other Doc"
-                           widget="boolean"/>
-                    <field name="has_work_permit_doc" string="Work Permit"
-                           widget="boolean"/>
-                    <field name="total_docs_uploaded" string="Total Docs"/>
-                    <field name="state" string="Status" widget="badge"
-                           decoration-success="state == 'approved'"
-                           decoration-danger="state == 'rejected'"
-                           decoration-warning="state == 'pending'"
-                           decoration-info="state == 'draft'"/>
-                </list>
-            </field>
-        </record>
-
-        <record id="view_pcr_documents_search" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.documents.search</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <search string="Document Uploads Search">
-                    <field name="employee_id"   string="Employee"/>
-                    <field name="company_id"    string="Company"/>
-                    <field name="department_id" string="Department"/>
-                    <separator/>
-                    <filter name="filter_has_emirates"
-                            string="Emirates ID Uploaded"
-                            domain="[('has_emirates_id_doc','=',True)]"/>
-                    <filter name="filter_has_passport"
-                            string="Passport Uploaded"
-                            domain="[('has_passport_doc','=',True)]"/>
-                    <filter name="filter_has_other"
-                            string="Other Doc Uploaded"
-                            domain="[('has_other_doc','=',True)]"/>
-                    <filter name="filter_has_work_permit"
-                            string="Work Permit Uploaded"
-                            domain="[('has_work_permit_doc','=',True)]"/>
-                    <filter name="filter_multi"
-                            string="Multiple Docs (2+)"
-                            domain="[('total_docs_uploaded','&gt;=',2)]"/>
-                    <separator/>
-                    <filter name="filter_this_month" string="Uploaded This Month"
-                            domain="[('submission_date','&gt;=', context_today().strftime('%Y-%m-01'))]"/>
-                    <separator/>
-                    <filter name="group_employee" string="Employee"
-                            context="{'group_by': 'employee_id'}"/>
-                    <filter name="group_company"  string="Company"
-                            context="{'group_by': 'company_id'}"/>
-                    <filter name="group_month"    string="Upload Month"
-                            context="{'group_by': 'submission_date:month'}"/>
-                    <filter name="group_state"    string="Status"
-                            context="{'group_by': 'state'}"/>
-                </search>
-            </field>
-        </record>
-
-        <record id="action_pcr_documents_report" model="ir.actions.act_window">
-            <field name="name">Document Uploads Report</field>
-            <field name="res_model">hr.profile.change.request</field>
-            <field name="view_mode">list,form</field>
-            <field name="domain">[('has_any_doc', '=', True)]</field>
-            <field name="view_ids" eval="[
-                (5, 0, 0),
-                (0, 0, {'view_mode': 'list', 'view_id': ref('view_pcr_documents_list')}),
-                (0, 0, {'view_mode': 'form', 'view_id': ref('view_pcr_approved_report_form')}),
-            ]"/>
-            <field name="search_view_id" ref="view_pcr_documents_search"/>
-            <field name="help" type="html">
-                <p class="o_view_nocontent_smiling_face">No document uploads found.</p>
-                <p>Shows all requests where employees uploaded documents through the ESS portal.</p>
-            </field>
-        </record>
-
-        <!-- ══════════════════════════════════════════════════════════════════
-             PENDING REQUESTS — with Approve/Reject buttons visible in list
-        ══════════════════════════════════════════════════════════════════════ -->
-        <record id="view_pcr_pending_list" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.pending.list</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <list string="Pending Profile Change Requests"
-                      create="false" delete="false"
-                      open_form_view="true"
-                      default_order="submission_date asc">
-                    <field name="name" string="Reference" decoration-bf="1"/>
-                    <field name="employee_id" string="Employee"/>
-                    <field name="company_id"  string="Company" optional="show"/>
-                    <field name="department_id" string="Department" optional="show"/>
-                    <field name="changed_field_count" string="Fields Changed"/>
-                    <field name="total_docs_uploaded" string="Docs"/>
-                    <field name="has_personal_changes"  string="Personal"  widget="boolean" optional="show"/>
-                    <field name="has_contact_changes"   string="Contact"   widget="boolean" optional="show"/>
-                    <field name="has_family_changes"    string="Family"    widget="boolean" optional="show"/>
-                    <field name="has_document_changes"  string="Docs Changed" widget="boolean" optional="show"/>
-                    <field name="submission_date" string="Submitted On"/>
-                    <field name="state" string="Status" widget="badge"
-                           decoration-warning="state == 'pending'"/>
-                    <!-- Inline action buttons on list rows -->
+    <!-- FORM VIEW -->
+    <record id="view_profile_change_request_form" model="ir.ui.view">
+        <field name="name">hr.profile.change.request.form</field>
+        <field name="model">hr.profile.change.request</field>
+        <field name="arch" type="xml">
+            <form string="Profile Change Request">
+                <header>
                     <button name="action_approve"
-                            string="Approve" type="object"
-                            icon="fa-check"
-                            class="btn-sm btn-success"
+                            string="Approve"
+                            type="object"
+                            class="btn-success"
                             groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                            confirm="Approve this profile change request and update the employee record?"
-                            invisible="state != 'pending'"/>
+                            invisible="state != 'pending'"
+                            confirm="This will write all submitted data into the employee record. Are you sure?"/>
                     <button name="action_reject"
-                            string="Reject" type="object"
-                            icon="fa-times"
-                            class="btn-sm btn-danger"
+                            string="Reject"
+                            type="object"
+                            class="btn-danger"
                             groups="employee_profile_change_request.group_profile_change_hr_reviewer"
                             invisible="state != 'pending'"/>
-                </list>
-            </field>
-        </record>
-
-        <!-- All Requests list (full version) -->
-        <record id="view_profile_change_request_list" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.list</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <list string="Profile Change Requests"
-                      decoration-warning="state == 'pending'"
-                      decoration-success="state == 'approved'"
-                      decoration-danger="state == 'rejected'"
-                      default_order="create_date desc">
-                    <field name="name" decoration-bf="1"/>
-                    <field name="employee_id"/>
-                    <field name="company_id"    optional="show"/>
-                    <field name="department_id"/>
-                    <field name="work_location_id" readonly="1" optional="hide"/>
-                    <field name="changed_field_count" string="Fields Changed" optional="show"/>
-                    <field name="total_docs_uploaded" string="Docs" optional="show"/>
-                    <field name="submission_date"/>
-                    <field name="review_date"  optional="show"/>
-                    <field name="reviewed_by"  optional="show"/>
-                    <field name="state" widget="badge"
-                           decoration-warning="state == 'pending'"
-                           decoration-success="state == 'approved'"
-                           decoration-danger="state == 'rejected'"/>
-                    <!-- Inline approve/reject for pending rows -->
-                    <button name="action_approve"
-                            string="Approve" type="object"
-                            icon="fa-check"
-                            class="btn-sm btn-success"
+                    <button name="action_reset_to_pending"
+                            string="Re-open"
+                            type="object"
+                            class="btn-secondary"
                             groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                            confirm="Approve this request?"
-                            invisible="state != 'pending'"/>
-                    <button name="action_reject"
-                            string="Reject" type="object"
-                            icon="fa-times"
-                            class="btn-sm btn-danger"
-                            groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                            invisible="state != 'pending'"/>
-                </list>
-            </field>
-        </record>
-
-        <!-- Form view used by All Requests and Pending Review -->
-        <record id="view_profile_change_request_form" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.form</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <form string="Profile Change Request">
-                    <header>
-                        <button name="action_approve"
-                                string="✅  Approve"
-                                type="object"
-                                class="btn-success"
-                                groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                                invisible="state != 'pending'"
-                                confirm="This will write all submitted data into the employee record. Are you sure?"/>
-                        <button name="action_reject"
-                                string="❌  Reject"
-                                type="object"
-                                class="btn-danger"
-                                groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                                invisible="state != 'pending'"/>
-                        <button name="action_reset_to_pending"
-                                string="🔄  Re-open"
-                                type="object"
-                                class="btn-secondary"
-                                groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                                invisible="state != 'rejected'"/>
-                        <field name="state" widget="statusbar"
-                               statusbar_visible="pending,approved,rejected"/>
-                    </header>
-                    <sheet>
-                        <div class="oe_title">
-                            <h1><field name="name" readonly="1"/></h1>
-                        </div>
-
-                        <!-- Quick stats -->
-                        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
-                            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;
-                                        padding:12px 20px;min-width:110px;text-align:center;">
-                                <div style="font-size:22px;font-weight:800;color:#1e40af;">
-                                    <field name="changed_field_count" readonly="1"/>
-                                </div>
-                                <div style="font-size:11px;color:#3b82f6;">Fields Changed</div>
-                            </div>
-                            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;
-                                        padding:12px 20px;min-width:110px;text-align:center;">
-                                <div style="font-size:22px;font-weight:800;color:#15803d;">
-                                    <field name="total_docs_uploaded" readonly="1"/>
-                                </div>
-                                <div style="font-size:11px;color:#16a34a;">Docs Uploaded</div>
-                            </div>
-                        </div>
-
-                        <group>
-                            <group string="Request Information">
-                                <field name="employee_id"   readonly="1"/>
-                                <field name="company_id"    readonly="1"/>
-                                <field name="department_id" readonly="1"/>
-                                <field name="work_location_id" readonly="1"/>
-                                <field name="submission_date"  readonly="1"/>
-                            </group>
-                            <group string="Review Information">
-                                <field name="reviewed_by"  readonly="1"/>
-                                <field name="review_date"  readonly="1"/>
-                                <field name="rejection_reason" readonly="1"
-                                       invisible="state != 'rejected'"/>
-                            </group>
+                            invisible="state != 'rejected'"/>
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="pending,approved,rejected"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Request Information">
+                            <field name="employee_id" readonly="1"/>
+                            <field name="company_id" readonly="1"/>
+                            <field name="department_id" readonly="1"/>
+                            <field name="work_location_id" readonly="1"/>
+                            <field name="submission_date" readonly="1"/>
                         </group>
-
-                        <!-- Change categories -->
-                        <group string="Change Categories">
-                            <group>
-                                <field name="has_personal_changes"  readonly="1" widget="boolean_toggle"/>
-                                <field name="has_contact_changes"   readonly="1" widget="boolean_toggle"/>
-                            </group>
-                            <group>
-                                <field name="has_family_changes"    readonly="1" widget="boolean_toggle"/>
-                                <field name="has_document_changes"  readonly="1" widget="boolean_toggle"/>
-                            </group>
+                        <group string="Review Information">
+                            <field name="reviewed_by" readonly="1"/>
+                            <field name="review_date" readonly="1"/>
+                            <field name="rejection_reason"
+                                   readonly="1"
+                                   invisible="state != 'rejected'"/>
                         </group>
+                    </group>
+                    <separator string="Submitted Changes (Current vs New)"/>
+                    <field name="changed_fields_display" widget="html" readonly="1"/>
+                    <separator string="Audit Trail"/>
+                    <field name="trail_ids" readonly="1">
+                        <list>
+                            <field name="action_date"/>
+                            <field name="action" widget="badge"
+                                   decoration-success="action == 'approved'"
+                                   decoration-danger="action == 'rejected'"
+                                   decoration-info="action == 'submitted'"
+                                   decoration-warning="action == 'reopened'"/>
+                            <field name="user_id"/>
+                            <field name="note"/>
+                            <field name="reason"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
 
-                        <!-- Document upload summary -->
-                        <group string="Document Uploads">
-                            <group>
-                                <field name="has_emirates_id_doc"  readonly="1" widget="boolean_toggle"/>
-                                <field name="has_passport_doc"     readonly="1" widget="boolean_toggle"/>
-                            </group>
-                            <group>
-                                <field name="has_other_doc"        readonly="1" widget="boolean_toggle"/>
-                                <field name="has_work_permit_doc"  readonly="1" widget="boolean_toggle"/>
-                            </group>
-                        </group>
+    <!-- SEARCH VIEW -->
+    <record id="view_profile_change_request_search" model="ir.ui.view">
+        <field name="name">hr.profile.change.request.search</field>
+        <field name="model">hr.profile.change.request</field>
+        <field name="arch" type="xml">
+            <search string="Profile Change Requests">
+                <field name="name" string="Reference"/>
+                <field name="employee_id" string="Employee"/>
+                <field name="company_id" string="Company"/>
+                <separator/>
+                <filter string="Pending Review"
+                        name="filter_pending"
+                        domain="[('state','=','pending')]"/>
+                <filter string="Approved"
+                        name="filter_approved"
+                        domain="[('state','=','approved')]"/>
+                <filter string="Rejected"
+                        name="filter_rejected"
+                        domain="[('state','=','rejected')]"/>
+                <separator/>
+                <filter string="Status"
+                        name="group_state"
+                        context="{'group_by': 'state'}"/>
+                <filter string="Company"
+                        name="group_company"
+                        context="{'group_by': 'company_id'}"/>
+                <filter string="Department"
+                        name="group_dept"
+                        context="{'group_by': 'department_id'}"/>
+                <filter string="Employee"
+                        name="group_employee"
+                        context="{'group_by': 'employee_id'}"/>
+            </search>
+        </field>
+    </record>
 
-                        <notebook>
-                            <page string="📋 Submitted Changes">
-                                <field name="changed_fields_display"
-                                       widget="html" readonly="1"/>
-                            </page>
-                            <page string="🕒 Audit Trail">
-                                <field name="trail_ids" readonly="1">
-                                    <list default_order="action_date desc">
-                                        <field name="action_date"/>
-                                        <field name="action" widget="badge"
-                                               decoration-success="action == 'approved'"
-                                               decoration-danger="action == 'rejected'"
-                                               decoration-info="action == 'submitted'"
-                                               decoration-warning="action == 'reopened'"/>
-                                        <field name="user_id"/>
-                                        <field name="note"/>
-                                        <field name="reason"/>
-                                    </list>
-                                </field>
-                            </page>
-                        </notebook>
-                    </sheet>
-                    <chatter/>
-                </form>
-            </field>
-        </record>
+    <!--
+    ════════════════════════════════════════════════════════════
+    ACTIONS — KEY FIX:
+    1. domain = [] — no company filter whatsoever
+    2. context has 'allowed_company_ids': False equivalent is
+       handled by the model's _check_company_auto = False
+    3. Do NOT put company_id in domain here
+    ════════════════════════════════════════════════════════════
+    -->
 
-        <!-- Shared search for main views -->
-        <record id="view_profile_change_request_search" model="ir.ui.view">
-            <field name="name">hr.profile.change.request.search</field>
-            <field name="model">hr.profile.change.request</field>
-            <field name="arch" type="xml">
-                <search string="Profile Change Requests">
-                    <field name="name"        string="Reference"/>
-                    <field name="employee_id" string="Employee"/>
-                    <field name="company_id"  string="Company"/>
-                    <separator/>
-                    <filter string="Pending Review"  name="filter_pending"
-                            domain="[('state','=','pending')]"/>
-                    <filter string="Approved"        name="filter_approved"
-                            domain="[('state','=','approved')]"/>
-                    <filter string="Rejected"        name="filter_rejected"
-                            domain="[('state','=','rejected')]"/>
-                    <separator/>
-                    <filter name="filter_has_docs" string="Has Documents"
-                            domain="[('has_any_doc','=',True)]"/>
-                    <separator/>
-                    <filter string="Status"     name="group_state"
-                            context="{'group_by': 'state'}"/>
-                    <filter string="Company"    name="group_company"
-                            context="{'group_by': 'company_id'}"/>
-                    <filter string="Department" name="group_dept"
-                            context="{'group_by': 'department_id'}"/>
-                    <filter string="Employee"   name="group_employee"
-                            context="{'group_by': 'employee_id'}"/>
-                    <filter string="Month"      name="group_month"
-                            context="{'group_by': 'submission_date:month'}"/>
-                </search>
-            </field>
-        </record>
+    <!-- All Requests — shows ALL tickets from ALL companies -->
+    <record id="action_profile_change_request_all" model="ir.actions.act_window">
+        <field name="name">All Change Requests</field>
+        <field name="res_model">hr.profile.change.request</field>
+        <field name="view_mode">list,form</field>
+        <!-- Empty domain = no filter = all companies visible -->
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+        <field name="search_view_id" ref="view_profile_change_request_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No profile change requests yet.
+            </p>
+            <p>Requests will appear here when employees submit profile updates from the portal.</p>
+        </field>
+    </record>
 
-        <!-- ══════════════════════════════════════════════════════════════════
-             WINDOW ACTIONS — main list + pending
-        ══════════════════════════════════════════════════════════════════════ -->
-        <record id="action_profile_change_request_all" model="ir.actions.act_window">
-            <field name="name">All Change Requests</field>
-            <field name="res_model">hr.profile.change.request</field>
-            <field name="view_mode">list,form</field>
-            <field name="domain">[]</field>
-            <field name="context">{}</field>
-            <field name="view_ids" eval="[
-                (5, 0, 0),
-                (0, 0, {'view_mode': 'list', 'view_id': ref('view_profile_change_request_list')}),
-                (0, 0, {'view_mode': 'form', 'view_id': ref('view_profile_change_request_form')}),
-            ]"/>
-            <field name="search_view_id" ref="view_profile_change_request_search"/>
-            <field name="help" type="html">
-                <p class="o_view_nocontent_smiling_face">No profile change requests yet.</p>
-                <p>Requests appear here when employees submit profile updates from the portal.</p>
-            </field>
-        </record>
+    <!-- Pending Review — only pending, but from ALL companies -->
+    <record id="action_profile_change_request_pending" model="ir.actions.act_window">
+        <field name="name">Pending Review</field>
+        <field name="res_model">hr.profile.change.request</field>
+        <field name="view_mode">list,form</field>
+        <!-- Only filter by state, NOT by company -->
+        <field name="domain">[('state','=','pending')]</field>
+        <field name="context">{}</field>
+        <field name="search_view_id" ref="view_profile_change_request_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No pending requests at the moment.
+            </p>
+        </field>
+    </record>
 
-        <record id="action_profile_change_request_pending" model="ir.actions.act_window">
-            <field name="name">Pending Review</field>
-            <field name="res_model">hr.profile.change.request</field>
-            <field name="view_mode">list,form</field>
-            <field name="domain">[('state','=','pending')]</field>
-            <field name="context">{}</field>
-            <field name="view_ids" eval="[
-                (5, 0, 0),
-                (0, 0, {'view_mode': 'list', 'view_id': ref('view_pcr_pending_list')}),
-                (0, 0, {'view_mode': 'form', 'view_id': ref('view_profile_change_request_form')}),
-            ]"/>
-            <field name="search_view_id" ref="view_profile_change_request_search"/>
-            <field name="help" type="html">
-                <p class="o_view_nocontent_smiling_face">No pending requests at the moment. 🎉</p>
-            </field>
-        </record>
+    <!--
+    MENUS — only visible to HR Reviewers
+    -->
+    <menuitem id="menu_profile_change_root"
+              name="Profile Change Requests"
+              groups="employee_profile_change_request.group_profile_change_hr_reviewer"
+              sequence="1"/>
 
-        <!-- ══════════════════════════════════════════════════════════════════
-             MENUS
-        ══════════════════════════════════════════════════════════════════════ -->
-        <menuitem id="menu_profile_change_root"
-                  name="Profile Change Requests"
-                  groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                  sequence="1"/>
+    <menuitem id="menu_profile_change_all"
+              name="All Requests"
+              parent="menu_profile_change_root"
+              action="action_profile_change_request_all"
+              groups="employee_profile_change_request.group_profile_change_hr_reviewer"
+              sequence="10"/>
 
-        <menuitem id="menu_profile_change_all"
-                  name="All Requests"
-                  parent="menu_profile_change_root"
-                  action="action_profile_change_request_all"
-                  groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                  sequence="10"/>
+    <menuitem id="menu_profile_change_pending"
+              name="Pending Review"
+              parent="menu_profile_change_root"
+              action="action_profile_change_request_pending"
+              groups="employee_profile_change_request.group_profile_change_hr_reviewer"
+              sequence="20"/>
 
-        <menuitem id="menu_profile_change_pending"
-                  name="Pending Review"
-                  parent="menu_profile_change_root"
-                  action="action_profile_change_request_pending"
-                  groups="employee_profile_change_request.group_profile_change_hr_reviewer"
-                  sequence="20"/>
-
-        <menuitem id="menu_pcr_reports"
-                  name="Reports"
-                  parent="menu_profile_change_root"
-                  sequence="30"/>
-
-        <menuitem id="menu_pcr_approved_report"
-                  name="Profile Change Report"
-                  parent="menu_pcr_reports"
-                  action="action_pcr_approved_report"
-                  sequence="10"/>
-
-        <menuitem id="menu_pcr_documents_report"
-                  name="Document Uploads"
-                  parent="menu_pcr_reports"
-                  action="action_pcr_documents_report"
-                  sequence="20"/>
-
-    </data>
 </odoo>
